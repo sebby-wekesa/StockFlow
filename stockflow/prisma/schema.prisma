@@ -1,0 +1,66 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum OrderStatus {
+  PENDING
+  APPROVED
+  COMPLETED
+}
+
+enum Role {
+  ADMIN
+  MANAGER
+  OPERATOR
+  SALES
+  PACKAGING
+}
+
+model User {
+  id         String     @id @default(cuid())
+  email      String     @unique
+  role       Role       @default(OPERATOR)
+  department String?
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+  logs       StageLog[]
+}
+
+model Design {
+  id      String            @id @default(cuid())
+  name    String            // e.g., "Hex Bolt M12"
+  stages  Stage[]
+  orders  ProductionOrder[] 
+
+  @@index([name])
+}
+
+model Stage {
+  id        String @id @default(cuid())
+  name      String // e.g., "Forging"
+  sequence  Int
+  designId  String
+  design    Design @relation(fields: [designId], references: [id], onDelete: Cascade)
+}
+
+model ProductionOrder {
+  id        String     @id @default(cuid())
+  designId  String
+  design    Design     @relation(fields: [designId], references: [id], onDelete: Cascade)
+  status    OrderStatus @default(PENDING)
+  logs      StageLog[]
+  createdAt DateTime   @default(now())
+}
+
+model StageLog {
+  id          String          @id @default(cuid())
+  orderId     String
+  order       ProductionOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  department  String
+  kgIn        Float
+  kgOut       Float
+  kgScrap     Float
+  operatorId  String
+  operator    User            @relation(fields: [operatorId], references: [id])
+  completedAt DateTime        @default(now())
+}
