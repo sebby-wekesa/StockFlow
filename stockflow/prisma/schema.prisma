@@ -1,18 +1,10 @@
 generator client {
-  provider        = "prisma-client-js"
-  previewFeatures = ["driverAdapters"]
+  provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
 }
-
-enum OrderStatus {
-  PENDING
-  APPROVED
-  COMPLETED
-}
-
 enum Role {
   ADMIN
   MANAGER
@@ -22,13 +14,10 @@ enum Role {
 }
 
 model User {
-  id         String     @id @default(cuid())
-  email      String     @unique
-  role       Role       @default(OPERATOR)
-  department String?
-  createdAt  DateTime   @default(now())
-  updatedAt  DateTime   @updatedAt
-  logs       StageLog[]
+  id         String   @id @default(cuid())
+  email      String   @unique
+  role       Role     @default(OPERATOR)
+  department String?  // e.g., "Cutting", "Forging"
 }
 
 model Design {
@@ -36,8 +25,6 @@ model Design {
   name    String            // e.g., "Hex Bolt M12"
   stages  Stage[]
   orders  ProductionOrder[] 
-
-  @@index([name])
 }
 
 model Stage {
@@ -45,14 +32,14 @@ model Stage {
   name      String // e.g., "Forging"
   sequence  Int
   designId  String
-  design    Design @relation(fields: [designId], references: [id], onDelete: Cascade)
+  design    Design @relation(fields: [designId], references: [id])
 }
 
 model ProductionOrder {
   id        String     @id @default(cuid())
   designId  String
-  design    Design     @relation(fields: [designId], references: [id], onDelete: Cascade)
-  status    OrderStatus @default(PENDING)
+  design    Design     @relation(fields: [designId], references: [id])
+  status    String     @default("PENDING") // PENDING, APPROVED, COMPLETED
   logs      StageLog[]
   createdAt DateTime   @default(now())
 }
@@ -60,12 +47,11 @@ model ProductionOrder {
 model StageLog {
   id          String          @id @default(cuid())
   orderId     String
-  order       ProductionOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  order       ProductionOrder @relation(fields: [orderId], references: [id])
   department  String
   kgIn        Float
   kgOut       Float
   kgScrap     Float
   operatorId  String
-  operator    User            @relation(fields: [operatorId], references: [id])
   completedAt DateTime        @default(now())
 }
