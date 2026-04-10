@@ -46,8 +46,9 @@ export function StageCompletionForm({
           operatorId,
         });
         router.refresh();
-      } catch (err: any) {
-        setError(err.message || "Failed to complete stage");
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : "Failed to complete stage";
+        setError(message);
       }
     });
   };

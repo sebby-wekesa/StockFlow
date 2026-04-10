@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
-import { getUser, Role } from "@/lib/auth";
+import { getUser } from "@/lib/auth";
 import { StageCompletionForm } from "@/components/StageCompletionForm";
 
 export default async function JobPage({ params }: { params: Promise<{ id: string }> }) {

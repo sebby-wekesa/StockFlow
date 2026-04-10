@@ -1,6 +1,3 @@
-import { redirect } from "next/navigation";
-import Link from "next/link";
-
 export default function LoginPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-zinc-900">
