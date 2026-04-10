@@ -1,5 +1,3 @@
-"use server";
-
 import { createDesign } from "@/actions/design";
 import { StageInput } from "@/components/StageInput";
 
@@ -84,34 +82,6 @@ export default function NewDesignPage() {
           </a>
         </div>
       </form>
-    </div>
-  );
-}
-
-function StageInput() {
-  const defaultStages = ["Cutting", "Forging", "Threading", "Quality Check"];
-  
-  return (
-    <div className="space-y-3" id="stages-container">
-      {defaultStages.map((name, i) => (
-        <div key={i} className="flex items-center gap-3">
-          <span className="w-8 text-sm font-medium text-zinc-500">{i + 1}</span>
-          <input
-            type="text"
-            name={`stages[${i}].name`}
-            defaultValue={name}
-            className="flex-1 px-3 py-2 border border-zinc-300 rounded-md focus:outline-none focus:ring-2 focus:ring-zinc-500"
-            placeholder="Stage name"
-          />
-        </div>
-      ))}
-      <button
-        type="button"
-        onclick="addStage()"
-        className="text-sm text-blue-600 hover:underline"
-      >
-        + Add Stage
-      </button>
     </div>
   );
 }

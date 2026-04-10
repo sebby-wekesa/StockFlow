@@ -175,9 +175,8 @@ function StatCard({ label, value, color = "zinc" }: { label: string; value: numb
   );
 }
 
-function JobCard({ order, department }: { order: any; department: string }) {
-  const currentStage = order.design.stages.find((s: any) => s.sequence === order.currentStage);
-  const lastLog = order.logs[0];
+function JobCard({ order }: { order: { id: string; design: { name: string; stages: { sequence: number; name: string }[] }; currentStage: number; targetKg: number; quantity: number }; department: string }) {
+  const currentStage = order.design.stages.find((s) => s.sequence === order.currentStage);
   
   return (
     <div className="bg-white p-4 rounded-lg border border-zinc-200 flex items-center justify-between">

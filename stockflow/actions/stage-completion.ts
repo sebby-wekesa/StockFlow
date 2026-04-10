@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { stageCompletionSchema, StageCompletionInput } from "@/lib/validations";
-import { requireRole, getUser } from "@/lib/auth";
+import { requireRole } from "@/lib/auth";
 
 export async function completeStage(input: StageCompletionInput) {
   await requireRole("OPERATOR", "MANAGER", "ADMIN");

@@ -1,6 +1,14 @@
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
-import { getUser, Role } from "@/lib/auth";
+import { getUser } from "@/lib/auth";
+
+type DesignWithStages = {
+  id: string;
+  name: string;
+  description: string | null;
+  targetDimensions: string | null;
+  stages: { sequence: number; name: string }[];
+};
 
 export default async function InventoryPage() {
   const user = await getUser();
@@ -29,7 +37,7 @@ export default async function InventoryPage() {
     },
   });
 
-  const inventoryMap = new Map<string, { design: any; totalQty: number; totalKg: number }>();
+  const inventoryMap = new Map<string, { design: DesignWithStages; totalQty: number; totalKg: number }>();
 
   for (const order of completedOrders) {
     const existing = inventoryMap.get(order.designId);

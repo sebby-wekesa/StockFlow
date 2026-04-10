@@ -1,6 +1,4 @@
 import { prisma } from "@/lib/prisma";
-import { redirect } from "next/navigation";
-import Link from "next/link";
 import { approveProductionOrder, rejectProductionOrder } from "@/actions/production-order";
 
 export default async function ApprovalsPage() {
