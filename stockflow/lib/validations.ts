@@ -1,0 +1,46 @@
+import { z } from "zod/v4";
+
+export const stageCompletionSchema = z.object({
+  orderId: z.string().min(1, "Order ID is required"),
+  stageId: z.string().optional(),
+  stageName: z.string().min(1, "Stage name is required"),
+  sequence: z.number().int().positive("Sequence must be a positive integer"),
+  kgIn: z.number().positive("kgIn must be positive"),
+  kgOut: z.number().min(0, "kgOut cannot be negative"),
+  kgScrap: z.number().min(0, "kgScrap cannot be negative"),
+  operatorId: z.string().min(1, "Operator ID is required"),
+  notes: z.string().optional(),
+}).refine(
+  (data) => {
+    const total = data.kgOut + data.kgScrap;
+    const balance = Math.abs(total - data.kgIn);
+    return balance < 0.001;
+  },
+  {
+    message: "Kg balance error: kgIn must equal kgOut + kgScrap",
+    path: ["kgOut"],
+  }
+);
+
+export type StageCompletionInput = z.infer<typeof stageCompletionSchema>;
+
+export const productionOrderSchema = z.object({
+  designId: z.string().min(1, "Design is required"),
+  quantity: z.number().int().positive("Quantity must be positive"),
+  targetKg: z.number().positive("Target kg must be positive"),
+});
+
+export type ProductionOrderInput = z.infer<typeof productionOrderSchema>;
+
+export const designSchema = z.object({
+  name: z.string().min(1, "Name is required").max(100),
+  description: z.string().max(500).optional(),
+  targetDimensions: z.string().max(100).optional(),
+  targetWeight: z.number().positive().optional(),
+  stages: z.array(z.object({
+    name: z.string().min(1),
+    sequence: z.number().int().positive(),
+  })).min(1, "At least one stage is required"),
+});
+
+export type DesignInput = z.infer<typeof designSchema>;

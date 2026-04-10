@@ -1,10 +1,12 @@
 generator client {
   provider = "prisma-client-js"
+  output   = "../node_modules/.prisma/client"
 }
 
 datasource db {
   provider = "postgresql"
 }
+
 enum Role {
   ADMIN
   MANAGER
@@ -14,44 +16,78 @@ enum Role {
 }
 
 model User {
-  id         String   @id @default(cuid())
-  email      String   @unique
-  role       Role     @default(OPERATOR)
-  department String?  // e.g., "Cutting", "Forging"
+  id          String   @id @default(cuid())
+  email       String   @unique
+  name        String?
+  role        Role     @default(OPERATOR)
+  department  String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  stageLogs   StageLog[]
 }
 
 model Design {
-  id      String            @id @default(cuid())
-  name    String            // e.g., "Hex Bolt M12"
-  stages  Stage[]
-  orders  ProductionOrder[] 
+  id          String            @id @default(cuid())
+  name        String
+  description String?
+  targetDimensions String?
+  targetWeight Float?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  stages      Stage[]
+  orders      ProductionOrder[]
 }
 
 model Stage {
-  id        String @id @default(cuid())
-  name      String // e.g., "Forging"
-  sequence  Int
-  designId  String
-  design    Design @relation(fields: [designId], references: [id])
+  id          String   @id @default(cuid())
+  name        String
+  sequence    Int
+  designId    String
+  design      Design   @relation(fields: [designId], references: [id], onDelete: Cascade)
+  stageLogs   StageLog[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([designId, sequence])
+}
+
+enum ProductionStatus {
+  PENDING
+  APPROVED
+  IN_PRODUCTION
+  COMPLETED
+  CANCELLED
 }
 
 model ProductionOrder {
-  id        String     @id @default(cuid())
-  designId  String
-  design    Design     @relation(fields: [designId], references: [id])
-  status    String     @default("PENDING") // PENDING, APPROVED, COMPLETED
-  logs      StageLog[]
-  createdAt DateTime   @default(now())
+  id          String            @id @default(cuid())
+  designId    String
+  design      Design            @relation(fields: [designId], references: [id])
+  quantity    Int               @default(1)
+  targetKg    Float
+  status      ProductionStatus  @default(PENDING)
+  currentStage Int              @default(1)
+  assignedTo  String?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  approvedBy  String?
+  approvedAt  DateTime?
+  logs        StageLog[]
 }
 
 model StageLog {
-  id          String          @id @default(cuid())
+  id          String   @id @default(cuid())
   orderId     String
-  order       ProductionOrder @relation(fields: [orderId], references: [id])
-  department  String
+  order       ProductionOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  stageId     String?
+  stage       Stage?   @relation(fields: [stageId], references: [id])
+  stageName   String
+  sequence    Int
   kgIn        Float
   kgOut       Float
   kgScrap     Float
   operatorId  String
-  completedAt DateTime        @default(now())
+  operator    User     @relation(fields: [operatorId], references: [id])
+  notes       String?
+  completedAt DateTime @default(now())
 }
