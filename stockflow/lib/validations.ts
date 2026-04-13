@@ -1,5 +1,12 @@
 import { z } from "zod/v4";
 
+export const loginSchema = z.object({
+  email: z.string().email("Please enter a valid email address"),
+  password: z.string().min(6, "Password must be at least 6 characters"),
+});
+
+export type LoginInput = z.infer<typeof loginSchema>;
+
 export const stageCompletionSchema = z.object({
   orderId: z.string().min(1, "Order ID is required"),
   stageId: z.string().optional(),
