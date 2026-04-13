@@ -1,28 +1,5 @@
 import { cookies } from "next/headers";
-import { createClient } from "@supabase/supabase-js";
 import { prisma } from "./prisma";
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
-
-export async function getUser() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get("sb-access-token")?.value;
-
-  if (!token) return null;
-
-  const { data: { user }, error } = await supabase.auth.getUser(token);
-
-  if (error || !user) return null;
-
-  const dbUser = await prisma.user.findUnique({
-    where: { email: user.email! },
-  });
-
-  return dbUser;
-}
 
 export type Role = "ADMIN" | "MANAGER" | "OPERATOR" | "SALES" | "PACKAGING";
 
@@ -33,6 +10,24 @@ export type AuthUser = {
   role: Role;
   department: string | null;
 };
+
+export async function getUser() {
+  const cookieStore = await cookies();
+  const token = cookieStore.get("auth-token")?.value;
+
+  if (!token) return null;
+
+  try {
+    const decoded = JSON.parse(Buffer.from(token, "base64").toString("utf-8"));
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.userId },
+    });
+
+    return user;
+  } catch (error) {
+    return null;
+  }
+}
 
 export async function requireAuth(): Promise<AuthUser> {
   const user = await getUser();

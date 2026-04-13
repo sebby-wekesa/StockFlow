@@ -2,8 +2,15 @@
 
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { supabase } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
 import { loginSchema } from "@/lib/validations";
+import { scryptSync } from "crypto";
+
+function verifyPassword(password: string, storedHash: string): boolean {
+  const [salt, hash] = storedHash.split(":");
+  const testHash = scryptSync(password, salt, 64).toString("hex");
+  return hash === testHash;
+}
 
 export async function signIn(formData: FormData) {
   const email = formData.get("email") as string;
@@ -18,30 +25,36 @@ export async function signIn(formData: FormData) {
     return { error: firstError };
   }
 
-  // Attempt sign in
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email: validation.data.email,
-    password: validation.data.password,
+  // Find user in database
+  const user = await prisma.user.findUnique({
+    where: { email: validation.data.email },
   });
 
-  if (error || !data.session) {
-    // Provide user-friendly error messages
-    if (error?.message?.includes("Invalid login credentials")) {
-      return { error: "Invalid email or password. Please try again." };
-    }
-    if (error?.message?.includes("Email not confirmed")) {
-      return { error: "Please verify your email before signing in." };
-    }
-    return { error: error?.message || "Sign in failed. Please try again." };
+  if (!user || !verifyPassword(validation.data.password, user.password)) {
+    return { error: "Invalid email or password. Please try again." };
   }
 
+  // Create session cookie
   const cookieStore = await cookies();
-  cookieStore.set("sb-access-token", data.session.access_token, {
+  const sessionToken = Buffer.from(JSON.stringify({ 
+    userId: user.id, 
+    email: user.email,
+    timestamp: Date.now()
+  })).toString("base64");
+
+  cookieStore.set("auth-token", sessionToken, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
     path: "/",
+    maxAge: 60 * 60 * 24 * 7, // 7 days
   });
 
   redirect("/dashboard");
+}
+
+export async function signOut() {
+  const cookieStore = await cookies();
+  cookieStore.delete("auth-token");
+  redirect("/login");
 }
