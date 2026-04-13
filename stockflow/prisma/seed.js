@@ -1,11 +1,23 @@
-import { PrismaClient } from '@prisma/client'
-import { scryptSync, randomBytes } from 'crypto'
+const { PrismaClient } = require('@prisma/client')
+const { Pool } = require('pg')
+const { PrismaPg } = require('@prisma/adapter-pg')
+const { scryptSync, randomBytes } = require('crypto')
 
-// Create PrismaClient - it will use the config from prisma.config.ts
-const prisma = new PrismaClient()
+// Create a connection pool
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+})
+
+// Create adapter with the pool
+const adapter = new PrismaPg(pool)
+
+// Create PrismaClient with the adapter
+const prisma = new PrismaClient({
+  adapter,
+})
 
 // Simple password hashing function
-function hashPassword(password: string): string {
+function hashPassword(password) {
   const salt = randomBytes(16).toString('hex')
   const hash = scryptSync(password, salt, 64).toString('hex')
   return `${salt}:${hash}`

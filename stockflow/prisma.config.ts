@@ -4,10 +4,13 @@ import { defineConfig } from "@prisma/config";
 export default defineConfig({
   schema: "prisma/schema.prisma",
   datasource: {
+    name: "db",
+    provider: "postgresql",
     url: process.env.DATABASE_URL,
+    directUrl: process.env.DIRECT_URL,
   },
-  migrations: {
-    // This tells Prisma how to execute your seed file
-    seed: 'npx ts-node --compiler-options {"module":"CommonJS"} prisma/seed.ts',
+ migrations: {
+    // This is the property the CLI is looking for
+    seed: 'node prisma/seed.js',
   },
 });
