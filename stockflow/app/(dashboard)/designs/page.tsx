@@ -9,57 +9,48 @@ export default async function DesignsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-zinc-900">Design Templates</h1>
-        <Link
-          href="/designs/new"
-          className="px-4 py-2 bg-zinc-900 text-white text-sm font-medium rounded-md hover:bg-zinc-800"
-        >
-          New Design
+      <div className="section-header mb-16">
+        <div>
+          <div className="section-title">Design templates</div>
+          <div className="section-sub">Standardised product designs with process stages</div>
+        </div>
+        <Link href="/designs/new" className="btn btn-primary">
+          + New design
         </Link>
       </div>
 
       {designs.length === 0 ? (
-        <div className="text-center py-12 bg-white rounded-lg border border-zinc-200">
-          <p className="text-zinc-500">No designs yet. Create your first template.</p>
-          <Link href="/designs/new" className="text-blue-600 hover:underline mt-2 inline-block">
-            Create Design →
-          </Link>
+        <div className="card text-center">
+          <p className="text-muted text-sm">No designs yet. Create your first template.</p>
         </div>
       ) : (
-        <div className="grid gap-4">
+        <div className="grid-3 mb-24">
           {designs.map((design) => (
-            <div
-              key={design.id}
-              className="bg-white p-6 rounded-lg border border-zinc-200"
-            >
-              <div className="flex items-start justify-between">
+            <div key={design.id} className="card" style={{ cursor: "pointer" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "10px" }}>
                 <div>
-                  <h3 className="font-semibold text-zinc-900">{design.name}</h3>
-                  {design.description && (
-                    <p className="text-sm text-zinc-500 mt-1">{design.description}</p>
-                  )}
-                  <div className="flex gap-2 mt-3">
-                    {design.stages.map((stage) => (
-                      <span
-                        key={stage.id}
-                        className="inline-flex items-center px-2 py-1 bg-zinc-100 text-zinc-700 text-xs rounded"
-                      >
-                        {stage.sequence}. {stage.name}
-                      </span>
-                    ))}
+                  <div style={{ fontFamily: "var(--font-head)", fontSize: "15px", fontWeight: "700" }}>{design.name}</div>
+                  <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--muted)", marginTop: "2px" }}>
+                    {design.id.slice(0, 8).toUpperCase()}
                   </div>
                 </div>
-                <Link
-                  href={`/designs/${design.id}`}
-                  className="text-sm text-blue-600 hover:underline"
-                >
-                  Edit
-                </Link>
+                {design.targetWeight && <span className="badge badge-green">{design.targetWeight} kg per unit</span>}
               </div>
-              <div className="mt-3 text-xs text-zinc-400">
-                {design.targetDimensions && <span>Dimensions: {design.targetDimensions} | </span>}
-                {design.targetWeight && <span>Target: {design.targetWeight} kg</span>}
+              <div style={{ fontSize: "11px", color: "var(--muted)", marginBottom: "8px" }}>
+                {design.description || "No description"}
+              </div>
+              <div style={{ fontSize: "11px", color: "var(--muted)", marginBottom: "10px" }}>
+                {design.targetDimensions && `Dims: ${design.targetDimensions}`}
+              </div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "4px" }}>
+                {design.stages.map((stage) => (
+                  <span
+                    key={stage.id}
+                    style={{ background: "rgba(139,124,248,0.12)", color: "var(--purple)", fontSize: "10px", padding: "2px 7px", borderRadius: "10px", fontWeight: "500" }}
+                  >
+                    {stage.sequence}. {stage.name}
+                  </span>
+                ))}
               </div>
             </div>
           ))}

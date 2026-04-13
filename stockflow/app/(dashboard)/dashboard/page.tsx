@@ -82,57 +82,66 @@ export default async function DashboardPage() {
   };
 
   return (
-    <div className="space-y-8">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-zinc-900">
-          {role === "OPERATOR" ? `${department} Queue` : "Dashboard"}
-        </h1>
+    <div>
+      <div className="section-header mb-16">
+        <div>
+          <div className="section-title">
+            {role === "OPERATOR" ? `${department} Queue` : "Overview"}
+          </div>
+          <div className="section-sub">
+            Welcome back, {user.name || user.email}
+          </div>
+        </div>
       </div>
 
       {role === "ADMIN" && stats.admin && (
-        <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+        <div className="stats-grid">
           <StatCard label="Total Orders" value={stats.admin.totalOrders} />
-          <StatCard label="Pending" value={stats.admin.pendingOrders} color="amber" />
-          <StatCard label="In Production" value={stats.admin.inProduction} color="blue" />
+          <StatCard label="Pending Approval" value={stats.admin.pendingOrders} color="amber" />
+          <StatCard label="In Production" value={stats.admin.inProduction} color="purple" />
           <StatCard label="Completed" value={stats.admin.completed} color="green" />
-          <StatCard label="Designs" value={stats.admin.designs} />
-          <StatCard label="Users" value={stats.admin.users} />
+          <StatCard label="Total Designs" value={stats.admin.designs} />
+          <StatCard label="Total Users" value={stats.admin.users} />
         </div>
       )}
 
       {role === "MANAGER" && stats.manager && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-white p-6 rounded-lg border border-zinc-200"> 
-            <h3 className="text-sm font-medium text-zinc-500 mb-2">Pending Approvals</h3>
-            <p className="text-3xl font-bold text-amber-600">{stats.manager.pendingApprovals.length}</p>
-            <Link href="/approvals" className="text-sm text-blue-600 hover:underline mt-2 block">
-              View all →
+        <div className="grid-3 mb-24">
+          <div className="stat-card amber">
+            <div className="stat-label">Pending Approvals</div>
+            <div className="stat-value">{stats.manager.pendingApprovals.length}</div>
+            <Link href="/approvals" className="stat-sub hover:underline">
+              View all pending orders →
             </Link>
           </div>
-          <div className="bg-white p-6 rounded-lg border border-zinc-200">
-            <h3 className="text-sm font-medium text-zinc-500 mb-2">Total Designs</h3>
-            <p className="text-3xl font-bold">{stats.manager.designs}</p>
-            <Link href="/designs" className="text-sm text-blue-600 hover:underline mt-2 block">
-              Manage →
+          <div className="stat-card">
+            <div className="stat-label">Total Designs</div>
+            <div className="stat-value">{stats.manager.designs}</div>
+            <Link href="/designs" className="stat-sub hover:underline">
+              Manage design templates →
             </Link>
           </div>
-          <div className="bg-white p-6 rounded-lg border border-zinc-200">
-            <h3 className="text-sm font-medium text-zinc-500 mb-2">Recent Orders</h3>
-            <p className="text-3xl font-bold">{stats.manager.recentOrders.length}</p>
-            <Link href="/orders" className="text-sm text-blue-600 hover:underline mt-2 block">
-              View all →
+          <div className="stat-card">
+            <div className="stat-label">Recent Orders</div>
+            <div className="stat-value">{stats.manager.recentOrders.length}</div>
+            <Link href="/orders" className="stat-sub hover:underline">
+              View production history →
             </Link>
           </div>
         </div>
       )}
 
       {role === "OPERATOR" && stats.operator && (
-        <div className="space-y-4">
-          <h2 className="text-lg font-semibold text-zinc-900">Active Jobs</h2>
+        <div className="mb-24">
+          <div className="section-header mb-16">
+            <div className="section-title">{department} dept — job queue</div>
+          </div>
           {stats.operator.pendingJobs.length === 0 ? (
-            <p className="text-zinc-500">No jobs in queue</p>
+            <div className="card">
+              <p className="text-muted text-sm">No jobs in queue</p>
+            </div>
           ) : (
-            <div className="space-y-3">
+            <div>
               {stats.operator.pendingJobs.map((order) => (
                 <JobCard key={order.id} order={order} department={department!} />
               ))}
@@ -142,16 +151,16 @@ export default async function DashboardPage() {
       )}
 
       {role === "SALES" && stats.sales && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="bg-white p-6 rounded-lg border border-zinc-200">
-            <h3 className="text-sm font-medium text-zinc-500 mb-2">Completed Orders</h3>
-            <p className="text-3xl font-bold text-green-600">{stats.sales.completedOrders.length}</p>
+        <div className="grid-2 mb-24">
+          <div className="stat-card green">
+            <div className="stat-label">Completed Orders</div>
+            <div className="stat-value">{stats.sales.completedOrders.length}</div>
           </div>
-          <div className="bg-white p-6 rounded-lg border border-zinc-200">
-            <h3 className="text-sm font-medium text-zinc-500 mb-2">Available Products</h3>
-            <p className="text-3xl font-bold">{stats.sales.availableInventory.length}</p>
-            <Link href="/inventory" className="text-sm text-blue-600 hover:underline mt-2 block">
-              View Inventory →
+          <div className="stat-card">
+            <div className="stat-label">Available Products</div>
+            <div className="stat-value">{stats.sales.availableInventory.length}</div>
+            <Link href="/inventory" className="stat-sub hover:underline">
+              View inventory →
             </Link>
           </div>
         </div>
@@ -160,17 +169,20 @@ export default async function DashboardPage() {
   );
 }
 
-function StatCard({ label, value, color = "zinc" }: { label: string; value: number; color?: "zinc" | "amber" | "blue" | "green" }) {
-  const colors = {
-    zinc: "text-zinc-900",
-    amber: "text-amber-600",
-    blue: "text-blue-600",
-    green: "text-green-600",
+function StatCard({ label, value, color = "" }: { label: string; value: number; color?: "" | "amber" | "teal" | "purple" | "red" | "green" }) {
+  // Mockup CSS mapping
+  const colorMap: Record<string, string> = {
+    "": "",
+    "amber": "amber",
+    "teal": "teal",
+    "purple": "purple",
+    "red": "red",
+    "green": "teal", // green bar not explicitly defined in css::before, using teal or just plain
   };
   return (
-    <div className="bg-white p-4 rounded-lg border border-zinc-200">
-      <p className="text-xs font-medium text-zinc-500 uppercase tracking-wide">{label}</p>
-      <p className={`text-2xl font-bold mt-1 ${colors[color]}`}>{value}</p>
+    <div className={`stat-card ${colorMap[color] || ""}`}>
+      <div className="stat-label">{label}</div>
+      <div className="stat-value">{value}</div>
     </div>
   );
 }
@@ -179,18 +191,17 @@ function JobCard({ order }: { order: { id: string; design: { name: string; stage
   const currentStage = order.design.stages.find((s) => s.sequence === order.currentStage);
   
   return (
-    <div className="bg-white p-4 rounded-lg border border-zinc-200 flex items-center justify-between">
-      <div>
-        <h3 className="font-semibold text-zinc-900">{order.design.name}</h3>
-        <p className="text-sm text-zinc-500">Order #{order.id.slice(0, 8)}</p>
-        <p className="text-sm text-zinc-500">Stage: {currentStage?.name || "Unknown"} ({order.currentStage}/{order.design.stages.length})</p>
-        <p className="text-sm text-zinc-500">Target: {order.targetKg} kg | Qty: {order.quantity}</p>
-      </div>
-      <Link
-        href={`/jobs/${order.id}`}
-        className="px-4 py-2 bg-zinc-900 text-white text-sm font-medium rounded-md hover:bg-zinc-800"
-      >
-        Work
+    <div className="job-card inprog" style={{ marginBottom: "10px" }}>
+      <Link href={`/jobs/${order.id}`} className="block">
+        <div className="job-header">
+          <span className="job-id">{order.id.slice(0, 8)} · Stage {order.currentStage}/{order.design.stages.length}</span>
+          <span className="badge badge-amber">In progress</span>
+        </div>
+        <div className="job-design">{order.design.name} — {currentStage?.name || "Unknown"}</div>
+        <div className="job-meta" style={{ marginTop: "8px" }}>
+          <span>Target: <span className="job-kg">{order.targetKg} kg</span></span>
+          <span>Qty: {order.quantity} units</span>
+        </div>
       </Link>
     </div>
   );

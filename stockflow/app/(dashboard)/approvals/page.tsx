@@ -10,54 +10,62 @@ export default async function ApprovalsPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-zinc-900">Pending Approvals</h1>
+      <div className="section-header mb-16">
+        <div>
+          <div className="section-title">Order approvals</div>
+          <div className="section-sub">Review specifications and release to production</div>
+        </div>
+      </div>
 
       {pendingOrders.length === 0 ? (
-        <div className="text-center py-12 bg-white rounded-lg border border-zinc-200">
-          <p className="text-zinc-500">No orders pending approval</p>
+        <div className="card text-center">
+          <p className="text-muted text-sm">No orders pending approval</p>
         </div>
       ) : (
         <div className="space-y-4">
           {pendingOrders.map((order) => (
-            <div
-              key={order.id}
-              className="bg-white p-6 rounded-lg border border-zinc-200"
-            >
-              <div className="flex items-start justify-between">
+            <div key={order.id} className="approval-card">
+              <div className="approval-header">
                 <div>
-                  <h3 className="font-semibold text-zinc-900">{order.design.name}</h3>
-                  <p className="text-sm text-zinc-500 mt-1">
-                    Order #{order.id.slice(0, 8)} | Created {order.createdAt.toLocaleDateString()}
-                  </p>
-                  <div className="mt-3 flex gap-4 text-sm">
-                    <span className="text-zinc-600">Quantity: {order.quantity}</span>
-                    <span className="text-zinc-600">Target: {order.targetKg} kg</span>
+                  <span style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--muted)" }}>
+                    #{order.id.slice(0, 8)}
+                  </span>
+                  <div style={{ fontFamily: "var(--font-head)", fontSize: "16px", fontWeight: "700", margin: "4px 0" }}>
+                    {order.design.name}
+                  </div>
+                  <div style={{ fontSize: "12px", color: "var(--muted)" }}>
+                    Created {order.createdAt.toLocaleDateString()}
                   </div>
                 </div>
-                <div className="flex gap-2">
-                  <form action={async () => {
-                    "use server";
-                    await approveProductionOrder(order.id);
-                  }}>
-                    <button
-                      type="submit"
-                      className="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-md hover:bg-green-700"
-                    >
-                      Approve
-                    </button>
-                  </form>
-                  <form action={async () => {
-                    "use server";
-                    await rejectProductionOrder(order.id);
-                  }}>
-                    <button
-                      type="submit"
-                      className="px-4 py-2 border border-zinc-300 text-zinc-700 text-sm font-medium rounded-md hover:bg-zinc-50"
-                    >
-                      Reject
-                    </button>
-                  </form>
+                <span className="badge badge-amber">Pending approval</span>
+              </div>
+              <div className="grid-2" style={{ gap: "10px", marginBottom: "2px" }}>
+                <div className="card-sm">
+                  <div style={{ fontSize: "10px", color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>Quantity</div>
+                  <div style={{ fontWeight: 600, marginTop: "3px" }}>{order.quantity} units</div>
                 </div>
+                <div className="card-sm">
+                  <div style={{ fontSize: "10px", color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>Target Kg</div>
+                  <div style={{ fontFamily: "var(--font-mono)", fontWeight: 600, marginTop: "3px", color: "var(--accent)" }}>{order.targetKg} kg</div>
+                </div>
+              </div>
+              <div className="approval-actions">
+                <form action={async () => {
+                  "use server";
+                  await approveProductionOrder(order.id);
+                }}>
+                  <button type="submit" className="btn btn-teal">
+                    Approve & release
+                  </button>
+                </form>
+                <form action={async () => {
+                  "use server";
+                  await rejectProductionOrder(order.id);
+                }} style={{ marginLeft: "auto" }}>
+                  <button type="submit" className="btn btn-red btn-sm">
+                    Reject
+                  </button>
+                </form>
               </div>
             </div>
           ))}

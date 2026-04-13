@@ -1,78 +1,131 @@
+"use client";
+
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { Role } from "@/lib/auth";
 
-const roleNavItems: Record<Role, { label: string; href: string; icon: string }[]> = {
+type NavItem = {
+  section?: string;
+  label?: string;
+  href?: string;
+  badge?: string;
+  badgeColor?: string;
+};
+
+const roleColors: Record<Role, string> = {
+  ADMIN: "var(--accent)",
+  MANAGER: "var(--accent)",
+  OPERATOR: "var(--purple)",
+  SALES: "var(--teal)",
+  PACKAGING: "var(--green)",
+};
+
+const roleNames: Record<Role, string> = {
+  ADMIN: "Admin / Owner",
+  MANAGER: "Production Manager",
+  OPERATOR: "Operator",
+  SALES: "Sales Team",
+  PACKAGING: "Packaging Team",
+};
+
+const roleNavItems: Record<Role, NavItem[]> = {
   ADMIN: [
-    { label: "Dashboard", href: "/dashboard", icon: "◉" },
-    { label: "Orders", href: "/orders", icon: "◫" },
-    { label: "Designs", href: "/designs", icon: "◈" },
-    { label: "Users", href: "/users", icon: "◧" },
-    { label: "Reports", href: "/reports", icon: "◩" },
+    { section: "Overview" },
+    { label: "Dashboard", href: "/dashboard" },
+    { section: "Production" },
+    { label: "Design templates", href: "/designs" },
+    { label: "Production orders", href: "/orders" },
+    { section: "Inventory" },
+    { label: "Inventory", href: "/inventory" },
+    { section: "Settings" },
+    { label: "Users & roles", href: "/users" },
   ],
   MANAGER: [
-    { label: "Dashboard", href: "/dashboard", icon: "◉" },
-    { label: "Pending Approvals", href: "/approvals", icon: "◫" },
-    { label: "Designs", href: "/designs", icon: "◈" },
-    { label: "Reports", href: "/reports", icon: "◩" },
+    { section: "Overview" },
+    { label: "Dashboard", href: "/dashboard" },
+    { section: "Approvals" },
+    { label: "Order approvals", href: "/approvals" },
+    { section: "Production" },
+    { label: "All orders", href: "/orders" },
+    { label: "Design templates", href: "/designs" },
   ],
   OPERATOR: [
-    { label: "My Queue", href: "/dashboard", icon: "◉" },
-    { label: "Active Jobs", href: "/jobs", icon: "◫" },
+    { section: "My Work" },
+    { label: "Dashboard Queue", href: "/dashboard" },
+    { label: "Active Jobs", href: "/jobs" },
   ],
   SALES: [
-    { label: "Dashboard", href: "/dashboard", icon: "◉" },
-    { label: "Inventory", href: "/inventory", icon: "◫" },
-    { label: "Orders", href: "/sales/orders", icon: "◈" },
+    { section: "Catalogue" },
+    { label: "Available stock", href: "/inventory" },
+    { section: "My Orders" },
+    { label: "Order history", href: "/orders" },
   ],
   PACKAGING: [
-    { label: "Dashboard", href: "/dashboard", icon: "◉" },
-    { label: "Packaging Queue", href: "/packaging", icon: "◫" },
+    { section: "Fulfilment" },
+    { label: "Dashboard", href: "/dashboard" },
   ],
 };
 
 export function Sidebar({ role, userName }: { role: Role; userName: string | null }) {
+  const pathname = usePathname();
   const navItems = roleNavItems[role];
+  const roleColor = roleColors[role];
+  const roleNameDisplay = roleNames[role];
 
   return (
-    <aside className="w-64 min-h-screen bg-zinc-900 text-zinc-100 flex flex-col">
-      <div className="p-4 border-b border-zinc-800">
-        <h1 className="text-xl font-bold tracking-tight">StockFlow</h1>
-        <p className="text-xs text-zinc-500 uppercase tracking-wider mt-1">
-          {role.toLowerCase()}
-        </p>
+    <div className="sidebar">
+      <div className="sidebar-logo">
+        <div className="logo-mark">StockFlow</div>
+        <div className="logo-sub">Manufacturing Platform</div>
       </div>
+      <div className="role-badge">
+        <div className="role-label">Signed in as</div>
+        <div className="role-name" style={{ color: roleColor }}>
+          {roleNameDisplay}
+        </div>
+      </div>
+      <nav className="nav">
+        {navItems.map((item, i) => {
+          if (item.section) {
+            return (
+              <div key={`section-${i}`} className="nav-section">
+                {item.section}
+              </div>
+            );
+          }
 
-      <nav className="flex-1 p-4 space-y-1">
-        {navItems.map((item) => (
-          <Link
-            key={item.href}
-            href={item.href}
-            className="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 transition-colors"
-          >
-            <span className="text-lg">{item.icon}</span>
-            {item.label}
-          </Link>
-        ))}
+          const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
+          const bc = item.badgeColor ? ` ${item.badgeColor}` : "";
+          const badge = item.badge ? <span className={`nav-badge${bc}`}>{item.badge}</span> : null;
+
+          return (
+            <Link
+              key={item.href}
+              href={item.href!}
+              className={`nav-item ${isActive ? "active" : ""}`}
+            >
+              <span className="nav-dot"></span>
+              {item.label}
+              {badge}
+            </Link>
+          );
+        })}
       </nav>
-
-      <div className="p-4 border-t border-zinc-800">
-        <p className="text-xs text-zinc-500 truncate">{userName || "User"}</p>
-      </div>
-    </aside>
+    </div>
   );
 }
 
 export function RoleBadge({ role }: { role: Role }) {
   const colors: Record<Role, string> = {
-    ADMIN: "bg-red-900 text-red-200",
-    MANAGER: "bg-amber-900 text-amber-200",
-    OPERATOR: "bg-blue-900 text-blue-200",
-    SALES: "bg-green-900 text-green-200",
-    PACKAGING: "bg-purple-900 text-purple-200",
+    ADMIN: "badge-amber",
+    MANAGER: "badge-amber",
+    OPERATOR: "badge-purple",
+    SALES: "badge-teal",
+    PACKAGING: "badge-green",
   };
 
   return (
-    <span className={`px-2 py-0.5 rounded text-xs font-medium ${colors[role]}`}>
+    <span className={`badge ${colors[role]}`}>
       {role}
     </span>
   );

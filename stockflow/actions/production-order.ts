@@ -29,6 +29,9 @@ export async function createProductionOrder(formData: FormData) {
     throw new Error("Design not found");
   }
 
+  if (design.stages.length === 0) {
+    throw new Error("Design must have at least one stage");
+  }
   const initialStage = design.stages[0];
 
   const order = await prisma.productionOrder.create({
@@ -37,11 +40,11 @@ export async function createProductionOrder(formData: FormData) {
       quantity: input.quantity,
       targetKg: input.targetKg,
       status: "PENDING",
-      currentStage: initialStage?.sequence || 1,
+      currentStage: initialStage.sequence,
     },
   });
 
-  redirect(`/orders/${order.id}`);
+  redirect("/orders");
 }
 
 export async function approveProductionOrder(orderId: string) {

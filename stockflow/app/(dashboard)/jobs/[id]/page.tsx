@@ -9,12 +9,6 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
   const user = await getUser();
   if (!user) redirect("/login");
 
-  const dbUser = await prisma.user.findUnique({
-    where: { email: user.email! },
-  });
-
-  if (!dbUser) redirect("/login");
-
   const order = await prisma.productionOrder.findUnique({
     where: { id },
     include: {
@@ -86,7 +80,7 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
             stageName={currentStage.name}
             sequence={order.currentStage}
             stageCount={order.design.stages.length}
-            operatorId={dbUser.id}
+            operatorId={user.id}
             previousKgOut={lastLog?.kgOut}
           />
         </div>

@@ -41,10 +41,14 @@ export async function completeStage(input: StageCompletionInput) {
 
   const stage = order.design.stages[currentStageIndex];
 
+  if (!stage) {
+    throw new Error("Stage not found for the given sequence");
+  }
+
   const stageLog = await prisma.stageLog.create({
     data: {
       orderId: validated.orderId,
-      stageId: stage?.id,
+      stageId: stage.id,
       stageName: validated.stageName,
       sequence: validated.sequence,
       kgIn: validated.kgIn,
@@ -63,7 +67,7 @@ export async function completeStage(input: StageCompletionInput) {
     where: { id: validated.orderId },
     data: {
       status: newStatus,
-      currentStage: nextStage || order.currentStage,
+      ...(nextStage !== null && { currentStage: nextStage }),
     },
   });
 
