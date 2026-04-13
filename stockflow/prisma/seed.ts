@@ -1,8 +1,22 @@
+import 'dotenv/config'
 import { PrismaClient } from '@prisma/client'
+import { PrismaPg } from '@prisma/adapter-pg'
+import pg from 'pg'
 import { scryptSync, randomBytes } from 'crypto'
 
-// Create PrismaClient - it will use the config from prisma.config.ts
-const prisma = new PrismaClient()
+const { Pool } = pg
+
+// Create connection pool
+const connectionString = process.env.DATABASE_URL
+if (!connectionString) {
+  throw new Error('DATABASE_URL environment variable is not set')
+}
+
+const pool = new Pool({ connectionString })
+const adapter = new PrismaPg(pool)
+
+// Create PrismaClient with adapter
+const prisma = new PrismaClient({ adapter })
 
 // Simple password hashing function
 function hashPassword(password: string): string {
