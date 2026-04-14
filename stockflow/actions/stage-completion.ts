@@ -50,6 +50,7 @@ export async function completeStage(input: StageCompletionInput) {
       orderId: validated.orderId,
       stageId: stage.id,
       stageName: validated.stageName,
+      department: stage.department,
       sequence: validated.sequence,
       kgIn: validated.kgIn,
       kgOut: validated.kgOut,

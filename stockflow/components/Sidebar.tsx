@@ -32,6 +32,7 @@ const roleNavItems: Record<Role, NavItem[]> = {
   ADMIN: [
     { section: "Overview" },
     { label: "Dashboard", href: "/dashboard" },
+    { label: "Yield Analytics", href: "/analytics" },
     { section: "Production" },
     { label: "Design templates", href: "/designs" },
     { label: "Production orders", href: "/orders" },
@@ -43,6 +44,7 @@ const roleNavItems: Record<Role, NavItem[]> = {
   MANAGER: [
     { section: "Overview" },
     { label: "Dashboard", href: "/dashboard" },
+    { label: "Yield Analytics", href: "/analytics" },
     { section: "Approvals" },
     { label: "Order approvals", href: "/approvals" },
     { section: "Production" },

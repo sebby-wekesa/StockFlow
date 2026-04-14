@@ -48,6 +48,7 @@ export async function POST(request: NextRequest) {
       data: {
         orderId,
         stageName: department,
+        department: department, // Use the provided department
         sequence: order.currentStage,
         kgIn: inputWeight,
         kgOut: outputWeight,

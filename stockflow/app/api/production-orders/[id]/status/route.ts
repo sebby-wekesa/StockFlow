@@ -4,8 +4,9 @@ import { requireRole } from '@/lib/auth'
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  props: { params: Promise<{ id: string }> }
 ) {
+  const params = await props.params;
   try {
     // Verify user has manager or admin role
     const user = await requireRole('MANAGER', 'ADMIN')
@@ -111,8 +112,9 @@ export async function PATCH(
 // GET endpoint to retrieve a specific order
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  props: { params: Promise<{ id: string }> }
 ) {
+  const params = await props.params;
   try {
     const order = await prisma.productionOrder.findUnique({
       where: { id: params.id },

@@ -42,14 +42,20 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Generate a unique order number (e.g., PO-123456)
+    const generatedOrderNumber = `PO-${Date.now().toString().slice(-6)}`;
+
     // Create production order
     const productionOrder = await prisma.productionOrder.create({
       data: {
+        orderNumber: generatedOrderNumber,
         designId,
         quantity: 1,
         targetKg: initialWeight,
+        priority: priority || 'MEDIUM',
         status: 'PENDING',
-        priority,
+        currentDept: "Cutting", // Default first department
+        currentStage: 1         // Default first stage
       },
       include: {
         design: true,
@@ -75,7 +81,8 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams
-    const status = searchParams.get('status') || 'PENDING'
+    const status = searchParams.get('status')
+    const dept = searchParams.get('dept')
     const priority = searchParams.get('priority')
     const limit = parseInt(searchParams.get('limit') || '50', 10)
     const offset = parseInt(searchParams.get('offset') || '0', 10)
@@ -92,7 +99,15 @@ export async function GET(request: NextRequest) {
     }
 
     if (status) {
-      where.status = statusMap[status] || status
+      if (status.includes(',')) {
+        where.status = { in: status.split(',').map(s => statusMap[s] || s) }
+      } else {
+        where.status = statusMap[status] || status
+      }
+    }
+
+    if (dept) {
+      where.currentDept = dept
     }
 
     if (priority) {
@@ -124,11 +139,12 @@ export async function GET(request: NextRequest) {
     // Transform data for frontend
     const transformedOrders = orders.map((order) => ({
       id: order.id,
-      code: `ORD-${order.id.slice(0, 8).toUpperCase().replace(/-/g, '').slice(0, 6)}`,
+      code: order.orderNumber || `ORD-${order.id.slice(0, 8).toUpperCase().replace(/-/g, '').slice(0, 6)}`,
       designName: order.design?.name || 'Unknown Design',
       targetKg: order.targetKg,
+      currentDept: order.currentDept || 'Unassigned',
       quantity: order.quantity,
-      priority: order.targetKg > 10 ? 'HIGH' : order.targetKg > 5 ? 'MEDIUM' : 'LOW',
+      priority: order.priority,
       yieldEstimate: order.design?.targetWeight ? Math.round((order.targetKg / order.design.targetWeight) * 100) : 85,
       status: order.status,
     }))
