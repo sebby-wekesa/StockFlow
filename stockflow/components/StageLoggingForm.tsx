@@ -7,7 +7,7 @@ import { z } from 'zod'
 import { motion, AnimatePresence } from 'framer-motion'
 import confetti from 'canvas-confetti'
 import { Package, Scale, Zap, AlertCircle, CheckCircle, Loader2 } from 'lucide-react'
-import { Toast, useToast } from './Toast'
+import { useToast } from './Toast'
 
 // Validation schema using Zod
 const stageLogSchema = z.object({
