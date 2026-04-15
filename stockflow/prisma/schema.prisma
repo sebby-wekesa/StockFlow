@@ -100,16 +100,27 @@ model StageLog {
   stage       Stage?          @relation(fields: [stageId], references: [id])
   stageName   String
   sequence    Int
-  
+
   // KG Traceability: Enforces In = Out + Scrap [cite: 55, 78]
   kgIn        Float           // Weight received from previous stage [cite: 77]
   kgOut       Float           // Weight passed forward [cite: 77]
   kgScrap     Float           // Weight lost [cite: 77]
   scrapReason String?         // e.g., "Off-cuts", "Scale", "Swarf" [cite: 65, 153]
   department  String?         // Department responsible for this stage log [new field]
-  
+
   operatorId  String
   operator    User            @relation(fields: [operatorId], references: [id])
   notes       String?
   completedAt DateTime        @default(now())
+}
+
+model RawMaterial {
+  id            String   @id @default(cuid())
+  materialName  String   // e.g., "High-Tensile Steel"
+  diameter      String   // e.g., "M12"
+  availableKg   Float    @default(0) // Available for reservation
+  reservedKg    Float    @default(0) // Reserved for production
+  supplier      String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 }

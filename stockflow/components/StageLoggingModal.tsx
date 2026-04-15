@@ -13,6 +13,7 @@ interface ProductionOrder {
     code: string
   }
   targetKg: number
+  currentDept?: string
   currentStage?: {
     name: string
     sequence: number
@@ -26,8 +27,7 @@ interface StageLoggingModalProps {
   onSuccess: () => void
 }
 
-const scrapReasons = ['Off-cuts', 'Machine Error', 'Material Flaw', 'Scale/Dust'] as const
-type ScrapReason = typeof scrapReasons[number]
+type ScrapReason = string
 
 const modalVariants = {
   hidden: { opacity: 0, scale: 0.95 },
@@ -41,6 +41,8 @@ export default function StageLoggingModal({
   order,
   onSuccess
 }: StageLoggingModalProps) {
+  const department = order.currentDept || 'Unknown'
+  const scrapReasons: string[] = department === 'Cutting' || department === 'Drilling' ? ['Swarf', 'Off-cuts'] : department === 'Forging' ? ['Scale', 'Flash'] : department === 'Electroplating' ? ['Coating Defects'] : ['General Scrap']
   const stageName = order.currentStage?.name || "Current Stage"
   const initialWeight = order.targetKg
   const operatorId = "current-operator" // TODO: Get from auth
@@ -55,7 +57,7 @@ export default function StageLoggingModal({
   const kgOutNum = parseFloat(kgOut) || 0
   const kgScrapNum = parseFloat(kgScrap) || 0
   const calculatedTotal = kgOutNum + kgScrapNum
-  const isBalanced = Math.abs(calculatedTotal - initialWeight) <= 0.01
+  const isBalanced = department === 'Electroplating' ? (kgOutNum >= initialWeight && kgScrapNum >= 0) : Math.abs(calculatedTotal - initialWeight) <= 0.01
   const isValid = kgOut.trim() && kgScrap.trim() && scrapReason && isBalanced
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -64,14 +66,16 @@ export default function StageLoggingModal({
 
     setIsSubmitting(true)
     try {
-      const res = await fetch('/api/stages/complete', {
+      const res = await fetch('/api/production/log-stage', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           orderId: order.id,
+          stageId: order.currentStage?.id || currentSequence, // assuming stageId
           kgIn: initialWeight,
           kgOut: kgOutNum,
           kgScrap: kgScrapNum,
+          scrapReason,
           notes: notes.trim(),
           operatorId,
           currentSequence
@@ -188,7 +192,7 @@ export default function StageLoggingModal({
               </label>
               <select
                 value={scrapReason}
-                onChange={(e) => setScrapReason(e.target.value as ScrapReason)}
+                onChange={(e) => setScrapReason(e.target.value)}
                 className="w-full px-4 py-3 bg-slate-800 text-white border border-slate-600 rounded-lg text-lg focus:outline-none focus:border-red-400"
                 required
               >
@@ -202,24 +206,37 @@ export default function StageLoggingModal({
             {/* Mass Balance Validator */}
             <div className="bg-slate-800 rounded-lg p-4 border border-slate-600">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-sm text-slate-400">Mass Balance Check</span>
+                <span className="text-sm text-slate-400">Validation Check</span>
                 <Scale className="w-5 h-5 text-slate-400" />
               </div>
-              <div className="grid grid-cols-2 gap-4 text-center">
-                <div>
-                  <p className="text-xs text-slate-400">Calculated Total</p>
-                  <p className="text-xl font-bold text-white">{calculatedTotal.toFixed(2)} kg</p>
+              {department === 'Electroplating' ? (
+                <div className="grid grid-cols-2 gap-4 text-center">
+                  <div>
+                    <p className="text-xs text-slate-400">Output Weight</p>
+                    <p className="text-xl font-bold text-white">{kgOutNum.toFixed(2)} kg</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-400">Minimum Required</p>
+                    <p className="text-xl font-bold text-amber-300">{initialWeight.toFixed(2)} kg</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-xs text-slate-400">Required Total</p>
-                  <p className="text-xl font-bold text-amber-300">{initialWeight.toFixed(2)} kg</p>
+              ) : (
+                <div className="grid grid-cols-2 gap-4 text-center">
+                  <div>
+                    <p className="text-xs text-slate-400">Calculated Total</p>
+                    <p className="text-xl font-bold text-white">{calculatedTotal.toFixed(2)} kg</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-400">Required Total</p>
+                    <p className="text-xl font-bold text-amber-300">{initialWeight.toFixed(2)} kg</p>
+                  </div>
                 </div>
-              </div>
+              )}
               {!isBalanced && (
                 <div className="mt-3 flex items-center gap-2 text-red-400">
                   <AlertTriangle className="w-5 h-5" />
                   <span className="text-sm font-semibold">
-                    Weight Mismatch: Total must equal {initialWeight.toFixed(2)} kg
+                    {department === 'Electroplating' ? `Output must be >= ${initialWeight.toFixed(2)} kg and Scrap >= 0` : `Weight Mismatch: Total must equal ${initialWeight.toFixed(2)} kg`}
                   </span>
                 </div>
               )}
