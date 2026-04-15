@@ -286,7 +286,8 @@ export default function StageLoggingModal({
             </div>
           </form>
         </motion.div>
-      )}
-    </AnimatePresence>
-  )
+      </motion.div>
+    )}
+  </AnimatePresence>
+)
 }

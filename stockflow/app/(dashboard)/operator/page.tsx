@@ -1,6 +1,6 @@
 "use client";
 
-import DepartmentQueue from "@/components/DepartmentQueue";
+import { DepartmentQueue } from "@/components/DepartmentQueue";
 import { Factory, Terminal, Activity, Info } from "lucide-react";
 
 export default function OperatorPage() {
@@ -85,7 +85,7 @@ export default function OperatorPage() {
         <div>
           <h4 className="text-sm font-bold text-blue-400 mb-1">Station Tip</h4>
           <p className="text-xs text-blue-300/80 leading-relaxed">
-            Ensure all material weights are logged before completing a stage. Accurate "Kg Out" values 
+            Ensure all material weights are logged before completing a stage. Accurate &ldquo;Kg Out&rdquo; values 
             automatically update the target weight for the next department in the sequence.
           </p>
         </div>

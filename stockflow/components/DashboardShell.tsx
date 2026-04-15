@@ -26,7 +26,7 @@ export function DashboardShell({
         <Sidebar user={{ role: previewRole, name: user.name || '' }} />
         <div className="main">
           <div className="topbar">
-            <span className="topbar-preview-label">Preview role:</span>
+            <span style={{fontSize:'11px', color:'var(--muted)', textTransform:'uppercase', letterSpacing:'1px'}}>Preview role:</span>
             <div className="topbar-role-switcher">
               <button
                 className={`role-btn ${previewRole === "ADMIN" ? "active" : ""}`}
@@ -57,6 +57,12 @@ export function DashboardShell({
                 onClick={() => setPreviewRole("PACKAGING")}
               >
                 Packaging
+              </button>
+              <button
+                className={`role-btn ${previewRole === "WAREHOUSE" ? "active" : ""}`}
+                onClick={() => setPreviewRole("WAREHOUSE")}
+              >
+                Warehouse
               </button>
             </div>
             <div className="topbar-right">

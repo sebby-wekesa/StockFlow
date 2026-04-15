@@ -3,8 +3,10 @@
 import { useActionState, useRef, useEffect } from "react";
 import { signIn } from "@/actions/auth";
 
+type AuthState = { error: string } | null;
+
 export default function LoginPage() {
-  const [state, formAction, pending] = useActionState(async (prevState: any, formData: FormData) => {
+  const [state, formAction, pending] = useActionState(async (prevState: AuthState, formData: FormData) => {
     return await signIn(formData);
   }, null);
 

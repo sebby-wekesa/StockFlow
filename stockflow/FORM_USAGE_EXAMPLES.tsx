@@ -156,7 +156,7 @@ export function OrdersPageWithRefresh() {
       />
 
       {/* Orders list updates automatically when new order is created */}
-      <OrdersList orders={orders} />
+      {/* <OrdersList orders={orders} /> */}
     </div>
   )
 }
@@ -315,7 +315,7 @@ export function OrdersPageResponsive() {
 
       <div>
         <h2 className="text-xl font-bold mb-4">Recent Orders</h2>
-        <OrdersList orders={orders} />
+        {/* <OrdersList orders={orders} /> */}
       </div>
     </div>
   )

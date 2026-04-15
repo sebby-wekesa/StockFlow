@@ -1,27 +1,91 @@
 "use client";
 
-import { Play, Clock, Box, Scale, ChevronRight, Hash } from "lucide-react";
-import { useState } from "react";
+import { Clock, Box, Scale, ChevronRight, Hash } from "lucide-react";
+import { useState, useEffect } from "react";
 import { StageLogForm } from './operator/StageLogForm';
 
-export function DepartmentQueue({ initialJobs, departmentName }: { initialJobs: any[], departmentName: string }) {
-  const [activeJob, setActiveJob] = useState<any>(null);
+// Define proper TypeScript interfaces
+interface ProductionOrder {
+  id: string;
+  orderNumber: string;
+  design: {
+    name: string;
+  };
+  inheritedKg: number;
+  targetKg: number;
+  currentStage: number;
+  status: string;
+}
+
+interface DepartmentQueueProps {
+  userDept: string;
+}
+
+export function DepartmentQueue({ userDept }: DepartmentQueueProps) {
+  const [jobs, setJobs] = useState<ProductionOrder[]>([]);
+  const [activeJob, setActiveJob] = useState<ProductionOrder | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const fetchJobs = async () => {
+    try {
+      const response = await fetch(`/api/production-orders?dept=${userDept}&status=IN_PRODUCTION`);
+      if (response.ok) {
+        const result = await response.json();
+        // Transform API response to match our interface
+        const transformedJobs = result.data.map((order: any) => ({
+          id: order.id,
+          orderNumber: order.code,
+          design: { name: order.designName },
+          inheritedKg: order.targetKg, // Use targetKg as inheritedKg for now
+          targetKg: order.targetKg,
+          currentStage: 1, // This might need to be fetched separately
+          status: order.status,
+        }));
+        setJobs(transformedJobs);
+      }
+    } catch (error) {
+      console.error('Failed to fetch jobs:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (userDept) {
+      fetchJobs();
+    }
+  }, [userDept]);
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex justify-center items-center py-8">
+          <div className="text-[#7a8090]">Loading jobs...</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-2xl font-bold text-white uppercase tracking-tight">{departmentName} Queue</h2>
+          <h2 className="text-2xl font-bold text-white uppercase tracking-tight">{userDept} Queue</h2>
           <p className="text-sm text-[#7a8090]">Active jobs assigned to your station</p>
         </div>
         <div className="bg-[#1e2023] border border-[#2a2d32] px-4 py-2 rounded-xl">
           <span className="text-xs font-bold text-[#7a8090] mr-2">LOAD:</span>
-          <span className="text-sm font-mono text-[#4a9eff]">{initialJobs.length} Jobs</span>
+          <span className="text-sm font-mono text-[#4a9eff]">{jobs.length} Jobs</span>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4">
-        {initialJobs.map((job) => (
+      {jobs.length === 0 ? (
+        <div className="text-center py-8 text-[#7a8090]">
+          No active jobs in queue
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-4">
+          {jobs.map((job) => (
           <div 
             key={job.id} 
             className="group bg-[#161719] border border-[#2a2d32] rounded-2xl p-6 hover:border-[#4a9eff]/50 transition-all flex flex-col md:flex-row justify-between items-center gap-6"
@@ -69,13 +133,14 @@ export function DepartmentQueue({ initialJobs, departmentName }: { initialJobs: 
            <div className="max-w-2xl w-full">
              <button onClick={() => setActiveJob(null)} className="text-white mb-2 text-sm hover:underline">← Back to Queue</button>
              {/* Component from previous step */}
-             <StageLogForm 
-               order={activeJob} 
-               onComplete={() => {
-                 setActiveJob(null);
-                 // Trigger refresh logic here
-               }} 
-             />
+              <StageLogForm
+                order={activeJob}
+                onComplete={() => {
+                  setActiveJob(null);
+                  // Refresh the jobs list
+                  fetchJobs();
+                }}
+              />
            </div>
         </div>
       )}

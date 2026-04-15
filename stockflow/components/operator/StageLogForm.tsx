@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Scale, Trash2, ArrowRightLeft, Save } from "lucide-react";
 
 export function StageLogForm({ order, onComplete }: { order: any, onComplete: () => void }) {
@@ -9,18 +9,16 @@ export function StageLogForm({ order, onComplete }: { order: any, onComplete: ()
   const [kgOut, setKgOut] = useState<number>(0);
   const [kgScrap, setKgScrap] = useState<number>(0);
   const [scrapReason, setScrapReason] = useState('');
-  const [isValid, setIsValid] = useState(false);
-
   // Enforce department-specific rules [cite: 55, 56]
-  useEffect(() => {
+  const isValid = useMemo(() => {
     if (department === 'Electroplating') {
       // In plating, Output can be HIGHER than Input due to zinc/galvanize coating
-      setIsValid(kgOut >= kgIn && kgScrap >= 0 && (kgScrap === 0 || scrapReason));
+      return kgOut >= kgIn && kgScrap >= 0 && (kgScrap === 0 || scrapReason);
     } else {
       // Standard rule: In = Out + Scrap
       const totalAccounted = Number(kgOut) + Number(kgScrap);
       const difference = Math.abs(kgIn - totalAccounted);
-      setIsValid(difference < 0.01 && kgOut > 0 && (kgScrap === 0 || scrapReason));
+      return difference < 0.01 && kgOut > 0 && (kgScrap === 0 || scrapReason);
     }
   }, [kgOut, kgScrap, kgIn, scrapReason, department]);
 

@@ -43,6 +43,8 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   )
 }
 
+export { ToastContainer as Toast };
+
 export function useToast() {
   const context = useContext(ToastContext)
   if (!context) {

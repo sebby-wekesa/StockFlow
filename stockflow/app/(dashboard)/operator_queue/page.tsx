@@ -1,18 +1,10 @@
-import { prisma } from "@/lib/prisma";
-import { redirect } from "next/navigation";
-import { getUser } from "@/lib/auth";
-import Link from "next/link";
-
-export default function JobsPage() {
+export default function OperatorQueuePage() {
   return (
     <div>
       <div className="section-header mb-16">
-        <div>
-          <div className="section-title">Cutting dept — job queue</div>
-          <div className="section-sub">Jobs ready for your department</div>
-        </div>
+        <div><div className="section-title">Cutting dept — job queue</div><div className="section-sub">Jobs ready for your department</div></div>
       </div>
-      <div className="job-card urgent" style={{cursor:'pointer'}} onClick={() => alert('Navigate to log form')}>
+      <div className="job-card urgent" onClick={() => alert('Navigate to log')}>
         <div className="job-header">
           <span className="job-id">PO-0040 · Stage 1/3</span>
           <span className="badge badge-red">Urgent</span>
@@ -24,7 +16,7 @@ export default function JobsPage() {
           <span>Client: BuildPro Ltd</span>
         </div>
       </div>
-      <div className="job-card inprog" style={{cursor:'pointer'}} onClick={() => alert('Navigate to log form')}>
+      <div className="job-card inprog" onClick={() => alert('Navigate to log')}>
         <div className="job-header">
           <span className="job-id">PO-0039 · Stage 1/6</span>
           <span className="badge badge-amber">In progress</span>

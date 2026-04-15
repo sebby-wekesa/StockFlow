@@ -1,48 +1,32 @@
-import { prisma } from "@/lib/prisma";
-import { Role } from "@/lib/auth";
-
-export default async function UsersPage() {
-  const users = await prisma.user.findMany({
-    orderBy: { createdAt: "desc" },
-  });
-
-  const roleColors: Record<Role, string> = {
-    ADMIN: "bg-red-100 text-red-800",
-    MANAGER: "bg-amber-100 text-amber-800",
-    OPERATOR: "bg-blue-100 text-blue-800",
-    SALES: "bg-green-100 text-green-800",
-    PACKAGING: "bg-purple-100 text-purple-800",
-  };
+export default function UsersPage() {
+  const users = [
+    {name:'James Mwangi',email:'james@co.ke',role:'Admin',dept:'All',status:'Active'},
+    {name:'Sarah Otieno',email:'sarah@co.ke',role:'Manager',dept:'All',status:'Active'},
+    {name:'Peter Njoroge',email:'peter@co.ke',role:'Operator',dept:'Cutting',status:'Active'},
+    {name:'Alice Kamau',email:'alice@co.ke',role:'Operator',dept:'Cutting, Threading',status:'Active'},
+    {name:'David Wekesa',email:'david@co.ke',role:'Operator',dept:'Electroplating',status:'Active'},
+    {name:'Grace Akinyi',email:'grace@co.ke',role:'Sales',dept:'—',status:'Active'},
+    {name:'Tom Ochieng',email:'tom@co.ke',role:'Packaging',dept:'—',status:'Active'},
+    {name:'Faith Muthoni',email:'faith@co.ke',role:'Warehouse',dept:'—',status:'Active'},
+  ];
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-zinc-900">Users</h1>
+    <div>
+      <div className="section-header mb-16">
+        <div><div className="section-title">Users & roles</div><div className="section-sub">Manage team access and department assignments</div></div>
+        <button className="btn btn-primary">+ Invite user</button>
       </div>
-
-      <div className="bg-white rounded-lg border border-zinc-200 overflow-hidden">
-        <table className="w-full">
-          <thead className="bg-zinc-50 border-b border-zinc-200">
-            <tr>
-              <th className="px-4 py-3 text-left text-xs font-medium text-zinc-500 uppercase">Email</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-zinc-500 uppercase">Name</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-zinc-500 uppercase">Role</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-zinc-500 uppercase">Department</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-zinc-500 uppercase">Created</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-zinc-200">
-            {users.map((user) => (
-              <tr key={user.id} className="hover:bg-zinc-50">
-                <td className="px-4 py-3 text-sm text-zinc-900">{user.email}</td>
-                <td className="px-4 py-3 text-sm text-zinc-600">{user.name || "-"}</td>
-                <td className="px-4 py-3">
-                  <span className={`px-2 py-1 text-xs font-medium rounded ${roleColors[user.role as Role]}`}>
-                    {user.role}
-                  </span>
-                </td>
-                <td className="px-4 py-3 text-sm text-zinc-600">{user.department || "-"}</td>
-                <td className="px-4 py-3 text-sm text-zinc-500">{user.createdAt.toLocaleDateString()}</td>
+      <div className="card">
+        <table>
+          <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Department</th><th>Status</th></tr></thead>
+          <tbody>
+            {users.map(u => (
+              <tr key={u.email}>
+                <td>{u.name}</td>
+                <td style={{color:'var(--muted)'}}>{u.email}</td>
+                <td><span className={`badge ${u.role === 'Admin' ? 'badge-amber' : u.role === 'Manager' ? 'badge-amber' : u.role === 'Operator' ? 'badge-purple' : u.role === 'Sales' ? 'badge-teal' : u.role === 'Packaging' ? 'badge-green' : 'badge-muted'}`}>{u.role}</span></td>
+                <td>{u.dept}</td>
+                <td><span className="badge badge-green">{u.status}</span></td>
               </tr>
             ))}
           </tbody>
