@@ -6,7 +6,7 @@ import { stageCompletionSchema, StageCompletionInput } from "@/lib/validations";
 import { requireRole } from "@/lib/auth";
 
 export async function completeStage(input: StageCompletionInput) {
-  await requireRole("OPERATOR", "MANAGER", "ADMIN");
+  await requireRole("OPERATOR", "ADMIN");
 
   const validated = stageCompletionSchema.parse(input);
 

@@ -50,7 +50,18 @@ export async function signIn(formData: FormData) {
     maxAge: 60 * 60 * 24 * 7, // 7 days
   });
 
-  redirect("/dashboard");
+  // Set user-role cookie for middleware
+  cookieStore.set("user-role", user.role, {
+    httpOnly: false, // Allow client-side access
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    maxAge: 60 * 60 * 24 * 7, // 7 days
+  });
+
+  // Redirect based on role
+  const redirectPath = user.role === 'ADMIN' ? '/admin/dashboard' : '/operator/queue';
+  redirect(redirectPath);
 }
 
 export async function signOut() {

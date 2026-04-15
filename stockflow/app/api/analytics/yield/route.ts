@@ -4,7 +4,7 @@ import { requireRole } from "@/lib/auth";
 
 export async function GET() {
   try {
-    await requireRole("MANAGER", "ADMIN");
+    await requireRole("ADMIN");
 
     // --- 1. Department Yield Stats (grouped by department) ---
     // Note: We use stageName field for grouping as requested.

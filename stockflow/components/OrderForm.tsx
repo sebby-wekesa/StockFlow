@@ -3,16 +3,17 @@
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Loader2, Package, AlertCircle } from 'lucide-react'
 import { useToast } from './Toast'
 
 const createOrderSchema = z.object({
   designId: z.string().min(1, 'Design is required'),
-  initialWeight: z.coerce
+  quantity: z.coerce
     .number()
-    .positive('Initial weight must be a positive number')
-    .max(10000, 'Initial weight cannot exceed 10,000 kg'),
+    .int()
+    .positive('Quantity must be a positive integer')
+    .max(100000, 'Quantity cannot exceed 100,000 units'),
   priority: z.enum(['LOW', 'MEDIUM', 'HIGH'], {
     errorMap: () => ({ message: 'Please select a priority level' }),
   }),
@@ -24,6 +25,7 @@ interface Design {
   id: string
   name: string
   targetWeight: number | null
+  kgPerUnit: number
 }
 
 interface CreateOrderFormProps {
@@ -47,19 +49,20 @@ export function CreateOrderForm({ designs }: CreateOrderFormProps) {
   })
 
   const designId = watch('designId')
-  const initialWeight = watch('initialWeight')
+  const quantity = watch('quantity')
   const priority = watch('priority')
 
   // Update selected design when designId changes
-  useState(() => {
+  useEffect(() => {
     const design = designs.find((d) => d.id === designId)
     setSelectedDesign(design || null)
-  })
+  }, [designId, designs])
 
   const onSubmit = async (data: OrderFormData) => {
     setIsLoading(true)
 
     try {
+      const targetKg = data.quantity * (selectedDesign?.kgPerUnit || 0)
       const response = await fetch('/api/production-orders', {
         method: 'POST',
         headers: {
@@ -67,7 +70,8 @@ export function CreateOrderForm({ designs }: CreateOrderFormProps) {
         },
         body: JSON.stringify({
           designId: data.designId,
-          initialWeight: data.initialWeight,
+          quantity: data.quantity,
+          targetKg,
           priority: data.priority,
         }),
       })
@@ -136,7 +140,7 @@ export function CreateOrderForm({ designs }: CreateOrderFormProps) {
               {designs.map((design) => (
                 <option key={design.id} value={design.id}>
                   {design.name}
-                  {design.targetWeight && ` (${design.targetWeight} kg target)`}
+                  {design.kgPerUnit && ` (${design.kgPerUnit} kg/unit)`}
                 </option>
               ))}
             </select>
@@ -148,27 +152,27 @@ export function CreateOrderForm({ designs }: CreateOrderFormProps) {
             )}
           </div>
 
-          {/* Initial Weight */}
+          {/* Quantity */}
           <div>
             <label className="block text-sm font-medium text-slate-300 mb-2">
-              Initial Weight (kg) *
+              Quantity (units) *
             </label>
             <input
               type="number"
-              step="0.01"
-              min="0"
-              placeholder="Enter weight in kilograms"
-              {...register('initialWeight', { valueAsNumber: true })}
+              step="1"
+              min="1"
+              placeholder="Enter number of units"
+              {...register('quantity', { valueAsNumber: true })}
               className={`w-full rounded-lg border bg-slate-800/50 px-4 py-3 text-slate-200 placeholder:text-slate-600 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                errors.initialWeight
+                errors.quantity
                   ? 'border-red-500/50'
                   : 'border-slate-700 focus:border-blue-500'
               }`}
             />
-            {errors.initialWeight && (
+            {errors.quantity && (
               <p className="mt-1 text-sm text-red-400 flex items-center gap-1">
                 <AlertCircle className="h-4 w-4" />
-                {errors.initialWeight.message}
+                {errors.quantity.message}
               </p>
             )}
           </div>
@@ -220,7 +224,7 @@ export function CreateOrderForm({ designs }: CreateOrderFormProps) {
           </div>
 
           {/* Summary Section */}
-          {(designId || initialWeight) && (
+          {(designId || quantity) && (
             <div className="rounded-lg border border-blue-500/30 bg-blue-900/10 p-4 mt-6">
               <h3 className="font-semibold text-blue-200 mb-3">Order Summary</h3>
               <div className="space-y-2 text-sm">
@@ -232,11 +236,19 @@ export function CreateOrderForm({ designs }: CreateOrderFormProps) {
                     </span>
                   </div>
                 )}
-                {initialWeight && (
+                {quantity && selectedDesign && (
                   <div className="flex justify-between">
-                    <span className="text-slate-400">Initial Weight:</span>
+                    <span className="text-slate-400">Quantity:</span>
                     <span className="font-medium text-emerald-400">
-                      {initialWeight} kg
+                      {quantity} units
+                    </span>
+                  </div>
+                )}
+                {quantity && selectedDesign && (
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">Calculated Weight:</span>
+                    <span className="font-medium text-emerald-400">
+                      {(quantity * selectedDesign.kgPerUnit).toFixed(2)} kg
                     </span>
                   </div>
                 )}

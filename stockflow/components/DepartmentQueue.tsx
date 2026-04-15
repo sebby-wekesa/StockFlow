@@ -1,113 +1,83 @@
 "use client";
-import { useState, useEffect, useCallback } from 'react';
-import { Package, ArrowRight, Loader2, ClipboardList } from 'lucide-react';
-import StageLoggingModal from './StageLoggingModal';
 
-interface DepartmentQueueProps {
-  userDept: string;
-}
+import { Play, Clock, Box, Scale, ChevronRight, Hash } from "lucide-react";
+import { useState } from "react";
+import { StageLogForm } from './operator/StageLogForm';
 
-export default function DepartmentQueue({ userDept }: { userDept: string }) {
-  const [jobs, setJobs] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [selectedJob, setSelectedJob] = useState<any>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-
-  // Fetch jobs assigned to this department
-  const fetchJobs = useCallback(async () => {
-    setLoading(true);
-    try {
-      // Filtering for orders currently at this department's sequence
-      const res = await fetch(`/api/production-orders?dept=${userDept}&status=APPROVED,IN_PRODUCTION`);
-      const data = await res.json();
-      setJobs(Array.isArray(data) ? data : []);
-    } catch (error) {
-      console.error("Failed to fetch queue:", error);
-    } finally {
-      setLoading(false);
-    }
-  }, [userDept]);
-
-  useEffect(() => {
-    fetchJobs();
-  }, [fetchJobs]);
-
-  const handleOpenLog = (job: any) => {
-    setSelectedJob(job);
-    setIsModalOpen(true);
-  };
-
-  if (loading) return (
-    <div className="flex flex-col items-center justify-center p-12 text-slate-500">
-      <Loader2 className="animate-spin mb-4" size={32} />
-      <p>Loading {userDept} Queue...</p>
-    </div>
-  );
+export function DepartmentQueue({ initialJobs, departmentName }: { initialJobs: any[], departmentName: string }) {
+  const [activeJob, setActiveJob] = useState<any>(null);
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-          <ClipboardList className="text-blue-500" />
-          {userDept} Queue
-          <span className="ml-2 px-2 py-0.5 text-xs bg-slate-800 text-slate-400 rounded-full">
-            {jobs.length} Active
-          </span>
-        </h2>
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <div>
+          <h2 className="text-2xl font-bold text-white uppercase tracking-tight">{departmentName} Queue</h2>
+          <p className="text-sm text-[#7a8090]">Active jobs assigned to your station</p>
+        </div>
+        <div className="bg-[#1e2023] border border-[#2a2d32] px-4 py-2 rounded-xl">
+          <span className="text-xs font-bold text-[#7a8090] mr-2">LOAD:</span>
+          <span className="text-sm font-mono text-[#4a9eff]">{initialJobs.length} Jobs</span>
+        </div>
       </div>
 
-      {jobs.length === 0 ? (
-        <div className="bg-slate-900/50 border-2 border-dashed border-slate-800 rounded-2xl p-12 text-center">
-          <Package className="mx-auto text-slate-700 mb-4" size={48} />
-          <p className="text-slate-500">No pending jobs for this department.</p>
-        </div>
-      ) : (
-        <div className="grid gap-4">
-          {jobs.map((job) => (
-            <div 
-              key={job.id} 
-              className="bg-slate-900 border border-slate-800 hover:border-blue-500/50 transition-all p-6 rounded-xl flex items-center justify-between group"
-            >
-              <div className="space-y-1">
-                <div className="flex items-center gap-3">
-                  <span className="text-xs font-mono font-bold text-blue-400 bg-blue-400/10 px-2 py-0.5 rounded">
-                    {job.orderNumber}
+      <div className="grid grid-cols-1 gap-4">
+        {initialJobs.map((job) => (
+          <div 
+            key={job.id} 
+            className="group bg-[#161719] border border-[#2a2d32] rounded-2xl p-6 hover:border-[#4a9eff]/50 transition-all flex flex-col md:flex-row justify-between items-center gap-6"
+          >
+            <div className="flex items-center gap-4 w-full md:w-auto">
+              <div className="p-4 bg-[#1e2023] rounded-xl text-[#4a9eff] group-hover:scale-110 transition-transform">
+                <Box size={24} />
+              </div>
+              <div>
+                <h3 className="font-bold text-[#e8eaed] text-lg">{job.design.name}</h3>
+                <div className="flex gap-4 mt-1">
+                  <span className="text-xs text-[#7a8090] flex items-center gap-1">
+                    <Clock size={12} /> Received 2h ago
                   </span>
-                  <h3 className="text-lg font-semibold text-white">{job.design.name}</h3>
-                </div>
-                <p className="text-slate-400 text-sm">{job.design.code} • Target Quantity: {job.quantity}</p>
-                
-                <div className="flex gap-4 mt-3">
-                  <div className="text-xs text-slate-500">
-                    <span className="block uppercase text-[10px] text-slate-600 font-bold">Input Weight</span>
-                    <span className="text-slate-300 font-mono">{job.targetKg} kg</span>
-                  </div>
+                  <span className="text-xs text-[#7a8090] flex items-center gap-1">
+                    <Hash size={12} /> {job.orderNumber}
+                  </span>
                 </div>
               </div>
+            </div>
 
+            <div className="flex items-center gap-8 w-full md:w-auto justify-between md:justify-end">
+              <div className="text-right">
+                <p className="text-[10px] font-bold text-[#7a8090] uppercase mb-1">Incoming Weight</p>
+                <div className="flex items-center gap-2 text-xl font-mono font-bold text-white">
+                  <Scale size={18} className="text-[#4a9eff]" />
+                  {job.inheritedKg} <span className="text-xs font-normal opacity-50">kg</span>
+                </div>
+              </div>
+              
               <button 
-                onClick={() => handleOpenLog(job)}
-                className="bg-blue-600 hover:bg-blue-500 text-white px-5 py-2.5 rounded-lg font-bold flex items-center gap-2 transition-transform active:scale-95 shadow-lg shadow-blue-900/20"
+                onClick={() => setActiveJob(job)}
+                className="bg-[#1e2023] border border-[#2c2d33] hover:bg-[#4a9eff] hover:text-white text-[#4a9eff] px-6 py-3 rounded-xl font-bold flex items-center gap-2 transition-all"
               >
-                Start Processing
-                <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
+                LOG PRODUCTION <ChevronRight size={18} />
               </button>
             </div>
-          ))}
-        </div>
-      )}
+          </div>
+        ))}
+      </div>
 
-      {/* The Logging Modal */}
-      {selectedJob && (
-        <StageLoggingModal
-          isOpen={isModalOpen}
-          onClose={() => {
-            setIsModalOpen(false);
-            setSelectedJob(null);
-          }}
-          order={selectedJob}
-          onSuccess={fetchJobs} // Refresh queue after successful log
-        />
+      {/* When a job is clicked, show the StageLogForm we built earlier */}
+      {activeJob && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+           <div className="max-w-2xl w-full">
+             <button onClick={() => setActiveJob(null)} className="text-white mb-2 text-sm hover:underline">← Back to Queue</button>
+             {/* Component from previous step */}
+             <StageLogForm 
+               order={activeJob} 
+               onComplete={() => {
+                 setActiveJob(null);
+                 // Trigger refresh logic here
+               }} 
+             />
+           </div>
+        </div>
       )}
     </div>
   );

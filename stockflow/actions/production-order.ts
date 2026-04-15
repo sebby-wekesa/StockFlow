@@ -6,7 +6,7 @@ import { requireRole, getUser } from "@/lib/auth";
 import { productionOrderSchema, ProductionOrderInput } from "@/lib/validations";
 
 export async function createProductionOrder(formData: FormData) {
-  await requireRole("SALES", "MANAGER", "ADMIN");
+  await requireRole("ADMIN");
 
   const designId = formData.get("designId") as string;
   const quantity = parseInt(formData.get("quantity") as string);
@@ -48,7 +48,7 @@ export async function createProductionOrder(formData: FormData) {
 }
 
 export async function approveProductionOrder(orderId: string) {
-  await requireRole("MANAGER", "ADMIN");
+  await requireRole("ADMIN");
 
   const user = await getUser();
   if (!user) throw new Error("Unauthorized");
@@ -78,7 +78,7 @@ export async function approveProductionOrder(orderId: string) {
 }
 
 export async function rejectProductionOrder(orderId: string) {
-  await requireRole("MANAGER", "ADMIN");
+  await requireRole("ADMIN");
 
   const order = await prisma.productionOrder.findUnique({
     where: { id: orderId },

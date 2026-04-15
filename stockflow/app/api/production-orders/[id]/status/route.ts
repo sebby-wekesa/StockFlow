@@ -9,7 +9,7 @@ export async function PATCH(
   const params = await props.params;
   try {
     // Verify user has manager or admin role
-    const user = await requireRole('MANAGER', 'ADMIN')
+    const user = await requireRole('ADMIN')
 
     const body = await request.json()
     const { status, rejectionReason } = body

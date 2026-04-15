@@ -5,7 +5,7 @@ import { requireRole } from '@/lib/auth'
 export async function POST(request: NextRequest) {
   try {
     // Verify user has appropriate role
-    const user = await requireRole('OPERATOR', 'MANAGER', 'ADMIN')
+    const user = await requireRole('OPERATOR', 'ADMIN')
 
     const body = await request.json()
     const { orderId, department, inputWeight, outputWeight, scrapWeight, timestamp } = body
@@ -91,7 +91,7 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
-    const user = await requireRole('MANAGER', 'ADMIN')
+    const user = await requireRole('ADMIN')
 
     const searchParams = request.nextUrl.searchParams
     const stageName = searchParams.get('stageName')

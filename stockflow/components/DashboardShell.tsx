@@ -23,7 +23,7 @@ export function DashboardShell({
   return (
     <ToastProvider>
       <div className="app">
-        <Sidebar role={previewRole} userName={user.name} />
+        <Sidebar user={{ role: previewRole, name: user.name || '' }} />
         <div className="main">
           <div className="topbar">
             <span className="topbar-preview-label">Preview role:</span>

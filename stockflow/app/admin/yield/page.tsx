@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { YieldDashboard } from "@/components/YieldDashboard";
+import { ExportButtons } from "@/components/admin/ExportButtons";
 
 async function getYieldData() {
   // 1. Fetch Department Aggregates [cite: 98, 160]
@@ -73,7 +74,10 @@ export default async function YieldPage() {
   const data = await getYieldData();
   return (
     <div className="p-8 bg-[#0f1113] min-h-screen">
-      <h1 className="text-2xl font-bold text-white mb-6">Yield Intelligence</h1>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold text-white">Yield Intelligence</h1>
+        <ExportButtons />
+      </div>
       <YieldDashboard data={data} />
     </div>
   );

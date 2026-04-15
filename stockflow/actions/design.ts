@@ -6,7 +6,7 @@ import { requireRole } from "@/lib/auth";
 import { designSchema, DesignInput } from "@/lib/validations";
 
 export async function createDesign(formData: FormData) {
-  await requireRole("MANAGER", "ADMIN");
+  await requireRole("ADMIN");
 
   const name = formData.get("name") as string;
   const description = formData.get("description") as string;
@@ -49,7 +49,7 @@ export async function createDesign(formData: FormData) {
 }
 
 export async function updateDesign(id: string, formData: FormData) {
-  await requireRole("MANAGER", "ADMIN");
+  await requireRole("ADMIN");
 
   const name = formData.get("name") as string;
   const description = formData.get("description") as string;

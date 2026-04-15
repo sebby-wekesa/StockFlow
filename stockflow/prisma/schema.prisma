@@ -8,11 +8,9 @@ datasource db {
 }
 
 enum Role {
-  ADMIN
-  MANAGER
-  OPERATOR
-  SALES
-  PACKAGING
+  ADMIN      // Can see reports, manage BOM, and release orders
+  OPERATOR   // Can only see their department queue and log weights
+  WAREHOUSE  // Can only log raw material intake
 }
 
 enum ProductionStatus {
@@ -37,7 +35,7 @@ model User {
   password        String
   name            String?
   role            Role       @default(OPERATOR)
-  department      String?    // Links operator to specific queues (e.g., "Cutting") [cite: 108]
+  department      String?    // e.g., "Cutting", "Forging" (for Operators)
   createdAt       DateTime   @default(now())
   updatedAt       DateTime   @updatedAt
   stageLogs       StageLog[]
@@ -50,10 +48,13 @@ model Design {
   description      String?
   targetDimensions String?           // Stores specs like 12mm x 70mm [cite: 71]
   targetWeight     Float?            // Estimated yield kg per unit [cite: 135]
+  // New Phase 2 Fields
+  rawMaterialId    String?           // Links to the specific rod needed (e.g., M12 High Tensile)
+  kgPerUnit        Float             @default(0.0) // The BOM consumption rate
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
   stages           Stage[]
-  orders           ProductionOrder[]
+  productionOrders ProductionOrder[]
 }
 
 model Stage {

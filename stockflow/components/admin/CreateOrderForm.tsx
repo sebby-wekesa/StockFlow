@@ -1,15 +1,31 @@
 "use client";
 
-import { ClipboardList, Database, Weight, PlayCircle, AlertCircle } from "lucide-react";
+import { ClipboardList, PlayCircle, AlertCircle } from "lucide-react";
 import { useState, useEffect } from "react";
 
-export function CreateOrderForm({ designs }: { designs: any[] }) {
-  const [materials, setMaterials] = useState<any[]>([]);
-  const [selectedDesign, setSelectedDesign] = useState<any>(null);
-  const [selectedMaterial, setSelectedMaterial] = useState<any>(null);
+interface Design {
+  id: string;
+  name: string;
+  targetWeight: number;
+}
+
+interface RawMaterial {
+  id: string;
+  materialName: string;
+  diameter: string;
+  availableKg: number;
+  reservedKg: number;
+  supplier?: string;
+}
+
+export function CreateOrderForm({ designs }: { designs: Design[] }) {
+  const [materials, setMaterials] = useState<RawMaterial[]>([]);
+  const [selectedDesign, setSelectedDesign] = useState<Design | null>(null);
+  const [selectedMaterial, setSelectedMaterial] = useState<RawMaterial | null>(null);
   const [quantity, setQuantity] = useState(0);
   const [customerRef, setCustomerRef] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [stockValidationError, setStockValidationError] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchMaterials() {
@@ -27,11 +43,33 @@ export function CreateOrderForm({ designs }: { designs: any[] }) {
   }, []);
 
   // Logic: Calculate required KG based on Design Template
-  const requiredKg = selectedDesign ? (selectedDesign.targetWeight * quantity).toFixed(2) : 0;
+  const requiredKg = selectedDesign && quantity > 0 ? (selectedDesign.targetWeight * quantity) : 0;
+
+  // Real-time stock validation
+  const remainingKg = selectedMaterial && requiredKg > 0 ? (selectedMaterial.availableKg - requiredKg).toFixed(2) : null;
+  const hasInsufficientStock = selectedMaterial && requiredKg > 0 && requiredKg > selectedMaterial.availableKg;
+
+  // Update validation error when dependencies change
+  useEffect(() => {
+    if (selectedMaterial && requiredKg > 0) {
+      if (hasInsufficientStock) {
+        setStockValidationError(`Insufficient stock: Need ${requiredKg.toFixed(2)}kg, only ${selectedMaterial.availableKg}kg available`);
+      } else {
+        setStockValidationError(null);
+      }
+    } else {
+      setStockValidationError(null);
+    }
+  }, [selectedMaterial, requiredKg, hasInsufficientStock]);
 
   const handleSubmit = async () => {
     if (!selectedDesign || !selectedMaterial || quantity <= 0) {
       alert('Please fill all required fields');
+      return;
+    }
+
+    if (hasInsufficientStock) {
+      alert('Cannot create order: Insufficient material stock');
       return;
     }
 
@@ -115,15 +153,32 @@ export function CreateOrderForm({ designs }: { designs: any[] }) {
             <select
               value={selectedMaterial?.id || ""}
               onChange={(e) => setSelectedMaterial(materials.find(m => m.id === e.target.value) || null)}
-              className="w-full bg-[#1e2023] border border-[#2c2d33] rounded-xl p-3 text-white outline-none focus:border-[#4caf7d]"
+              className={`w-full bg-[#1e2023] border rounded-xl p-3 text-white outline-none focus:border-[#4caf7d] ${
+                selectedMaterial && hasInsufficientStock ? 'border-red-500/50' : 'border-[#2c2d33]'
+              }`}
             >
               <option value="">-- Select Rod from Warehouse --</option>
-              {materials.map(m => (
-                <option key={m.id} value={m.id}>
-                  {m.materialName} ({m.diameter}) - {m.availableKg}kg available
-                </option>
-              ))}
+              {materials.map(m => {
+                const materialRequiredKg = requiredKg;
+                const materialHasInsufficient = materialRequiredKg > 0 && materialRequiredKg > m.availableKg;
+                return (
+                  <option
+                    key={m.id}
+                    value={m.id}
+                    className={materialHasInsufficient ? 'text-red-400' : ''}
+                  >
+                    {m.materialName} ({m.diameter}) - {m.availableKg}kg available
+                    {materialRequiredKg > 0 && materialHasInsufficient && " ⚠️ INSUFFICIENT"}
+                  </option>
+                );
+              })}
             </select>
+            {selectedMaterial && hasInsufficientStock && (
+              <p className="text-xs text-red-400 flex items-center gap-1">
+                <AlertCircle size={12} />
+                This material doesn&apos;t have enough stock for this order
+              </p>
+            )}
           </div>
         </div>
 
@@ -134,23 +189,39 @@ export function CreateOrderForm({ designs }: { designs: any[] }) {
 
             <div className="flex justify-between items-end">
               <span className="text-sm text-[#7a8090]">Estimated Mass</span>
-              <span className="text-xl font-mono font-bold text-white">{requiredKg} kg</span>
+              <span className="text-xl font-mono font-bold text-white">{requiredKg.toFixed(2)} kg</span>
             </div>
+
+            {selectedMaterial && requiredKg > 0 && (
+              <div className="flex justify-between items-end">
+                <span className="text-sm text-[#7a8090]">Remaining Stock</span>
+                <span className={`text-lg font-mono font-bold ${hasInsufficientStock ? 'text-red-400' : 'text-emerald-400'}`}>
+                  {remainingKg} kg
+                </span>
+              </div>
+            )}
+
+            {stockValidationError && (
+              <div className="flex items-start gap-2 text-[11px] text-red-400 bg-red-900/20 p-2 rounded-lg border border-red-500/30">
+                <AlertCircle size={14} className="shrink-0 mt-0.5" />
+                <p>{stockValidationError}</p>
+              </div>
+            )}
 
             <div className="pt-4 border-t border-[#2a2d32]">
               <div className="flex items-start gap-2 text-[11px] text-[#7a8090]">
                 <AlertCircle size={14} className="text-[#f0c040] shrink-0" />
-                <p>Reserving this material will remove it from the "Available" pool in the warehouse.</p>
+                <p>Reserving this material will remove it from the &quot;Available&quot; pool in the warehouse.</p>
               </div>
             </div>
           </div>
 
           <button
             onClick={handleSubmit}
-            disabled={isSubmitting}
+            disabled={isSubmitting || hasInsufficientStock}
             className="w-full mt-6 bg-[#4caf7d] hover:bg-[#439a6e] disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-4 rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg shadow-[#4caf7d]/10"
           >
-            <PlayCircle size={20} /> {isSubmitting ? 'CREATING...' : 'RELEASE TO PRODUCTION'}
+            <PlayCircle size={20} /> {isSubmitting ? 'CREATING...' : hasInsufficientStock ? 'INSUFFICIENT STOCK' : 'RELEASE TO PRODUCTION'}
           </button>
         </div>
       </div>

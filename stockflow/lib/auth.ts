@@ -1,14 +1,14 @@
 import { cookies } from "next/headers";
 import { prisma } from "./prisma";
 
-export type Role = "ADMIN" | "MANAGER" | "OPERATOR" | "SALES" | "PACKAGING";
+export type Role = "ADMIN" | "OPERATOR" | "WAREHOUSE";
 
 export type AuthUser = {
   id: string;
   email: string;
   name: string | null;
   role: Role;
-  department: string | null;
+  dept: string | null;
 };
 
 export async function getUser() {

@@ -33,8 +33,9 @@ const ROLES = {
       { section: 'Production' },
       { id: 'orders', label: 'All orders', badge: null },
       { id: 'departments', label: 'Dept queues', badge: null },
-      { section: 'Reports' },
-      { id: 'scrap', label: 'Scrap report', badge: null },
+       { section: 'Reports' },
+       { id: 'reports', label: 'Monthly yield report', badge: null },
+       { id: 'scrap', label: 'Scrap report', badge: null },
       { id: 'rawmaterials', label: 'Raw materials', badge: null },
     ]
   },
