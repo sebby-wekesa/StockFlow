@@ -43,7 +43,7 @@ export async function middleware(request: NextRequest) {
     // This is the ONLY auth call allowed in Middleware
     await supabase.auth.getUser()
   } catch (e) {
-    // If we hit an error, we log it and let the request pass 
+    // If we hit an error, we log it and let the request pass
     // to avoid the 500 Internal Server Error
     console.error("Middleware safely caught an error")
   }
