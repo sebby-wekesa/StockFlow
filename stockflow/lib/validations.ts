@@ -12,19 +12,26 @@ export const stageCompletionSchema = z.object({
   stageId: z.string().optional(),
   stageName: z.string().min(1, "Stage name is required"),
   sequence: z.number().int().positive("Sequence must be a positive integer"),
-  kgIn: z.number().positive("kgIn must be positive"),
+  kgIn: z.number().min(0, "kgIn cannot be negative"),
   kgOut: z.number().min(0, "kgOut cannot be negative"),
   kgScrap: z.number().min(0, "kgScrap cannot be negative"),
   operatorId: z.string().min(1, "Operator ID is required"),
+  department: z.string().optional(),
   notes: z.string().optional(),
 }).refine(
   (data) => {
-    const total = data.kgOut + data.kgScrap;
+    // Special rule for Electroplating: Output can be HIGHER than Input due to coatings
+    if (data.department === 'Electroplating') {
+      return data.kgOut >= data.kgIn && data.kgScrap >= 0;
+    }
+    
+    // Standard rule: In = Out + Scrap
+    const total = Number(data.kgOut) + Number(data.kgScrap);
     const balance = Math.abs(total - data.kgIn);
-    return balance < 0.001;
+    return balance < 0.01; // Allow for slight rounding
   },
   {
-    message: "Kg balance error: kgIn must equal kgOut + kgScrap",
+    message: "Kg balance error: For non-plating stages, kgIn must equal kgOut + kgScrap",
     path: ["kgOut"],
   }
 );

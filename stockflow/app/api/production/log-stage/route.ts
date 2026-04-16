@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 import { getUser, requireRole } from "@/lib/auth";
+import { stageCompletionSchema } from "@/lib/validations";
 
 export async function POST(req: Request) {
   try {
@@ -14,23 +15,10 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    const {
-      orderId,
-      stageId,
-      kgIn,
-      kgOut,
-      kgScrap,
-      scrapReason,
-    } = body;
 
-    // Validate required fields
-    if (!orderId || kgIn === undefined || kgOut === undefined) {
-      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
-    }
-
-    // 2. Get the current order with full stage sequence
+    // 2. Get the current order with full stage sequence to identify the stage details
     const order = await prisma.productionOrder.findUnique({
-      where: { id: orderId },
+      where: { id: body.orderId },
       include: {
         design: {
           include: {
@@ -46,21 +34,39 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Production order not found" }, { status: 404 });
     }
 
-    // 3. Identify Current and Next Stage
+    // 3. Prepare validation input (merging body with order/user info)
     const stages = order.design.stages;
-    const currentStageIndex = stages.findIndex(s => s.id === stageId || s.sequence === order.currentStage);
+    const currentStageIndex = stages.findIndex(s => s.id === body.stageId || s.sequence === order.currentStage);
     const currentStage = stages[currentStageIndex];
     
     if (!currentStage) {
       return NextResponse.json({ error: "Current stage not found in sequence" }, { status: 404 });
     }
 
+    // 4. Validate with Zod Schema
+    const validationInput = {
+      ...body,
+      stageName: currentStage.name,
+      sequence: currentStage.sequence,
+      operatorId: user.id,
+      department: currentStage.department,
+    };
+
+    const validation = stageCompletionSchema.safeParse(validationInput);
+    if (!validation.success) {
+      return NextResponse.json({ 
+        error: "Validation failed", 
+        details: validation.error.format() 
+      }, { status: 400 });
+    }
+
+    const { kgIn, kgOut, kgScrap, scrapReason } = validation.data;
     const nextStage = stages[currentStageIndex + 1];
 
-    // 4. Create the stage log [cite: 147, 153]
+    // 5. Create the stage log [cite: 147, 153]
     const log = await prisma.stageLog.create({
       data: {
-        orderId,
+        orderId: body.orderId,
         kgIn,
         kgOut,
         kgScrap: kgScrap || 0,
@@ -76,7 +82,7 @@ export async function POST(req: Request) {
     const isLastStage = !nextStage;
     
     await prisma.productionOrder.update({
-      where: { id: orderId },
+      where: { id: body.orderId },
       data: {
         targetKg: kgOut,
         currentStage: nextStage ? nextStage.sequence : order.currentStage,

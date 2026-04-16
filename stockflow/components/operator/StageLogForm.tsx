@@ -1,21 +1,24 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { Scale, Trash2, ArrowRightLeft, Save } from "lucide-react";
+import { Scale, Trash2, ArrowRightLeft, Save, Loader2 } from "lucide-react";
+import { useToast } from "@/components/Toast";
 
 export function StageLogForm({ order, onComplete }: { order: any, onComplete: () => void }) {
+  const { showToast } = useToast();
+  const [isSending, setIsSending] = useState(false);
   const department = order.currentDept || order.department || 'Unknown';
+  
   const [kgIn] = useState(order.inheritedKg || 0); // Pre-filled from previous stage [cite: 77]
   const [kgOut, setKgOut] = useState<number>(0);
   const [kgScrap, setKgScrap] = useState<number>(0);
   const [scrapReason, setScrapReason] = useState('');
+
   // Enforce department-specific rules [cite: 55, 56]
   const isValid = useMemo(() => {
     if (department === 'Electroplating') {
-      // In plating, Output can be HIGHER than Input due to zinc/galvanize coating
       return kgOut >= kgIn && kgScrap >= 0 && (kgScrap === 0 || scrapReason);
     } else {
-      // Standard rule: In = Out + Scrap
       const totalAccounted = Number(kgOut) + Number(kgScrap);
       const difference = Math.abs(kgIn - totalAccounted);
       return difference < 0.01 && kgOut > 0 && (kgScrap === 0 || scrapReason);
@@ -23,21 +26,36 @@ export function StageLogForm({ order, onComplete }: { order: any, onComplete: ()
   }, [kgOut, kgScrap, kgIn, scrapReason, department]);
 
   const handleSubmit = async () => {
-    if (!isValid) return;
+    if (!isValid || isSending) return;
+    setIsSending(true);
 
-    const response = await fetch("/api/production/log-stage", {
-      method: "POST",
-      body: JSON.stringify({
-        orderId: order.id,
-        stageId: order.currentStageId,
-        kgIn,
-        kgOut,
-        kgScrap,
-        scrapReason,
-      }),
-    });
+    try {
+      const response = await fetch("/api/production/log-stage", {
+        method: "POST",
+        body: JSON.stringify({
+          orderId: order.id,
+          stageId: order.currentStageId || order.currentStage,
+          kgIn,
+          kgOut,
+          kgScrap,
+          scrapReason,
+          department, // Match the Zod schema on backend
+        }),
+      });
 
-    if (response.ok) onComplete();
+      const result = await response.json();
+
+      if (response.ok) {
+        showToast(result.message || "Stage advanced successfully", "success");
+        onComplete();
+      } else {
+        showToast(result.error || "Failed to log stage", "error");
+      }
+    } catch (error) {
+      showToast("Network error: Could not log production stage", "error");
+    } finally {
+      setIsSending(false);
+    }
   };
 
   return (
@@ -123,11 +141,12 @@ export function StageLogForm({ order, onComplete }: { order: any, onComplete: ()
           {isValid ? "✓ Entry Validated" : (department === 'Electroplating' ? "⚠ Error: Output must be >= Input" : "⚠ Error: Total (Out + Scrap) must equal Received (In)")}
         </p>
         <button 
-          disabled={!isValid}
+          disabled={!isValid || isSending}
           onClick={handleSubmit}
           className="flex items-center gap-2 bg-[#4a9eff] text-white px-6 py-2 rounded-lg font-bold disabled:opacity-30 disabled:cursor-not-allowed hover:bg-[#3b8ae6] transition-colors"
         >
-          <Save size={18} /> COMPLETE STAGE
+          {isSending ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />}
+          {isSending ? "SAVING..." : "COMPLETE STAGE"}
         </button>
       </div>
     </div>
