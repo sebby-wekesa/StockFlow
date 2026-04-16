@@ -9,8 +9,10 @@ const nextConfig: NextConfig = {
   },
   experimental: {
     serverExternalPackages: ['@prisma/client'],
+    turbopack: {},
   },
   webpack: (config, { isServer }) => {
+    config.optimization.minimize = false; // Temporarily disable to save memory
     if (!isServer) {
       config.resolve.fallback = {
         ...config.resolve.fallback,
