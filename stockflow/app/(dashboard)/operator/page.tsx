@@ -1,9 +1,12 @@
-"use client";
 
+import { getStock } from "@/app/actions";
 import { DepartmentQueue } from "@/components/DepartmentQueue";
 import { Factory, Terminal, Activity, Info } from "lucide-react";
 
-export default function OperatorPage() {
+export default async function OperatorPage() {
+  // Fetch designs (stock items) using the new server action
+  const designs = await getStock();
+  
   // In a real scenario, this comes from the logged-in user's profile
   const userDept = "Cutting"; 
 
@@ -20,7 +23,9 @@ export default function OperatorPage() {
             <h1 className="text-2xl font-bold text-[#e8eaed] flex items-center gap-2">
               Station Terminal: <span className="text-[#4a9eff]">{userDept}</span>
             </h1>
-            <p className="text-sm text-[#7a8090]">Process active jobs to move them to the next production stage.</p>
+            <p className="text-sm text-[#7a8090]">
+              Process active jobs | <span className="text-[#4a9eff]">{designs.length} Products</span> in Registry
+            </p>
           </div>
         </div>
         
