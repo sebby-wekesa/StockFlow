@@ -1,17 +1,14 @@
-import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
+import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs'
+import { NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
 
-export function middleware(request: NextRequest) {
-  const userRole = request.cookies.get('user-role')?.value; // In a real app, use a JWT/Auth session
-  const { pathname } = request.nextUrl;
+export async function middleware(req: NextRequest) {
+  const res = NextResponse.next()
+  const supabase = createMiddlewareClient({ req, res })
+  await supabase.auth.getSession()
+  return res
+}
 
-  // Protect Admin Routes
-  if (pathname.startsWith('/admin') && userRole !== 'ADMIN') {
-    return NextResponse.redirect(new URL('/operator/queue', request.url));
-  }
-
-  // Protect Operator Routes
-  if (pathname.startsWith('/operator') && userRole === 'ADMIN') {
-    return NextResponse.redirect(new URL('/admin/dashboard', request.url));
-  }
+export const config = {
+  matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
 }
