@@ -130,10 +130,12 @@ export function DepartmentQueue({ userDept }: DepartmentQueueProps) {
             </div>
           </div>
         ))}
-      </div>
+        </div>
+      )}
 
-      {/* When a job is clicked, show the StageLogForm we built earlier */}
+      
       {activeJob && (
+        {/* When a job is clicked, show the StageLogForm we built earlier */}
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
            <div className="max-w-2xl w-full">
              <button onClick={() => setActiveJob(null)} className="text-white mb-2 text-sm hover:underline">← Back to Queue</button>
