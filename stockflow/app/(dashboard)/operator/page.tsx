@@ -1,9 +1,25 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { getOperatorData } from "./actions";
 import { DepartmentQueue } from "@/components/DepartmentQueue";
 import { Factory, Terminal, Activity, Info } from "lucide-react";
 
 export default function OperatorPage() {
+  const [designs, setDesigns] = useState<any[]>([]);
+  
   // In a real scenario, this comes from the logged-in user's profile
   const userDept = "Cutting"; 
+
+  useEffect(() => {
+    const fetchData = async () => {
+      const result = await getOperatorData();
+      if (result.success) {
+        setDesigns(result.data);
+      }
+    };
+    fetchData();
+  }, []);
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
@@ -18,7 +34,9 @@ export default function OperatorPage() {
             <h1 className="text-2xl font-bold text-[#e8eaed] flex items-center gap-2">
               Station Terminal: <span className="text-[#4a9eff]">{userDept}</span>
             </h1>
-            <p className="text-sm text-[#7a8090]">Process active jobs to move them to the next production stage.</p>
+            <p className="text-sm text-[#7a8090]">
+              Process active jobs | <span className="text-[#4a9eff]">{designs.length} Products</span> in Registry
+            </p>
           </div>
         </div>
         
