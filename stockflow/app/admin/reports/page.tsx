@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { getMonthlyYieldReport } from "@/app/actions/reports";
 import { YieldReportView } from "@/components/admin/YieldReportView";
 
