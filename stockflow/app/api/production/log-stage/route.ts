@@ -1,8 +1,18 @@
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
+import { getUser, requireRole } from "@/lib/auth";
 
 export async function POST(req: Request) {
   try {
+    // 1. Verify Authentication & Role [cite: 55, 137]
+    const user = await getUser();
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    
+    // Check if user has OPERATOR or ADMIN role
+    if (user.role !== 'OPERATOR' && user.role !== 'ADMIN') {
+      return NextResponse.json({ error: "Forbidden: Only operators can log production" }, { status: 403 });
+    }
+
     const body = await req.json();
     const {
       orderId,
@@ -18,13 +28,15 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
-    // Get the current order to find the stage name and sequence
+    // 2. Get the current order with full stage sequence
     const order = await prisma.productionOrder.findUnique({
       where: { id: orderId },
       include: {
         design: {
           include: {
-            stages: true
+            stages: {
+              orderBy: { sequence: "asc" }
+            }
           }
         }
       }
@@ -34,16 +46,18 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Production order not found" }, { status: 404 });
     }
 
-    // Find the current stage
-    const currentStage = order.design.stages.find(s => s.id === stageId) ||
-                        order.design.stages.find(s => s.sequence === stageId) ||
-                        order.design.stages[order.currentStage - 1];
-
+    // 3. Identify Current and Next Stage
+    const stages = order.design.stages;
+    const currentStageIndex = stages.findIndex(s => s.id === stageId || s.sequence === order.currentStage);
+    const currentStage = stages[currentStageIndex];
+    
     if (!currentStage) {
-      return NextResponse.json({ error: "Stage not found" }, { status: 404 });
+      return NextResponse.json({ error: "Current stage not found in sequence" }, { status: 404 });
     }
 
-    // Create the stage log
+    const nextStage = stages[currentStageIndex + 1];
+
+    // 4. Create the stage log [cite: 147, 153]
     const log = await prisma.stageLog.create({
       data: {
         orderId,
@@ -53,21 +67,29 @@ export async function POST(req: Request) {
         scrapReason,
         stageName: currentStage.name,
         sequence: currentStage.sequence,
-        operatorId: "default-operator", // TODO: Get from auth
+        operatorId: user.id,
+        department: currentStage.department,
       }
     });
 
-    // Update the order's targetKg for the next stage
+    // 5. Update the Production Order (The Handoff) [cite: 99, 103]
+    const isLastStage = !nextStage;
+    
     await prisma.productionOrder.update({
       where: { id: orderId },
       data: {
-        targetKg: kgOut
+        targetKg: kgOut,
+        currentStage: nextStage ? nextStage.sequence : order.currentStage,
+        currentDept: nextStage ? nextStage.department : order.currentDept,
+        status: isLastStage ? "COMPLETED" : "IN_PRODUCTION",
       }
     });
 
     return NextResponse.json({
       success: true,
-      log
+      message: isLastStage ? "Order completed" : `Advanced to ${nextStage.department}`,
+      log,
+      isCompleted: isLastStage
     });
 
   } catch (error) {

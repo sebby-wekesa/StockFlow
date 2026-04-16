@@ -35,11 +35,16 @@ export function DepartmentQueue({ userDept }: DepartmentQueueProps) {
         const transformedJobs = result.data.map((order: any) => ({
           id: order.id,
           orderNumber: order.code,
-          design: { name: order.designName },
-          inheritedKg: order.targetKg, // Use targetKg as inheritedKg for now
+          design: { 
+            name: order.designName, 
+            targetDim: order.targetDimensions || "Standard" 
+          },
+          inheritedKg: order.targetKg,
           targetKg: order.targetKg,
-          currentStage: 1, // This might need to be fetched separately
+          currentStage: order.currentStage || 1,
           status: order.status,
+          currentStageId: order.currentStageId,
+          currentDept: order.currentDept,
         }));
         setJobs(transformedJobs);
       }
