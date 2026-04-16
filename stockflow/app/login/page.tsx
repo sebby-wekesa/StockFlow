@@ -1,14 +1,20 @@
 "use client";
 
-import { useActionState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useTransition } from "react";
 import { signIn } from "@/actions/auth";
 
 type AuthState = { error: string } | null;
 
 export default function LoginPage() {
-  const [state, formAction, pending] = useActionState(async (prevState: AuthState, formData: FormData) => {
-    return await signIn(formData);
-  }, null);
+  const [state, setState] = useState<AuthState>(null);
+  const [pending, startTransition] = useTransition();
+
+  const handleSubmit = async (formData: FormData) => {
+    startTransition(async () => {
+      const result = await signIn(formData);
+      setState(result);
+    });
+  };
 
   const emailInputRef = useRef<HTMLInputElement>(null);
 
@@ -31,7 +37,7 @@ export default function LoginPage() {
         </div>
 
         {/* Form */}
-        <form action={formAction} className="space-y-5">
+        <form action={handleSubmit} className="space-y-5">
           {/* Error Message */}
           {state?.error && (
             <div className="p-4 bg-red-900/20 border border-red-700/50 text-red-300 rounded-lg text-sm flex items-start gap-3 animate-pulse">
