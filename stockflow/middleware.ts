@@ -1,3 +1,8 @@
+// @ts-ignore
+if (typeof __dirname === 'undefined') globalThis.__dirname = '/';
+// @ts-ignore
+if (typeof __filename === 'undefined') globalThis.__filename = '/middleware.js';
+
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
