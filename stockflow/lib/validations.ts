@@ -1,4 +1,4 @@
-import { z } from "zod/v4";
+import { z } from "zod";
 
 export const loginSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
@@ -17,12 +17,13 @@ export const stageCompletionSchema = z.object({
   kgScrap: z.number().min(0, "kgScrap cannot be negative"),
   operatorId: z.string().min(1, "Operator ID is required"),
   department: z.string().optional(),
+  scrapReason: z.string().optional(),
   notes: z.string().optional(),
 }).refine(
   (data) => {
     // Special rule for Electroplating: Output can be HIGHER than Input due to coatings
     if (data.department === 'Electroplating') {
-      return data.kgOut >= data.kgIn && data.kgScrap >= 0;
+      return (Number(data.kgOut) + Number(data.kgScrap)) >= Number(data.kgIn);
     }
     
     // Standard rule: In = Out + Scrap

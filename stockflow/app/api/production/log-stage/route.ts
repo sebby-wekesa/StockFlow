@@ -90,6 +90,7 @@ export async function POST(req: Request) {
         currentStage: nextStage ? nextStage.sequence : order.currentStage,
         currentDept: nextStage ? nextStage.department : order.currentDept,
         status: isLastStage ? "COMPLETED" : "IN_PRODUCTION",
+        ...(isLastStage ? { completedAt: new Date() } : {}),
       }
     });
 
@@ -99,7 +100,7 @@ export async function POST(req: Request) {
         data: {
           designId: order.designId,
           quantity: order.quantity,
-          kgProduced: kgOut * order.quantity, // Total kg for all units
+          kgProduced: kgOut, // kgOut is the total batch weight produced
         }
       });
     }

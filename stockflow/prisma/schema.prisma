@@ -90,6 +90,7 @@ model ProductionOrder {
   assignedTo    String?
   approvedBy    String?
   approvedAt    DateTime?
+  completedAt   DateTime?
   createdAt     DateTime         @default(now())
   updatedAt     DateTime         @updatedAt
   logs          StageLog[]
