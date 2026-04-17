@@ -14,7 +14,7 @@ export default function OperatorPage() {
   useEffect(() => {
     const fetchData = async () => {
       const result = await getOperatorData();
-      if (result.success) {
+      if (result.success && result.data) {
         setDesigns(result.data);
       }
     };

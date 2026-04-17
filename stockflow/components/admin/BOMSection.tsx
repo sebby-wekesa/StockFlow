@@ -1,6 +1,6 @@
 "use client";
 
-import { link, Database, AlertCircle } from "lucide-react";
+import { Link, Database, AlertCircle } from "lucide-react";
 
 export function BOMSection({ rawMaterials }: { rawMaterials: any[] }) {
   return (
