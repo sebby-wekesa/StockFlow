@@ -73,7 +73,7 @@ export async function POST(req: Request) {
     const nextStage = order.design.stages[currentStageIndex + 1];
 
     let nextDept = "Completed";
-    let finalStatus = "COMPLETED" as const;
+    let finalStatus: "COMPLETED" | "IN_PRODUCTION" = "COMPLETED";
     let nextSeq = currentSequence + 1;
 
     if (nextStage) {
@@ -90,7 +90,8 @@ export async function POST(req: Request) {
         currentDept: nextDept,
         status: finalStatus,
         // Update targetKg for the next stage based on what actually came out of this one
-        targetKg: kgOut 
+        targetKg: kgOut,
+        ...(finalStatus === "COMPLETED" && { completedAt: new Date() }),
       }
     });
 

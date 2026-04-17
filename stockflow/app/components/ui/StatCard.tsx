@@ -11,7 +11,7 @@ interface StatCardProps {
 export default function StatCard({ 
   label, 
   value, 
-  color = "", 
+  color = "teal", 
   subLabel = "",
   subLabelDown = false
 }: StatCardProps) {

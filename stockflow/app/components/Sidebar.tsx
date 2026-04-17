@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Role } from "@/lib/auth";
 
 const ROLES = {
-  admin: {
+  ADMIN: {
     name: 'Admin / Owner',
     color: 'var(--accent)',
     nav: [
@@ -22,7 +22,7 @@ const ROLES = {
       { id: 'users', label: 'Users & roles', badge: null },
     ]
   },
-  manager: {
+  MANAGER: {
     name: 'Production Manager',
     color: 'var(--accent)',
     nav: [
@@ -39,7 +39,7 @@ const ROLES = {
       { id: 'rawmaterials', label: 'Raw materials', badge: null },
     ]
   },
-  operator: {
+  OPERATOR: {
     name: 'Operator — Cutting',
     color: 'var(--purple)',
     nav: [
@@ -50,7 +50,7 @@ const ROLES = {
       { id: 'operator_history', label: 'Completed jobs', badge: null },
     ]
   },
-  sales: {
+  SALES: {
     name: 'Sales Team',
     color: 'var(--teal)',
     nav: [
@@ -61,7 +61,7 @@ const ROLES = {
       { id: 'my_orders', label: 'Order history', badge: null },
     ]
   },
-  packaging: {
+  PACKAGING: {
     name: 'Packaging Team',
     color: 'var(--green)',
     nav: [
@@ -70,7 +70,7 @@ const ROLES = {
       { id: 'pack_done', label: 'Fulfilled today', badge: null },
     ]
   },
-  warehouse: {
+  WAREHOUSE: {
     name: 'Warehouse Team',
     color: 'var(--muted)',
     nav: [
@@ -115,7 +115,8 @@ export default function Sidebar({ role, userName }: SidebarProps) {
             );
           }
           
-          const bc = item.badgeColor || '';
+          const navItem = item as { label: string, badge?: string | null, badgeColor?: string };
+          const bc = navItem.badgeColor || '';
           const badge = item.badge ? (
             <span className={`nav-badge ${bc}`}>{item.badge}</span>
           ) : null;
