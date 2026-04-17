@@ -127,6 +127,18 @@ model RawMaterial {
   supplier      String?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+  receipts      MaterialReceipt[]
+}
+
+model MaterialReceipt {
+  id            String      @id @default(cuid())
+  materialId    String
+  material      RawMaterial @relation(fields: [materialId], references: [id])
+  kgReceived    Float
+  reference     String?     // GRN Number
+  supplier      String?
+  loggedBy      String?
+  createdAt     DateTime    @default(now())
 }
 
 model FinishedGoods {

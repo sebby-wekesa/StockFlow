@@ -14,6 +14,18 @@ export type AuthUser = {
 export async function getUser() {
   const cookieStore = await cookies();
   const token = cookieStore.get("auth-token")?.value;
+  const demoLoggedIn = cookieStore.get("demo-logged-in")?.value;
+
+  if (!token && demoLoggedIn === "true") {
+    // Demo mode: return mock user
+    return {
+      id: "demo-user",
+      email: "demo@stockflow.com",
+      name: "Demo User",
+      role: "ADMIN" as Role,
+      department: null,
+    };
+  }
 
   if (!token) return null;
 

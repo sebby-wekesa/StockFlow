@@ -1,200 +1,100 @@
-"use client";
-
-import { useState, useRef, useEffect, useTransition } from "react";
-import { supabase } from "@/lib/supabase";
-
-type AuthState = { error: string } | null;
+import { redirect } from 'next/navigation'
+import { cookies } from 'next/headers'
 
 export default function LoginPage() {
-  const [state, setState] = useState<AuthState>(null);
-  const [pending, startTransition] = useTransition();
+  async function handleLogin(formData: FormData) {
+    'use server'
 
-  const handleSubmit = async (formData: FormData) => {
-    startTransition(async () => {
-      const email = formData.get("email") as string;
-      const password = formData.get("password") as string;
+    // Demo mode: set cookie and redirect
+    const cookieStore = await cookies()
+    cookieStore.set('demo-logged-in', 'true', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 60 * 60 * 24 * 7 // 7 days
+    })
 
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: email.trim(), // Ensure no trailing spaces
-        password: password,
-      });
-
-      if (error) {
-        setState({ error: error.message });
-      } else {
-        // Redirect will be handled by middleware or callback
-      }
-    });
-  };
-
-  const emailInputRef = useRef<HTMLInputElement>(null);
-
-  // Auto-focus email input on mount
-  useEffect(() => {
-    emailInputRef.current?.focus();
-  }, []);
-
-  const handleGoogleSignIn = async () => {
-    const { data, error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback?next=/dashboard`,
-      },
-    });
-    if (error) {
-      setState({ error: error.message });
-    }
-  };
+    redirect('/dashboard')
+  }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-zinc-900 text-zinc-100" style={{ background: '#0e0f11' }}>
-      <div className="w-full max-w-md p-8 rounded-lg border" style={{ background: '#161719', borderColor: '#2a2d32' }}>
-        {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold" style={{ fontFamily: 'Syne', color: '#f0c040' }}>
+    <div style={{
+      minHeight: '100vh',
+      background: 'var(--bg)',
+      color: 'var(--text)',
+      fontFamily: 'var(--font-body)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: '20px'
+    }}>
+      <div style={{
+        background: 'var(--surface)',
+        border: '1px solid var(--border)',
+        borderRadius: 'var(--radius)',
+        padding: '40px',
+        width: '100%',
+        maxWidth: '400px'
+      }}>
+        <div style={{ textAlign: 'center', marginBottom: '32px' }}>
+          <div style={{
+            fontFamily: 'var(--font-head)',
+            fontSize: '24px',
+            fontWeight: '800',
+            color: 'var(--accent)',
+            letterSpacing: '-0.5px',
+            marginBottom: '4px'
+          }}>
             StockFlow
-          </h1>
-          <p className="text-sm mt-2" style={{ color: '#7a8090', letterSpacing: '1px', textTransform: 'uppercase' }}>
+          </div>
+          <div style={{
+            fontSize: '12px',
+            color: 'var(--muted)',
+            letterSpacing: '1.5px',
+            textTransform: 'uppercase'
+          }}>
             Manufacturing Platform
-          </p>
+          </div>
         </div>
 
-        {/* Form */}
-        <form action={handleSubmit} className="space-y-5">
-          {/* Error Message */}
-          {state?.error && (
-            <div className="p-4 bg-red-900/20 border border-red-700/50 text-red-300 rounded-lg text-sm flex items-start gap-3 animate-pulse">
-              <svg className="w-5 h-5 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-              </svg>
-              <span>{state.error}</span>
-            </div>
-          )}
-
-          {/* Email Input */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            <label htmlFor="email" className="text-xs uppercase tracking-wider font-medium" style={{ color: '#7a8090' }}>
-              Email Address
-            </label>
+        <form action={handleLogin}>
+          <div className="form-group" style={{ marginBottom: '16px' }}>
+            <label className="form-label">Email</label>
             <input
-              ref={emailInputRef}
               type="email"
-              id="email"
               name="email"
+              className="form-input"
+              placeholder="your.email@company.com"
               required
-              autoComplete="email"
-              disabled={pending}
-              className="w-full px-4 py-3 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2"
-              style={{
-                background: '#1e2023',
-                border: '1px solid #353a40',
-                color: '#e8eaed',
-                fontFamily: 'DM Sans',
-                focusRingColor: '#f0c040',
-                opacity: pending ? 0.6 : 1,
-                cursor: pending ? 'not-allowed' : 'text',
-              }}
-              placeholder="you@company.com"
-              aria-label="Email address"
-              aria-required="true"
             />
           </div>
-
-          {/* Password Input */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            <label htmlFor="password" className="text-xs uppercase tracking-wider font-medium" style={{ color: '#7a8090' }}>
-              Password
-            </label>
+          <div className="form-group" style={{ marginBottom: '24px' }}>
+            <label className="form-label">Password</label>
             <input
               type="password"
-              id="password"
               name="password"
+              className="form-input"
+              placeholder="Enter your password"
               required
-              disabled={pending}
-              autoComplete="current-password"
-              className="w-full px-4 py-3 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2"
-              style={{
-                background: '#1e2023',
-                border: '1px solid #353a40',
-                color: '#e8eaed',
-                fontFamily: 'DM Sans',
-                focusRingColor: '#f0c040',
-                opacity: pending ? 0.6 : 1,
-                cursor: pending ? 'not-allowed' : 'text',
-              }}
-              placeholder="••••••••"
-              aria-label="Password"
-              aria-required="true"
             />
           </div>
-
-          {/* Submit Button */}
           <button
             type="submit"
-            disabled={pending}
-            className="w-full py-3 px-4 font-semibold rounded-md transition-all duration-200 mt-8 flex items-center justify-center gap-2"
-            style={{
-              background: '#f0c040',
-              color: '#000',
-              cursor: pending ? 'not-allowed' : 'pointer',
-              opacity: pending ? 0.8 : 1,
-              transform: pending ? 'scale(0.98)' : 'scale(1)',
-            }}
-            aria-busy={pending}
-            aria-label={pending ? "Signing in..." : "Sign in"}
+            className="btn btn-primary"
+            style={{ width: '100%', marginBottom: '16px' }}
           >
-            {pending ? (
-              <>
-                <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                <span>Signing in...</span>
-              </>
-            ) : (
-              <>
-                <span>Sign In</span>
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                </svg>
-              </>
-            )}
+            Sign In
           </button>
         </form>
 
-        {/* Google Sign In */}
-        <div className="mt-6">
-          <button
-            onClick={handleGoogleSignIn}
-            className="w-full py-3 px-4 font-semibold rounded-md transition-all duration-200 flex items-center justify-center gap-2 border"
-            style={{
-              background: '#1e2023',
-              borderColor: '#353a40',
-              color: '#e8eaed',
-              cursor: 'pointer',
-            }}
-            aria-label="Sign in with Google"
-          >
-            <svg className="w-5 h-5" viewBox="0 0 24 24">
-              <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-              <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-              <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-              <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-            </svg>
-            <span>Sign in with Google</span>
-          </button>
-        </div>
-
-        {/* Footer */}
-        <div className="mt-8 pt-8 border-t" style={{ borderColor: '#2a2d32' }}>
-          <p className="text-xs text-center" style={{ color: '#7a8090' }}>
-            Need help? Check the{' '}
-            <a href="/README.md" className="font-medium hover:text-zinc-300 transition-colors" style={{ color: '#f0c040' }}>
-              setup guide
-            </a>
-          </p>
+        <div style={{
+          textAlign: 'center',
+          fontSize: '11px',
+          color: 'var(--muted)'
+        }}>
+          Demo credentials: Use any email/password combination
         </div>
       </div>
     </div>
-  );
+  )
 }
