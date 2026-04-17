@@ -82,7 +82,7 @@ export async function POST(req: Request) {
 
     // 5. Update the Production Order (The Handoff) [cite: 99, 103]
     const isLastStage = !nextStage;
-    
+
     await prisma.productionOrder.update({
       where: { id: body.orderId },
       data: {
@@ -92,6 +92,17 @@ export async function POST(req: Request) {
         status: isLastStage ? "COMPLETED" : "IN_PRODUCTION",
       }
     });
+
+    // 6. If completed, add to finished goods inventory
+    if (isLastStage) {
+      await prisma.finishedGoods.create({
+        data: {
+          designId: order.designId,
+          quantity: order.quantity,
+          kgProduced: kgOut * order.quantity, // Total kg for all units
+        }
+      });
+    }
 
     return NextResponse.json({
       success: true,

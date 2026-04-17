@@ -11,6 +11,7 @@ enum Role {
   ADMIN      // Can see reports, manage BOM, and release orders
   OPERATOR   // Can only see their department queue and log weights
   WAREHOUSE  // Can only log raw material intake
+  SALES      // Can view sales catalogue and place orders
 }
 
 enum ProductionStatus {
@@ -55,6 +56,7 @@ model Design {
   updatedAt        DateTime          @updatedAt
   stages           Stage[]
   productionOrders ProductionOrder[]
+  finishedGoods    FinishedGoods[]
 }
 
 model Stage {
@@ -124,4 +126,42 @@ model RawMaterial {
   supplier      String?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+}
+
+model FinishedGoods {
+  id          String   @id @default(cuid())
+  designId    String
+  design      Design   @relation(fields: [designId], references: [id])
+  quantity    Int      // Units completed
+  kgProduced  Float    // Total kg of finished goods
+  createdAt   DateTime @default(now())
+  saleItems   SaleItem[]
+}
+
+model SaleOrder {
+  id            String        @id @default(cuid())
+  customerName  String
+  items         SaleItem[]
+  totalAmount   Float         // Calculated total
+  status        SaleStatus    @default(PENDING)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+}
+
+model SaleItem {
+  id             String      @id @default(cuid())
+  saleOrderId    String
+  saleOrder      SaleOrder   @relation(fields: [saleOrderId], references: [id], onDelete: Cascade)
+  finishedGoodsId String
+  finishedGoods  FinishedGoods @relation(fields: [finishedGoodsId], references: [id])
+  quantity       Int
+  unitPrice      Float
+  totalPrice     Float       // quantity * unitPrice
+}
+
+enum SaleStatus {
+  PENDING
+  CONFIRMED
+  SHIPPED
+  CANCELLED
 }
