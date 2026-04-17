@@ -12,10 +12,28 @@ export async function createProductionOrder(formData: FormData) {
   const quantity = parseInt(formData.get("quantity") as string);
   const targetKg = parseFloat(formData.get("targetKg") as string);
 
+  // Generate order number (ORD-YYYY-NNNN)
+  const currentYear = new Date().getFullYear();
+  const lastOrder = await prisma.productionOrder.findFirst({
+    orderBy: { createdAt: 'desc' },
+    select: { orderNumber: true },
+  });
+
+  let nextNumber = 1;
+  if (lastOrder?.orderNumber) {
+    const match = lastOrder.orderNumber.match(/ORD-\d{4}-(\d{4})/);
+    if (match) {
+      nextNumber = parseInt(match[1]) + 1;
+    }
+  }
+
+  const orderNumber = `ORD-${currentYear}-${nextNumber.toString().padStart(4, '0')}`;
+
   const input: ProductionOrderInput = {
     designId,
     quantity,
     targetKg,
+    orderNumber,
   };
 
   productionOrderSchema.parse(input);
@@ -36,6 +54,7 @@ export async function createProductionOrder(formData: FormData) {
 
   const order = await prisma.productionOrder.create({
     data: {
+      orderNumber: input.orderNumber,
       designId: input.designId,
       quantity: input.quantity,
       targetKg: input.targetKg,

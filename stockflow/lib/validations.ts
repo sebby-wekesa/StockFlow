@@ -42,18 +42,21 @@ export const productionOrderSchema = z.object({
   designId: z.string().min(1, "Design is required"),
   quantity: z.number().int().positive("Quantity must be positive"),
   targetKg: z.number().positive("Target kg must be positive"),
+  orderNumber: z.string().min(1, "Order number is required"),
 });
 
 export type ProductionOrderInput = z.infer<typeof productionOrderSchema>;
 
 export const designSchema = z.object({
   name: z.string().min(1, "Name is required").max(100),
+  code: z.string().min(1, "Code is required").max(10),
   description: z.string().max(500).optional(),
   targetDimensions: z.string().max(100).optional(),
   targetWeight: z.number().positive().optional(),
   stages: z.array(z.object({
     name: z.string().min(1),
     sequence: z.number().int().positive(),
+    department: z.string().min(1),
   })).min(1, "At least one stage is required"),
 });
 

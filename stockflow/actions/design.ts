@@ -13,18 +13,30 @@ export async function createDesign(formData: FormData) {
   const targetDimensions = formData.get("targetDimensions") as string;
   const targetWeight = formData.get("targetWeight");
 
-  const stagesData: { name: string; sequence: number }[] = [];
+  // Auto-generate code from name (first letters of words, uppercase)
+  const code = name
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase())
+    .join('')
+    .substring(0, 10); // Limit to 10 characters
+
+  const stagesData: { name: string; sequence: number; department: string }[] = [];
   let i = 0;
   while (formData.has(`stages[${i}].name`)) {
     const stageName = formData.get(`stages[${i}].name`) as string;
     if (stageName) {
-      stagesData.push({ name: stageName, sequence: i + 1 });
+      stagesData.push({
+        name: stageName,
+        sequence: i + 1,
+        department: "Production" // Default department - should be configurable later
+      });
     }
     i++;
   }
 
   const input: DesignInput = {
     name,
+    code,
     description: description || undefined,
     targetDimensions: targetDimensions || undefined,
     targetWeight: targetWeight ? parseFloat(targetWeight as string) : undefined,
@@ -36,6 +48,7 @@ export async function createDesign(formData: FormData) {
   const design = await prisma.design.create({
     data: {
       name: input.name,
+      code: input.code,
       description: input.description,
       targetDimensions: input.targetDimensions,
       targetWeight: input.targetWeight,
@@ -56,18 +69,30 @@ export async function updateDesign(id: string, formData: FormData) {
   const targetDimensions = formData.get("targetDimensions") as string;
   const targetWeight = formData.get("targetWeight");
 
-  const stagesData: { name: string; sequence: number }[] = [];
+  // Auto-generate code from name (first letters of words, uppercase)
+  const code = name
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase())
+    .join('')
+    .substring(0, 10); // Limit to 10 characters
+
+  const stagesData: { name: string; sequence: number; department: string }[] = [];
   let i = 0;
   while (formData.has(`stages[${i}].name`)) {
     const stageName = formData.get(`stages[${i}].name`) as string;
     if (stageName) {
-      stagesData.push({ name: stageName, sequence: i + 1 });
+      stagesData.push({
+        name: stageName,
+        sequence: i + 1,
+        department: "Production" // Default department - should be configurable later
+      });
     }
     i++;
   }
 
   const input: DesignInput = {
     name,
+    code,
     description: description || undefined,
     targetDimensions: targetDimensions || undefined,
     targetWeight: targetWeight ? parseFloat(targetWeight as string) : undefined,
