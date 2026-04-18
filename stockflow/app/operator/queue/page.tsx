@@ -56,7 +56,7 @@ export default async function OperatorQueuePage() {
       ) : (
         <div>
           {stats.pendingJobs.map((order) => (
-            <JobCard key={order.id} order={order} department={department} />
+            <JobCard key={order.id} order={order} department={department ?? "General"} />
           ))}
         </div>
       )}
