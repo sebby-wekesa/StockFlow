@@ -28,7 +28,7 @@ export default async function OperatorQueuePage() {
 
   if (!dbUser) redirect("/login");
 
-  const department = dbUser.dept;
+  const department = dbUser.department;
   const stats = department ? await getOperatorStats(department) : null;
 
   if (!stats) {
