@@ -132,7 +132,7 @@ export function CreateProductionOrderForm({
       bg: 'bg-amber-900/20',
     },
     HIGH: { label: 'High', color: 'text-red-400', bg: 'bg-red-900/20' },
-  }
+  } as const
 
   return (
     <div className="w-full max-w-2xl">
@@ -234,7 +234,7 @@ export function CreateProductionOrderForm({
               Priority Level *
             </label>
             <div className="grid grid-cols-3 gap-3">
-              {(Object.keys(priorityConfig) as const).map((level) => {
+              {(Object.keys(priorityConfig) as (keyof typeof priorityConfig)[]).map((level) => {
                 const config = priorityConfig[level]
                 const isSelected = priority === level
                 return (
