@@ -60,7 +60,13 @@ export async function signIn(formData: FormData) {
   });
 
   // Redirect based on role
-  const redirectPath = user.role === 'ADMIN' ? '/admin/dashboard' : '/operator/queue';
+  let redirectPath = '/operator/queue'; // default
+  if (user.role === 'ADMIN') {
+    redirectPath = '/admin/dashboard';
+  } else if (user.role === 'OPERATOR') {
+    redirectPath = '/operator';
+  }
+  // WAREHOUSE and SALES stay on /operator/queue for now
   redirect(redirectPath);
 }
 
@@ -130,5 +136,5 @@ export async function signUp(formData: FormData) {
     maxAge: 60 * 60 * 24 * 7,
   });
 
-  redirect("/operator_queue"); // Operators go to queue by default
+  redirect("/operator"); // Operators go to their dashboard
 }
