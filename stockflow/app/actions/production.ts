@@ -45,6 +45,41 @@ export async function getOperatorQueue() {
   }));
 }
 
+export async function getOperatorHistory() {
+  const user = await requireAuth();
+
+  const logs = await prisma.stageLog.findMany({
+    where: {
+      operatorId: user.id,
+      completedAt: {
+        not: null,
+      },
+    },
+    include: {
+      order: {
+        include: {
+          design: true,
+        },
+      },
+    },
+    orderBy: {
+      completedAt: "desc",
+    },
+    take: 20, // Last 20 completed jobs
+  });
+
+  return logs.map(log => ({
+    id: log.id,
+    orderNumber: log.order.orderNumber,
+    designName: log.order.design.name,
+    completedAt: log.completedAt,
+    kgOut: log.kgOut,
+    kgScrap: log.kgScrap,
+    department: log.department,
+    stageName: log.stageName,
+  }));
+}
+
 export async function getOrderForLogging(id: string) {
   const order = await prisma.productionOrder.findUnique({
     where: { id },
