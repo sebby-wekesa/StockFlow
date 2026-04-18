@@ -34,7 +34,7 @@ export default async function AdminDesignsPage() {
                     {design.id.slice(0, 8).toUpperCase()}
                   </div>
                 </div>
-                {design.targetWeight && <span className="badge badge-green">{design.targetWeight} kg per unit</span>}
+                <span className="badge badge-green">{design.kgPerUnit} kg per unit</span>
               </div>
               <div style={{ fontSize: "11px", color: "var(--muted)", marginBottom: "8px" }}>
                 {design.description || "No description"}

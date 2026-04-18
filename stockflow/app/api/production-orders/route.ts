@@ -124,7 +124,7 @@ export async function GET(request: NextRequest) {
           design: {
             select: {
               name: true,
-              targetWeight: true,
+              kgPerUnit: true,
             },
           },
         },
@@ -147,7 +147,7 @@ export async function GET(request: NextRequest) {
       currentDept: order.currentDept || 'Unassigned',
       quantity: order.quantity,
       priority: order.priority,
-      yieldEstimate: order.design?.targetWeight ? Math.round((order.targetKg / order.design.targetWeight) * 100) : 85,
+      expectedUnits: order.quantity,
       status: order.status,
     }))
 

@@ -74,6 +74,9 @@ export async function approveProductionOrder(orderId: string) {
 
   const order = await prisma.productionOrder.findUnique({
     where: { id: orderId },
+    include: {
+      design: true,
+    },
   });
 
   if (!order) {
@@ -84,13 +87,33 @@ export async function approveProductionOrder(orderId: string) {
     throw new Error("Order is not pending approval");
   }
 
-  await prisma.productionOrder.update({
-    where: { id: orderId },
-    data: {
-      status: "APPROVED",
-      approvedBy: user.email!,
-      approvedAt: new Date(),
-    },
+  if (!order.design.rawMaterialId) {
+    throw new Error("Design does not have an assigned raw material");
+  }
+
+  // Calculate the required KG
+  const requiredKg = order.quantity * order.design.kgPerUnit;
+
+  // Perform the transaction to approve order and reserve inventory
+  await prisma.$transaction(async (tx) => {
+    // 1. Deduct from Available and add to Reserved
+    await tx.rawMaterial.update({
+      where: { id: order.design.rawMaterialId! },
+      data: {
+        availableKg: { decrement: requiredKg },
+        reservedKg: { increment: requiredKg }
+      }
+    });
+
+    // 2. Update the Order Status
+    await tx.productionOrder.update({
+      where: { id: orderId },
+      data: {
+        status: "APPROVED",
+        approvedBy: user.id,
+        approvedAt: new Date(),
+      },
+    });
   });
 
   redirect("/approvals");

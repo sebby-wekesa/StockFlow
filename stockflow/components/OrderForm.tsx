@@ -24,7 +24,6 @@ type OrderFormData = z.infer<typeof createOrderSchema>
 interface Design {
   id: string
   name: string
-  targetWeight: number | null
   kgPerUnit: number
 }
 

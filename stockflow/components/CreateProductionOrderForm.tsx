@@ -24,7 +24,7 @@ type ProductionOrderFormData = z.infer<typeof createProductionOrderSchema>
 interface Design {
   id: string
   name: string
-  targetWeight?: number
+  kgPerUnit: number
   description?: string
 }
 
@@ -184,7 +184,7 @@ export function CreateProductionOrderForm({
               {designs.map((design) => (
                 <option key={design.id} value={design.id}>
                   {design.name}
-                  {design.targetWeight && ` (${design.targetWeight} kg)`}
+                  {` (${design.kgPerUnit} kg)`}
                 </option>
               ))}
             </select>

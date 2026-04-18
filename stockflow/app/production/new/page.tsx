@@ -7,7 +7,7 @@ import { AlertCircle } from 'lucide-react'
 interface Design {
   id: string
   name: string
-  targetWeight: number | null
+  kgPerUnit: number
 }
 
 async function getDesigns(): Promise<Design[]> {
@@ -16,7 +16,7 @@ async function getDesigns(): Promise<Design[]> {
       select: {
         id: true,
         name: true,
-        targetWeight: true,
+        kgPerUnit: true,
       },
       orderBy: {
         name: 'asc',
@@ -36,6 +36,12 @@ export default async function ProductionNewPage() {
 
   try {
     designs = await getDesigns()
+    // Transform the designs array to match what the Form expects
+    designs = designs.map(d => ({
+      ...d,
+      // Map your Prisma field (e.g., kgPerUnit) to the prop name (kgPerUnit)
+      kgPerUnit: d.kgPerUnit
+    }))
   } catch (err) {
     error =
       err instanceof Error

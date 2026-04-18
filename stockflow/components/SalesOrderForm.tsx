@@ -8,7 +8,7 @@ interface StockItem {
   design: {
     name: string;
     code: string;
-    targetWeight: number;
+    kgPerUnit: number;
   };
 }
 

@@ -46,30 +46,77 @@ export async function PATCH(
 
     // Update the order status
     const statusMap: any = {
-      RELEASED: 'IN_PRODUCTION',
-      REJECTED: 'CANCELLED',
+      RELEASED: 'APPROVED',
+      REJECTED: 'REJECTED',
     }
 
     const newStatus = statusMap[status]
 
-    const updatedOrder = await prisma.productionOrder.update({
-      where: { id: params.id },
-      data: {
-        status: newStatus,
-        approvedBy: user.id,
-        approvedAt: new Date(),
-        // Store rejection reason in notes if rejecting
-        ...(status === 'REJECTED' && {
-          // Note: Adjust this if your schema has a rejectionReason field
-          // For now, we'll use notes
-        }),
-      },
-      include: {
-        design: {
-          select: { name: true },
+    // If approving, perform inventory deduction
+    let updatedOrder;
+    if (status === 'RELEASED') {
+      updatedOrder = await prisma.$transaction(async (tx) => {
+        // 1. Get the Design to see which raw material is needed
+        const design = await tx.design.findUnique({
+          where: { id: order.designId },
+          select: { kgPerUnit: true, rawMaterialId: true }
+        });
+
+        if (!design) {
+          throw new Error('Design not found');
+        }
+
+        if (!design.rawMaterialId) {
+          throw new Error('Design does not have an assigned raw material');
+        }
+
+        // 2. Calculate the required KG
+        const requiredKg = order.quantity * design.kgPerUnit;
+
+        // 3. Deduct from Available and add to Reserved
+        await tx.rawMaterial.update({
+          where: { id: design.rawMaterialId },
+          data: {
+            availableKg: { decrement: requiredKg },
+            reservedKg: { increment: requiredKg }
+          }
+        });
+
+        // 4. Update the Order Status
+        return await tx.productionOrder.update({
+          where: { id: params.id },
+          data: {
+            status: newStatus,
+            approvedBy: user.id,
+            approvedAt: new Date(),
+          },
+          include: {
+            design: {
+              select: { name: true },
+            },
+          },
+        });
+      });
+    } else {
+      updatedOrder = await prisma.productionOrder.update({
+        where: { id: params.id },
+        data: {
+          status: newStatus,
+          approvedBy: user.id,
+          approvedAt: new Date(),
+          // Store rejection reason in notes if rejecting
+          ...(status === 'REJECTED' && {
+            // Note: Adjust this if your schema has a rejectionReason field
+            // For now, we'll use notes
+          }),
         },
-      },
-    })
+        include: {
+          design: {
+            select: { name: true },
+          },
+        },
+      });
+    }
 
     // Create an audit log entry
     try {
@@ -89,7 +136,7 @@ export async function PATCH(
     return NextResponse.json(
       {
         success: true,
-        message: `Order ${status === 'RELEASED' ? 'approved and released' : 'rejected'} successfully`,
+        message: `Order ${status === 'RELEASED' ? 'approved' : 'rejected'} successfully`,
         data: updatedOrder,
       },
       { status: 200 }

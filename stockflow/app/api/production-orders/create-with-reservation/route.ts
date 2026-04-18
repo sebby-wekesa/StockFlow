@@ -48,12 +48,12 @@ export async function POST(request: NextRequest) {
         throw new Error('Raw material not found')
       }
 
-      // Validate that design has a target weight defined
-      if (design.targetWeight === null || design.targetWeight === undefined) {
-        throw new Error(`Design "${design.name}" is missing target weight specification. Cannot calculate material requirements.`)
+      // Validate that design has a kg per unit defined
+      if (design.kgPerUnit === null || design.kgPerUnit === undefined) {
+        throw new Error(`Design "${design.name}" is missing kg per unit specification. Cannot calculate material requirements.`)
       }
 
-      const requiredKg = design.targetWeight * quantity
+      const requiredKg = design.kgPerUnit * quantity
       if (material.availableKg < requiredKg) {
         throw new Error(`Insufficient material stock. Required: ${requiredKg}kg, Available: ${material.availableKg}kg`)
       }

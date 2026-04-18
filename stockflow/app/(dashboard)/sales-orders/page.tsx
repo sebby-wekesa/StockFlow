@@ -27,7 +27,7 @@ async function getAvailableStock() {
         select: {
           name: true,
           code: true,
-          targetWeight: true
+          kgPerUnit: true
         }
       }
     }
@@ -45,8 +45,8 @@ export default async function SalesOrdersPage() {
     ...item,
     design: {
       ...item.design,
-      // Use the nullish coalescing operator (??) to provide a default
-      targetWeight: item.design.targetWeight ?? 0
+      // Use kgPerUnit for unit weight
+      targetWeight: item.design.kgPerUnit
     }
   }));
 
