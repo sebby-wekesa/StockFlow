@@ -51,9 +51,6 @@ export async function getOperatorHistory() {
   const logs = await prisma.stageLog.findMany({
     where: {
       operatorId: user.id,
-      completedAt: {
-        not: null,
-      },
     },
     include: {
       order: {
