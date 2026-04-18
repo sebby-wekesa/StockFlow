@@ -1,20 +1,23 @@
-import { redirect } from 'next/navigation'
-import { cookies } from 'next/headers'
+"use client";
+
+import { useState } from 'react';
+import { signIn, signUp } from '@/actions/auth';
 
 export default function LoginPage() {
-  async function handleLogin(formData: FormData) {
-    'use server'
+  const [isLogin, setIsLogin] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-    // Demo mode: set cookie and redirect
-    const cookieStore = await cookies()
-    cookieStore.set('demo-logged-in', 'true', {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 60 * 60 * 24 * 7 // 7 days
-    })
-
-    redirect('/dashboard')
+  async function handleSubmit(formData: FormData) {
+    setError(null);
+    try {
+      const action = isLogin ? signIn : signUp;
+      const res = await action(formData);
+      if (res?.error) {
+        setError(res.error);
+      }
+    } catch (e: any) {
+      setError(e.message || "An unexpected error occurred");
+    }
   }
 
   return (
@@ -57,7 +60,51 @@ export default function LoginPage() {
           </div>
         </div>
 
-        <form action={handleLogin}>
+        <form action={handleSubmit}>
+          {error && (
+            <div style={{ 
+              background: 'rgba(239, 68, 68, 0.1)', 
+              color: '#ef4444', 
+              padding: '12px', 
+              borderRadius: 'var(--radius)', 
+              marginBottom: '16px',
+              fontSize: '14px'
+            }}>
+              {error}
+            </div>
+          )}
+
+          {!isLogin && (
+            <>
+              <div className="form-group" style={{ marginBottom: '16px' }}>
+                <label className="form-label">Full Name</label>
+                <input
+                  type="text"
+                  name="name"
+                  className="form-input"
+                  placeholder="e.g. Jane Doe"
+                  required
+                />
+              </div>
+
+              <div className="form-group" style={{ marginBottom: '16px' }}>
+                <label className="form-label">Department</label>
+                <select name="department" className="form-input" required>
+                  <option value="">Select a department...</option>
+                  <option value="Cutting">Cutting</option>
+                  <option value="Forging">Forging</option>
+                  <option value="Threading">Threading</option>
+                  <option value="Electroplating">Electroplating</option>
+                  <option value="Grinding">Grinding</option>
+                  <option value="Drilling">Drilling</option>
+                  <option value="Locking">Locking</option>
+                  <option value="Chamfering">Chamfering</option>
+                  <option value="Skimming">Skimming</option>
+                </select>
+              </div>
+            </>
+          )}
+
           <div className="form-group" style={{ marginBottom: '16px' }}>
             <label className="form-label">Email</label>
             <input
@@ -68,6 +115,7 @@ export default function LoginPage() {
               required
             />
           </div>
+          
           <div className="form-group" style={{ marginBottom: '24px' }}>
             <label className="form-label">Password</label>
             <input
@@ -78,23 +126,39 @@ export default function LoginPage() {
               required
             />
           </div>
+
           <button
             type="submit"
             className="btn btn-primary"
             style={{ width: '100%', marginBottom: '16px' }}
           >
-            Sign In
+            {isLogin ? 'Sign In' : 'Sign Up'}
           </button>
         </form>
 
-        <div style={{
-          textAlign: 'center',
-          fontSize: '11px',
-          color: 'var(--muted)'
-        }}>
-          Demo credentials: Use any email/password combination
+        <div style={{ textAlign: 'center', marginTop: '16px' }}>
+          <button
+            type="button"
+            onClick={() => {
+              setIsLogin(!isLogin);
+              setError(null);
+            }}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: 'var(--accent)',
+              cursor: 'pointer',
+              fontSize: '14px',
+              fontFamily: 'var(--font-body)',
+              textDecoration: 'none'
+            }}
+          >
+            {isLogin 
+              ? "Don't have an account? Sign up" 
+              : "Already have an account? Sign in"}
+          </button>
         </div>
       </div>
     </div>
-  )
+  );
 }

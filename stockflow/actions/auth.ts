@@ -69,3 +69,66 @@ export async function signOut() {
   cookieStore.delete("auth-token");
   redirect("/login");
 }
+
+export async function signUp(formData: FormData) {
+  const email = formData.get("email") as string;
+  const password = formData.get("password") as string;
+  const name = formData.get("name") as string;
+  const department = formData.get("department") as string;
+
+  if (!email || !password) {
+    return { error: "Email and password are required" };
+  }
+
+  // Check if user exists
+  const existingUser = await prisma.user.findUnique({
+    where: { email },
+  });
+
+  if (existingUser) {
+    return { error: "User already exists" };
+  }
+
+  // Hash password
+  const importCrypto = await import("crypto");
+  const salt = importCrypto.randomBytes(16).toString("hex");
+  const hash = importCrypto.scryptSync(password, salt, 64).toString("hex");
+  const storedHash = `${salt}:${hash}`;
+
+  // Create user
+  const user = await prisma.user.create({
+    data: {
+      email,
+      password: storedHash,
+      name: name || undefined,
+      department: department || undefined,
+      role: "OPERATOR",
+    },
+  });
+
+  // Create session cookie
+  const cookieStore = await cookies();
+  const sessionToken = Buffer.from(JSON.stringify({ 
+    userId: user.id, 
+    email: user.email,
+    timestamp: Date.now()
+  })).toString("base64");
+
+  cookieStore.set("auth-token", sessionToken, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    maxAge: 60 * 60 * 24 * 7, // 7 days
+  });
+
+  cookieStore.set("user-role", user.role, {
+    httpOnly: false,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    maxAge: 60 * 60 * 24 * 7,
+  });
+
+  redirect("/operator_queue"); // Operators go to queue by default
+}

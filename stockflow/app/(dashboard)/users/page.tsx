@@ -1,14 +1,11 @@
-export default function UsersPage() {
-  const users = [
-    {name:'James Mwangi',email:'james@co.ke',role:'Admin',dept:'All',status:'Active'},
-    {name:'Sarah Otieno',email:'sarah@co.ke',role:'Manager',dept:'All',status:'Active'},
-    {name:'Peter Njoroge',email:'peter@co.ke',role:'Operator',dept:'Cutting',status:'Active'},
-    {name:'Alice Kamau',email:'alice@co.ke',role:'Operator',dept:'Cutting, Threading',status:'Active'},
-    {name:'David Wekesa',email:'david@co.ke',role:'Operator',dept:'Electroplating',status:'Active'},
-    {name:'Grace Akinyi',email:'grace@co.ke',role:'Sales',dept:'—',status:'Active'},
-    {name:'Tom Ochieng',email:'tom@co.ke',role:'Packaging',dept:'—',status:'Active'},
-    {name:'Faith Muthoni',email:'faith@co.ke',role:'Warehouse',dept:'—',status:'Active'},
-  ];
+import { prisma } from "@/lib/prisma"
+
+export const dynamic = 'force-dynamic';
+
+export default async function UsersPage() {
+  const users = await prisma.user.findMany({
+    orderBy: { createdAt: 'desc' }
+  });
 
   return (
     <div>
@@ -21,14 +18,28 @@ export default function UsersPage() {
           <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Department</th><th>Status</th></tr></thead>
           <tbody>
             {users.map(u => (
-              <tr key={u.email}>
-                <td>{u.name}</td>
+              <tr key={u.id}>
+                <td>{u.name || 'Unnamed User'}</td>
                 <td style={{color:'var(--muted)'}}>{u.email}</td>
-                <td><span className={`badge ${u.role === 'Admin' ? 'badge-amber' : u.role === 'Manager' ? 'badge-amber' : u.role === 'Operator' ? 'badge-purple' : u.role === 'Sales' ? 'badge-teal' : u.role === 'Packaging' ? 'badge-green' : 'badge-muted'}`}>{u.role}</span></td>
-                <td>{u.dept}</td>
-                <td><span className="badge badge-green">{u.status}</span></td>
+                <td>
+                  <span className={`badge ${
+                    ['ADMIN', 'MANAGER'].includes(u.role) ? 'badge-amber' : 
+                    u.role === 'OPERATOR' ? 'badge-purple' : 
+                    u.role === 'SALES' ? 'badge-teal' : 
+                    'badge-muted'
+                  }`}>
+                    {u.role.charAt(0) + u.role.slice(1).toLowerCase()}
+                  </span>
+                </td>
+                <td>{u.department || '—'}</td>
+                <td><span className="badge badge-green">Active</span></td>
               </tr>
             ))}
+            {users.length === 0 && (
+              <tr>
+                <td colSpan={5} style={{textAlign: 'center', padding: '20px', color: 'var(--muted)'}}>No users found</td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>

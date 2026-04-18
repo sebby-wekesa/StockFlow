@@ -1,6 +1,9 @@
+"use client";
+
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Role } from "@/lib/auth";
+import { signOut } from "@/actions/auth";
 
 const roleColors: Record<Role, string> = {
   ADMIN: "var(--accent)",
@@ -119,6 +122,19 @@ export function Sidebar({ user }: { user: { role: Role, name: string } }) {
             </Link>
           );
         })}
+        
+        <div style={{ marginTop: 'auto', paddingTop: '20px' }}>
+          <form action={signOut} style={{ display: 'block', width: '100%' }}>
+            <button 
+              type="submit"
+              className="nav-item" 
+              style={{ width: '100%', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', color: '#fbbf24', marginTop: '20px' }}
+            >
+              <span className="nav-dot" style={{ background: '#fbbf24' }}></span>
+              Log out
+            </button>
+          </form>
+        </div>
       </nav>
     </div>
   );

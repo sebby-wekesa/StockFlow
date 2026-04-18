@@ -1,88 +1,46 @@
-"use client";
-
-import { useEffect, useState } from "react";
-import Link from "next/link";
 import { getOperatorQueue } from "@/app/actions/production";
+import Link from "next/link";
 
-const mockJobs = [
-  {
-    id: 'PO-0040',
-    design: 'Stud rod 8mm',
-    work: 'Cut to 120mm',
-    received: 85,
-    dims: '8mm × 120mm',
-    client: 'BuildPro Ltd',
-    urgent: true,
-    inProgress: false
-  },
-  {
-    id: 'PO-0039',
-    design: 'Anchor bolt',
-    work: 'Cut to 170mm',
-    received: 200,
-    dims: '16mm × 170mm',
-    client: 'Apex Hardware',
-    urgent: false,
-    inProgress: true
-  },
-  {
-    id: 'PO-0045',
-    design: 'Hex bolt M12',
-    work: 'Cut to 70mm',
-    received: 120,
-    dims: '12mm × 70mm',
-    client: 'Mech Supplies',
-    urgent: false,
-    inProgress: false
-  }
-];
+export const dynamic = 'force-dynamic';
 
-export default function OperatorQueuePage() {
-  const [orders, setOrders] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    async function load() {
-      try {
-        const data = await getOperatorQueue();
-        setOrders(data.length > 0 ? data : mockJobs);
-      } catch (e) {
-        console.error(e);
-        setOrders(mockJobs); // Fallback to mock data
-      } finally {
-        setLoading(false);
-      }
-    }
-    load();
-  }, []);
-
-  if (loading) return <div className="p-8 text-[#7a8090] animate-pulse">Loading job queue...</div>;
+export default async function OperatorQueuePage() {
+  const orders = await getOperatorQueue();
 
   return (
     <div>
       <div className="section-header mb-16">
         <div>
-          <div className="section-title">Cutting dept — job queue</div>
-          <div className="section-sub">Jobs ready for your department</div>
+          <div className="section-title">Department — job queue</div>
+          <div className="section-sub">Jobs ready for your station</div>
         </div>
       </div>
 
-      {orders.map((order, i) => (
-        <div key={order.id || i} className={`job-card ${order.urgent ? 'urgent' : order.inProgress ? 'inprog' : ''}`} style={{cursor:'pointer'}} onClick={() => window.location.href = '/operator_log'}>
-          <div className="job-header">
-            <span className="job-id">{order.id} · Stage 1/3</span>
-            <span className={`badge ${order.urgent ? 'badge-red' : order.inProgress ? 'badge-amber' : 'badge-muted'}`}>
-              {order.urgent ? 'Urgent' : order.inProgress ? 'In progress' : 'Queued'}
-            </span>
-          </div>
-          <div className="job-design">{order.design} — {order.work}</div>
-          <div className="job-meta" style={{marginTop:'8px'}}>
-            <span>Received: <span className="job-kg">{order.received} kg</span></span>
-            <span>Target dims: {order.dims}</span>
-            <span>Client: {order.client}</span>
-          </div>
+      {orders.map((order) => {
+        const isUrgent = order.priority === "URGENT" || order.priority === "HIGH";
+        return (
+          <Link key={order.id} href={`/operator_log?orderId=${order.id}`} style={{textDecoration: 'none', color: 'inherit'}}>
+            <div className={`job-card ${isUrgent ? 'urgent' : ''}`} style={{cursor:'pointer', marginBottom: '16px'}}>
+              <div className="job-header">
+                <span className="job-id">{order.orderNumber} · Stage {order.currentStage}/{order.totalStages}</span>
+                <span className={`badge ${isUrgent ? 'badge-red' : 'badge-amber'}`}>
+                  {isUrgent ? 'Urgent' : 'In progress'}
+                </span>
+              </div>
+              <div className="job-design">{order.designName} — {order.workDescription}</div>
+              <div className="job-meta" style={{marginTop:'8px', display: 'flex', gap: '16px', fontSize: '12px', color: 'var(--muted)'}}>
+                <span>Received: <span className="job-kg">{order.inheritedKg.toFixed(2)} kg</span></span>
+                <span>Target init: {order.targetKg.toFixed(2)} kg</span>
+              </div>
+            </div>
+          </Link>
+        )
+      })}
+
+      {orders.length === 0 && (
+        <div style={{ padding: '20px', color: 'var(--muted)', textAlign: 'center' }}>
+          No jobs currently assigned to your department queue.
         </div>
-      ))}
+      )}
     </div>
   );
 }

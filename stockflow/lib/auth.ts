@@ -1,5 +1,4 @@
 import { cookies } from "next/headers";
-import { prisma } from "./prisma";
 
 export type Role = "ADMIN" | "MANAGER" | "OPERATOR" | "SALES" | "PACKAGING" | "WAREHOUSE";
 
@@ -29,16 +28,9 @@ export async function getUser() {
 
   if (!token) return null;
 
-  try {
-    const decoded = JSON.parse(Buffer.from(token, "base64").toString("utf-8"));
-    const user = await prisma.user.findUnique({
-      where: { id: decoded.userId },
-    });
-
-    return user;
-  } catch (error) {
-    return null;
-  }
+  // Only import and use prisma if needed
+  const { getUserFromDb } = await import('./db-user')
+  return getUserFromDb(token)
 }
 
 export async function requireAuth(): Promise<AuthUser> {
