@@ -43,7 +43,7 @@ export default function CatalogueClient({ products }: { products: any[] }) {
               ? `${selectedProduct.design.name} — ${selectedProduct.quantity} units / ${selectedProduct.kgProduced.toFixed(2)} kg available`
               : 'Loading product details...'}
           </div>
-          <form action={async () => { 'use server'; console.log("Order bypassed"); setModalOpen(false); }}>
+          <form action={() => { console.log("Order bypassed"); setModalOpen(false); }}>
             <div className="form-row">
               <div className="form-group"><label className="form-label">Quantity (units)</label><input className="form-input" type="number" placeholder={`max ${selectedProduct?.quantity}`}/></div>
               <div className="form-group"><label className="form-label">Client</label><input className="form-input" placeholder="Client name"/></div>

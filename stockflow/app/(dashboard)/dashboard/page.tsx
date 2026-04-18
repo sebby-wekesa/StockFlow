@@ -1,10 +1,6 @@
 import { requireAuth } from '@/lib/auth'
 import { Role } from '@/lib/auth'
 
-// Import role-specific components
-import OperatorDashboard from './OperatorDashboard'
-import SalesDashboard from './SalesDashboard'
-import AdminDashboard from './AdminDashboard'
 
 export const dynamic = 'force-dynamic'
 
