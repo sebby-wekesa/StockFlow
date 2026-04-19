@@ -139,7 +139,7 @@ export const StageLoggingForm: React.FC<StageLoggingProps> = ({
         origin: { y: 0.6 },
       })
 
-      showToast('success', `Stage logged successfully for ${selectedOrder.code}`)
+      showToast(`Stage logged successfully for ${selectedOrder.code}`, 'success')
 
       // Reset form
       reset()
