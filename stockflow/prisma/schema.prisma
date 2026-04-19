@@ -54,6 +54,7 @@ model Design {
   targetWeight     Float?            // Estimated yield kg per unit [cite: 135]
   // New Phase 2 Fields
   rawMaterialId    String?           // Links to the specific rod needed (e.g., M12 High Tensile)
+  rawMaterial      RawMaterial?      @relation(fields: [rawMaterialId], references: [id])
   kgPerUnit        Float             @default(0.0) // The BOM consumption rate
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
@@ -131,6 +132,7 @@ model RawMaterial {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
   receipts      MaterialReceipt[]
+  designs       Design[]
 }
 
 model MaterialReceipt {
