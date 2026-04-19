@@ -47,7 +47,7 @@ export default async function ManagerDashboardPage() {
           <div className="section-sub">Review and release orders to production</div>
         </div>
         {pendingApprovals.length > 0 ? (
-          pendingApprovals.map((order) => (
+          pendingApprovals.map((order: any) => (
             <div key={order.id} className="approval-card">
               <div className="approval-header">
                 <div>
@@ -78,7 +78,7 @@ export default async function ManagerDashboardPage() {
           <div className="section-sub">Current workload distribution</div>
         </div>
         {activeProduction.length > 0 ? (
-          activeProduction.map((dept) => (
+          activeProduction.map((dept: any) => (
             <div key={dept.currentDept} className="queue-item">
               <div className="queue-label">{dept.currentDept || 'Unassigned'}</div>
               <div className="queue-count">{dept._count} jobs</div>
