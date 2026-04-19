@@ -169,7 +169,7 @@ export default async function AdminUsersPage() {
                          name="newRole"
                          defaultValue={user.role}
                          className="bg-gray-700 text-white border border-gray-600 rounded px-2 py-1 text-xs focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                         onChange={(e) => e.target.form.requestSubmit()}
+                          onChange={(e) => e.target.form?.requestSubmit()}
                        >
                          <option value="PENDING">Pending</option>
                          <option value="ADMIN">Admin</option>
