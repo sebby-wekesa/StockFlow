@@ -120,11 +120,22 @@ export async function GET(request: NextRequest) {
     const [orders, total] = await Promise.all([
       prisma.productionOrder.findMany({
         where,
-        include: {
+        select: {
+          id: true,
+          orderNumber: true,
+          targetKg: true,
+          quantity: true,
+          priority: true,
+          status: true,
           design: {
             select: {
               name: true,
-              kgPerUnit: true,
+              targetDimensions: true,
+              rawMaterial: {
+                select: {
+                  materialName: true,
+                },
+              },
             },
           },
         },
@@ -141,13 +152,12 @@ export async function GET(request: NextRequest) {
     // Transform data for frontend
     const transformedOrders = orders.map((order) => ({
       id: order.id,
-      code: order.orderNumber || `ORD-${order.id.slice(0, 8).toUpperCase().replace(/-/g, '').slice(0, 6)}`,
+      orderNumber: order.orderNumber,
       designName: order.design?.name || 'Unknown Design',
       targetKg: order.targetKg,
-      currentDept: order.currentDept || 'Unassigned',
       quantity: order.quantity,
       priority: order.priority,
-      expectedUnits: order.quantity,
+      specs: `${order.design?.targetDimensions || ''}${order.design?.rawMaterial ? ', ' + order.design.rawMaterial.materialName : ''}`,
       status: order.status,
     }))
 

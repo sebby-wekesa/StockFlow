@@ -8,10 +8,13 @@ datasource db {
 }
 
 enum Role {
+  PENDING    // The "Waiting Room"
   ADMIN      // Can see reports, manage BOM, and release orders
+  MANAGER    // Can review and approve orders
   OPERATOR   // Can only see their department queue and log weights
   WAREHOUSE  // Can only log raw material intake
   SALES      // Can view sales catalogue and place orders
+  PACKAGING  // Can manage finished goods packaging
 }
 
 enum ProductionStatus {
@@ -35,7 +38,7 @@ model User {
   email           String     @unique
   password        String
   name            String?
-  role            Role       @default(OPERATOR)
+  role            Role       @default(PENDING) // New users start here
   department      String?    // e.g., "Cutting", "Forging" (for Operators)
   createdAt       DateTime   @default(now())
   updatedAt       DateTime   @updatedAt

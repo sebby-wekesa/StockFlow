@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { createClient } from "@supabase/supabase-js";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import { updateUserRole } from "@/app/actions/users";
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -108,17 +109,20 @@ export default async function AdminUsersPage() {
             <label htmlFor="role" className="block text-sm font-medium text-gray-300">
               Role
             </label>
-            <select
-              id="role"
-              name="role"
-              required
-              className="mt-1 block w-full px-3 py-2 border border-gray-600 rounded-md shadow-sm bg-gray-700 text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-            >
-              <option value="OPERATOR">Operator</option>
-              <option value="WAREHOUSE">Warehouse</option>
-              <option value="SALES">Sales</option>
-              <option value="ADMIN">Admin</option>
-            </select>
+             <select
+               id="role"
+               name="role"
+               required
+               className="mt-1 block w-full px-3 py-2 border border-gray-600 rounded-md shadow-sm bg-gray-700 text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+             >
+               <option value="PENDING">Pending</option>
+               <option value="ADMIN">Admin</option>
+               <option value="MANAGER">Manager</option>
+               <option value="OPERATOR">Operator</option>
+               <option value="WAREHOUSE">Warehouse</option>
+               <option value="SALES">Sales</option>
+               <option value="PACKAGING">Packaging</option>
+             </select>
           </div>
           <button
             type="submit"
@@ -158,9 +162,25 @@ export default async function AdminUsersPage() {
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
                     {user.email}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
-                    {user.role}
-                  </td>
+                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+                     <form action={updateUserRole} className="inline">
+                       <input type="hidden" name="userId" value={user.id} />
+                       <select
+                         name="newRole"
+                         defaultValue={user.role}
+                         className="bg-gray-700 text-white border border-gray-600 rounded px-2 py-1 text-xs focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                         onChange={(e) => e.target.form.requestSubmit()}
+                       >
+                         <option value="PENDING">Pending</option>
+                         <option value="ADMIN">Admin</option>
+                         <option value="MANAGER">Manager</option>
+                         <option value="OPERATOR">Operator</option>
+                         <option value="WAREHOUSE">Warehouse</option>
+                         <option value="SALES">Sales</option>
+                         <option value="PACKAGING">Packaging</option>
+                       </select>
+                     </form>
+                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <form action={deleteUser.bind(null, user.id)} className="inline">
                       <button

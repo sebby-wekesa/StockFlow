@@ -27,16 +27,14 @@ const ROLES = {
     color: 'var(--accent)',
     nav: [
       { section: 'Overview' },
-      { id: 'manager_dash', label: 'Dashboard', badge: null },
+      { id: 'manager', label: 'Dashboard', badge: null },
       { section: 'Approvals' },
       { id: 'approvals', label: 'Order approvals', badge: '3', badgeColor: 'red' },
       { section: 'Production' },
-      { id: 'orders', label: 'All orders', badge: null },
-      { id: 'departments', label: 'Dept queues', badge: null },
-       { section: 'Reports' },
-       { id: 'reports', label: 'Monthly yield report', badge: null },
-       { id: 'scrap', label: 'Scrap report', badge: null },
-      { id: 'rawmaterials', label: 'Raw materials', badge: null },
+      { id: 'orders', label: 'Production', badge: null },
+      { section: 'Reports' },
+      { id: 'reports', label: 'Reports', badge: null },
+      { id: 'rawmaterials', label: 'Raw Materials', badge: null },
     ]
   },
   OPERATOR: {

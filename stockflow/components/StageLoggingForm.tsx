@@ -103,12 +103,12 @@ export const StageLoggingForm: React.FC<StageLoggingProps> = ({
 
   const onSubmit = async (data: StageLogForm) => {
     if (!selectedOrder) {
-      showToast('error', 'Please select an order')
+      showToast('Please select an order', 'error')
       return
     }
 
     if (!isBalanceValid) {
-      showToast('error', 'Weight does not balance. Please adjust output and scrap weights.')
+      showToast('Weight does not balance. Please adjust output and scrap weights.', 'error')
       return
     }
 

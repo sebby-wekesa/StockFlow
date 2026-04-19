@@ -108,7 +108,7 @@ export async function signUp(formData: FormData) {
       password: storedHash,
       name: name || undefined,
       department: department || undefined,
-      role: "OPERATOR",
+      role: "PENDING",
     },
   });
 

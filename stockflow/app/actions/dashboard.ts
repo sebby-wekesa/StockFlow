@@ -1,9 +1,9 @@
 "use server";
 
-import { prisma } from "@/lib/prisma";
 import { startOfWeek, endOfWeek, startOfDay } from "date-fns";
 import { requireAuth } from "@/lib/auth";
 import type { AuthUser } from "@/lib/auth";
+import { revalidatePath } from 'next/cache';
 
 export async function getDashboardStats(user?: AuthUser) {
   const authUser = user || await requireAuth();
@@ -269,4 +269,87 @@ export async function getDashboardStats(user?: AuthUser) {
     userRole: authUser.role,
     userDepartment: authUser.department,
   };
+}
+
+export async function getManagerData() {
+  const pendingApprovals = await prisma.productionOrder.findMany({
+    where: { status: 'PENDING' },
+    include: { design: true },
+  });
+
+  const activeProduction = await prisma.productionOrder.groupBy({
+    by: ['currentDept'],
+    where: { status: { in: ['APPROVED', 'IN_PRODUCTION'] } },
+    _count: true,
+  });
+
+  const allLogs = await prisma.stageLog.findMany({
+    where: { kgScrap: { gt: 0 } },
+    include: { order: true },
+  });
+  const scrapAlerts = allLogs.filter(log => log.kgScrap > log.kgIn * 0.05);
+
+  const totalActiveOrders = await prisma.productionOrder.count({
+    where: { status: { in: ['APPROVED', 'IN_PRODUCTION'] } },
+  });
+
+  const totalTonnageAgg = await prisma.productionOrder.aggregate({
+    where: { status: { in: ['APPROVED', 'IN_PRODUCTION'] } },
+    _sum: { targetKg: true },
+  });
+
+  const pendingCount = pendingApprovals.length;
+
+  return {
+    pendingApprovals,
+    activeProduction,
+    scrapAlerts,
+    totalActiveOrders,
+    totalTonnage: totalTonnageAgg._sum.targetKg || 0,
+    pendingCount,
+  };
+}
+
+export async function approveOrder(orderId: string) {
+  const order = await prisma.productionOrder.findUnique({
+    where: { id: orderId },
+    include: { design: true },
+  });
+
+  if (!order || order.status !== 'PENDING') {
+    throw new Error('Invalid order');
+  }
+
+  const reserveKg = order.targetKg;
+
+  if (!order.design.rawMaterialId) {
+    throw new Error('No raw material assigned to design');
+  }
+
+  const material = await prisma.rawMaterial.findUnique({
+    where: { id: order.design.rawMaterialId },
+  });
+
+  if (!material || material.availableKg < reserveKg) {
+    throw new Error('Insufficient stock');
+  }
+
+  await prisma.rawMaterial.update({
+    where: { id: material.id },
+    data: {
+      availableKg: material.availableKg - reserveKg,
+      reservedKg: material.reservedKg + reserveKg,
+    },
+  });
+
+  await prisma.productionOrder.update({
+    where: { id: orderId },
+    data: {
+      status: 'APPROVED',
+      approvedAt: new Date(),
+      currentDept: 'Cutting', // Assuming first department
+    },
+  });
+
+  revalidatePath('/manager');
 }

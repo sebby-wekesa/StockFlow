@@ -71,7 +71,7 @@ export async function PATCH(
         }
 
         // 2. Calculate the required KG
-        const requiredKg = order.quantity * design.kgPerUnit;
+        const requiredKg = order.targetKg;
 
         // 3. Deduct from Available and add to Reserved
         await tx.rawMaterial.update({

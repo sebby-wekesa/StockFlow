@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
 
-export type Role = "ADMIN" | "MANAGER" | "OPERATOR" | "SALES" | "PACKAGING" | "WAREHOUSE";
+export type Role = "PENDING" | "ADMIN" | "MANAGER" | "OPERATOR" | "SALES" | "PACKAGING" | "WAREHOUSE";
 
 export type AuthUser = {
   id: string;
