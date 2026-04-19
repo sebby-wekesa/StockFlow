@@ -6,6 +6,7 @@ import { Role } from "@/lib/auth";
 import { signOut } from "@/actions/auth";
 
 const roleColors: Record<Role, string> = {
+  PENDING: "var(--muted)",
   ADMIN: "var(--accent)",
   MANAGER: "var(--accent)",
   OPERATOR: "var(--purple)",
@@ -15,6 +16,7 @@ const roleColors: Record<Role, string> = {
 };
 
 const roleNames: Record<Role, string> = {
+  PENDING: "Pending Approval",
   ADMIN: "Admin / Owner",
   MANAGER: "Production Manager",
   OPERATOR: "Operator — Cutting",
@@ -24,6 +26,10 @@ const roleNames: Record<Role, string> = {
 };
 
 const roleNavItems: Record<Role, any[]> = {
+  PENDING: [
+    { section: "Account Setup" },
+    { label: "Complete profile", href: "/profile" },
+  ],
   ADMIN: [
     { section: "Overview" },
     { label: "Dashboard", href: "/dashboard" },
@@ -142,6 +148,7 @@ export function Sidebar({ user }: { user: { role: Role, name: string } }) {
 
 export function RoleBadge({ role }: { role: Role }) {
   const colors: Record<Role, string> = {
+    PENDING: "badge-muted",
     ADMIN: "badge-amber",
     MANAGER: "badge-amber",
     OPERATOR: "badge-purple",

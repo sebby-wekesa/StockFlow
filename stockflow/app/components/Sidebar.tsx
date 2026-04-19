@@ -2,6 +2,14 @@ import Link from "next/link";
 import { Role } from "@/lib/auth";
 
 const ROLES = {
+  PENDING: {
+    name: 'Pending Approval',
+    color: 'var(--muted)',
+    nav: [
+      { section: 'Account Setup' },
+      { id: 'profile', label: 'Complete profile', badge: null },
+    ]
+  },
   ADMIN: {
     name: 'Admin / Owner',
     color: 'var(--accent)',
