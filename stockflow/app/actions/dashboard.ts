@@ -4,6 +4,7 @@ import { startOfWeek, endOfWeek, startOfDay } from "date-fns";
 import { requireAuth } from "@/lib/auth";
 import type { AuthUser } from "@/lib/auth";
 import { revalidatePath } from 'next/cache';
+import { prisma } from '@/lib/prisma';
 
 export async function getDashboardStats(user?: AuthUser) {
   const authUser = user || await requireAuth();
