@@ -49,10 +49,10 @@ export function StageLogForm({ order, onComplete }: { order: any, onComplete: ()
         showToast(result.message || "Stage advanced successfully", "success");
         onComplete();
       } else {
-        showToast(result.error || "Failed to log stage", "error" as any);
+        showToast(result.error || "Failed to log stage", "error");
       }
     } catch (error) {
-      showToast("Network error: Could not log production stage", "error" as any);
+      showToast("Network error: Could not log production stage", "error");
     } finally {
       setIsSending(false);
     }

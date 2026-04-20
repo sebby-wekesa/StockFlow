@@ -41,7 +41,7 @@ const containerVariants = {
     y: 0,
     transition: {
       duration: 0.4,
-      ease: 'easeOut',
+      ease: 'ease-in-out' as any,
     },
   },
 }
@@ -103,12 +103,12 @@ export const StageLoggingForm: React.FC<StageLoggingProps> = ({
 
   const onSubmit = async (data: StageLogForm) => {
     if (!selectedOrder) {
-      showToast('Please select an order', 'error' as any)
+      showToast('Please select an order', 'error')
       return
     }
 
     if (!isBalanceValid) {
-      showToast('Weight does not balance. Please adjust output and scrap weights.', 'error' as any)
+      showToast('Weight does not balance. Please adjust output and scrap weights.', 'error')
       return
     }
 
@@ -150,7 +150,7 @@ export const StageLoggingForm: React.FC<StageLoggingProps> = ({
       onSuccess?.()
     } catch (error) {
       console.error('Submission error:', error)
-      showToast('Failed to log stage. Please try again.', 'error' as any)
+      showToast('Failed to log stage. Please try again.', 'error')
     } finally {
       setIsLoading(false)
     }
