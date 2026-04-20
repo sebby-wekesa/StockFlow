@@ -7,19 +7,25 @@ export async function getCatalogue() {
   const user = await requireAuth();
 
   // Get finished goods that are available for sale
-  const finishedGoods = await prisma.finishedGoods.findMany({
-    where: {
-      quantity: {
-        gt: 0,
+  let finishedGoods = []
+  try {
+    finishedGoods = await prisma.finishedGoods.findMany({
+      where: {
+        quantity: {
+          gt: 0,
+        },
       },
-    },
-    include: {
-      design: true,
-    },
-    orderBy: {
-      createdAt: "desc",
-    },
-  });
+      include: {
+        design: true,
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+  } catch (error) {
+    console.warn('Failed to fetch catalogue:', error)
+    finishedGoods = []
+  }
 
   return finishedGoods.map(fg => ({
     id: fg.id,

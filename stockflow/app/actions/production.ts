@@ -5,31 +5,37 @@ import { requireAuth } from "@/lib/auth";
 
 export async function getOperatorQueue() {
   const user = await requireAuth();
-  
-  // If user is ADMIN or MANAGER, they see all queues. 
+
+  // If user is ADMIN or MANAGER, they see all queues.
   // If OPERATOR, they see their department's queue.
   const department = user.department;
-  
-  const orders = await prisma.productionOrder.findMany({
-    where: {
-      status: "IN_PRODUCTION",
-      ...(user.role === "OPERATOR" && department ? { currentDept: department } : {}),
-    },
-    include: {
-      design: {
-        include: {
-          stages: {
-            orderBy: {
-              sequence: "asc",
+
+  let orders = []
+  try {
+    orders = await prisma.productionOrder.findMany({
+      where: {
+        status: "IN_PRODUCTION",
+        ...(user.role === "OPERATOR" && department ? { currentDept: department } : {}),
+      },
+      include: {
+        design: {
+          include: {
+            stages: {
+              orderBy: {
+                sequence: "asc",
+              },
             },
           },
         },
       },
-    },
-    orderBy: {
-      priority: "desc",
-    },
-  });
+      orderBy: {
+        priority: "desc",
+      },
+    });
+  } catch (error) {
+    console.warn('Failed to fetch operator queue:', error)
+    orders = []
+  }
 
   return orders.map(o => ({
     id: o.id,
@@ -48,14 +54,16 @@ export async function getOperatorQueue() {
 export async function getOperatorHistory() {
   const user = await requireAuth();
 
-  const logs = await prisma.stageLog.findMany({
-    where: {
-      operatorId: user.id,
-    },
-    include: {
-      order: {
-        include: {
-          design: true,
+  let logs = []
+  try {
+    logs = await prisma.stageLog.findMany({
+      where: {
+        operatorId: user.id,
+      },
+      include: {
+        order: {
+          include: {
+            design: true,
         },
       },
     },
@@ -64,6 +72,10 @@ export async function getOperatorHistory() {
     },
     take: 20, // Last 20 completed jobs
   });
+  } catch (error) {
+    console.warn('Failed to fetch operator history:', error)
+    logs = []
+  }
 
   return logs.map(log => ({
     id: log.id,
@@ -78,26 +90,32 @@ export async function getOperatorHistory() {
 }
 
 export async function getOrderForLogging(id: string) {
-  const order = await prisma.productionOrder.findUnique({
-    where: { id },
-    include: {
-      design: {
-        include: {
-          stages: {
-            orderBy: {
-              sequence: "asc",
+  let order
+  try {
+    order = await prisma.productionOrder.findUnique({
+      where: { id },
+      include: {
+        design: {
+          include: {
+            stages: {
+              orderBy: {
+                sequence: "asc",
+              },
             },
           },
         },
-      },
-      logs: {
-        orderBy: {
-          sequence: "desc",
+        logs: {
+          orderBy: {
+            sequence: "desc",
+          },
+          take: 1,
         },
-        take: 1,
       },
-    },
-  });
+    });
+  } catch (error) {
+    console.warn('Failed to find order for logging:', error)
+    throw new Error('Database error: Could not find order')
+  }
 
   if (!order) throw new Error("Order not found");
 

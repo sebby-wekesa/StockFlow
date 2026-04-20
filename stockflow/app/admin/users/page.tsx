@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'; // This tells Next.js: "Don't pre-build this, fetch it live"
+
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
@@ -43,10 +45,15 @@ async function inviteUser(formData: FormData) {
 
 
 async function getUsers() {
-  return await prisma.user.findMany({
-    select: { id: true, email: true, name: true, role: true },
-    orderBy: { createdAt: "desc" },
-  });
+  try {
+    return await prisma.user.findMany({
+      select: { id: true, email: true, name: true, role: true },
+      orderBy: { createdAt: "desc" },
+    });
+  } catch (error) {
+    console.error('Failed to fetch users:', error);
+    return [];
+  }
 }
 
 export default async function AdminUsersPage() {

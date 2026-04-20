@@ -20,7 +20,13 @@ export async function getDashboardStats(user?: AuthUser) {
   const isSales = authUser.role === "SALES";
 
   // 1. Raw Material Stock - Everyone can see, but Warehouse sees more detail
-  const materials = await prisma.rawMaterial.findMany();
+  let materials = []
+  try {
+    materials = await prisma.rawMaterial.findMany();
+  } catch (error) {
+    console.warn('Failed to fetch raw materials:', error)
+    materials = []
+  }
   const rawMaterialStock = materials.reduce((sum, m) => sum + m.availableKg + m.reservedKg, 0);
   const totalFree = materials.reduce((sum, m) => sum + m.availableKg, 0);
 
@@ -56,31 +62,57 @@ export async function getDashboardStats(user?: AuthUser) {
     };
   }
 
-  const activeOrdersCount = await prisma.productionOrder.count({
-    where: activeOrdersWhere,
-  });
-  const pendingApprovalsCount = isOperator || isWarehouse || isSales ? 0 : await prisma.productionOrder.count({
-    where: pendingApprovalsWhere,
-  });
+  let activeOrdersCount = 0
+  try {
+    activeOrdersCount = await prisma.productionOrder.count({
+      where: activeOrdersWhere,
+    });
+  } catch (error) {
+    console.warn('Failed to count active orders:', error)
+    activeOrdersCount = 0
+  }
+  let pendingApprovalsCount = isOperator || isWarehouse || isSales ? 0 : 0
+  if (!isOperator && !isWarehouse && !isSales) {
+    try {
+      pendingApprovalsCount = await prisma.productionOrder.count({
+        where: pendingApprovalsWhere,
+      });
+    } catch (error) {
+      console.warn('Failed to count pending approvals:', error)
+      pendingApprovalsCount = 0
+    }
+  }
 
   // 3. Finished Goods - Everyone can see basic counts
-  const finishedGoods = await prisma.finishedGoods.aggregate({
-    _sum: {
-      kgProduced: true,
-      quantity: true,
-    },
-  });
+  let finishedGoods = { _sum: { kgProduced: null, quantity: null } }
+  try {
+    finishedGoods = await prisma.finishedGoods.aggregate({
+      _sum: {
+        kgProduced: true,
+        quantity: true,
+      },
+    });
+  } catch (error) {
+    console.warn('Failed to aggregate finished goods:', error)
+    finishedGoods = { _sum: { kgProduced: 0, quantity: 0 } }
+  }
 
   // 4. Scrap This Week - Only Admin/Manager see scrap data
   let scrapThisWeek = 0;
   if (isAdmin || isManager) {
-    const weeklyLogs = await prisma.stageLog.findMany({
-      where: {
-        completedAt: {
-          gte: weekStart,
+    let weeklyLogs = []
+    try {
+      weeklyLogs = await prisma.stageLog.findMany({
+        where: {
+          completedAt: {
+            gte: weekStart,
+          },
         },
-      },
-    });
+      });
+    } catch (error) {
+      console.warn('Failed to fetch weekly logs for scrap:', error)
+      weeklyLogs = []
+    }
     scrapThisWeek = weeklyLogs.reduce((sum, log) => sum + log.kgScrap, 0);
   }
 
@@ -95,37 +127,57 @@ export async function getDashboardStats(user?: AuthUser) {
     recentOrdersWhere = {}; // Will return empty array below
   }
 
-  const recentOrders = (isWarehouse || isSales) ? [] : await prisma.productionOrder.findMany({
-    take: 4,
-    where: recentOrdersWhere,
-    orderBy: {
-      updatedAt: "desc",
-    },
-    include: {
-      design: true,
-    },
-  });
+  let recentOrders = []
+  if (!(isWarehouse || isSales)) {
+    try {
+      recentOrders = await prisma.productionOrder.findMany({
+        take: 4,
+        where: recentOrdersWhere,
+        orderBy: {
+          updatedAt: "desc",
+        },
+        include: {
+          design: true,
+        },
+      });
+    } catch (error) {
+      console.warn('Failed to fetch recent orders:', error)
+      recentOrders = []
+    }
+  }
 
   // 6. Department Metrics (Scrap & Throughput) - Only Admin/Manager see detailed metrics
   let departmentScrap: any[] = [];
   let throughput: any[] = [];
 
   if (isAdmin || isManager) {
-    const weeklyLogs = await prisma.stageLog.findMany({
-      where: {
-        completedAt: {
-          gte: weekStart,
+    let weeklyLogs = []
+    try {
+      weeklyLogs = await prisma.stageLog.findMany({
+        where: {
+          completedAt: {
+            gte: weekStart,
+          },
         },
-      },
-    });
+      });
+    } catch (error) {
+      console.warn('Failed to fetch weekly logs for department scrap:', error)
+      weeklyLogs = []
+    }
 
-    const todayLogs = await prisma.stageLog.findMany({
-      where: {
-        completedAt: {
-          gte: todayStart,
+    let todayLogs = []
+    try {
+      todayLogs = await prisma.stageLog.findMany({
+        where: {
+          completedAt: {
+            gte: todayStart,
+          },
         },
-      },
-    });
+      });
+    } catch (error) {
+      console.warn('Failed to fetch today logs for throughput:', error)
+      todayLogs = []
+    }
 
     // Group weekly logs by dept for scrap chart
     const deptScrapMap: Record<string, number> = {};
@@ -273,31 +325,61 @@ export async function getDashboardStats(user?: AuthUser) {
 }
 
 export async function getManagerData() {
-  const pendingApprovals = await prisma.productionOrder.findMany({
-    where: { status: 'PENDING' },
-    include: { design: true },
-  });
+  let pendingApprovals = []
+  try {
+    pendingApprovals = await prisma.productionOrder.findMany({
+      where: { status: 'PENDING' },
+      include: { design: true },
+    });
+  } catch (error) {
+    console.warn('Failed to fetch pending approvals:', error)
+    pendingApprovals = []
+  }
 
-  const activeProduction = await prisma.productionOrder.groupBy({
-    by: ['currentDept'],
-    where: { status: { in: ['APPROVED', 'IN_PRODUCTION'] } },
-    _count: true,
-  });
+  let activeProduction = []
+  try {
+    activeProduction = await prisma.productionOrder.groupBy({
+      by: ['currentDept'],
+      where: { status: { in: ['APPROVED', 'IN_PRODUCTION'] } },
+      _count: true,
+    });
+  } catch (error) {
+    console.warn('Failed to group active production:', error)
+    activeProduction = []
+  }
 
-  const allLogs = await prisma.stageLog.findMany({
-    where: { kgScrap: { gt: 0 } },
-    include: { order: true },
-  });
+  let allLogs = []
+  try {
+    allLogs = await prisma.stageLog.findMany({
+      where: { kgScrap: { gt: 0 } },
+      include: { order: true },
+    });
+  } catch (error) {
+    console.warn('Failed to fetch scrap logs:', error)
+    allLogs = []
+  }
   const scrapAlerts = allLogs.filter(log => log.kgScrap > log.kgIn * 0.05);
 
-  const totalActiveOrders = await prisma.productionOrder.count({
-    where: { status: { in: ['APPROVED', 'IN_PRODUCTION'] } },
-  });
+  let totalActiveOrders = 0
+  try {
+    totalActiveOrders = await prisma.productionOrder.count({
+      where: { status: { in: ['APPROVED', 'IN_PRODUCTION'] } },
+    });
+  } catch (error) {
+    console.warn('Failed to count total active orders:', error)
+    totalActiveOrders = 0
+  }
 
-  const totalTonnageAgg = await prisma.productionOrder.aggregate({
-    where: { status: { in: ['APPROVED', 'IN_PRODUCTION'] } },
-    _sum: { targetKg: true },
-  });
+  let totalTonnageAgg = { _sum: { targetKg: 0 } }
+  try {
+    totalTonnageAgg = await prisma.productionOrder.aggregate({
+      where: { status: { in: ['APPROVED', 'IN_PRODUCTION'] } },
+      _sum: { targetKg: true },
+    });
+  } catch (error) {
+    console.warn('Failed to aggregate total tonnage:', error)
+    totalTonnageAgg = { _sum: { targetKg: 0 } }
+  }
 
   const pendingCount = pendingApprovals.length;
 
@@ -312,10 +394,16 @@ export async function getManagerData() {
 }
 
 export async function approveOrder(orderId: string) {
-  const order = await prisma.productionOrder.findUnique({
-    where: { id: orderId },
-    include: { design: true },
-  });
+  let order
+  try {
+    order = await prisma.productionOrder.findUnique({
+      where: { id: orderId },
+      include: { design: true },
+    });
+  } catch (error) {
+    console.warn('Failed to find order:', error)
+    throw new Error('Database error: Could not find order')
+  }
 
   if (!order || order.status !== 'PENDING') {
     throw new Error('Invalid order');
@@ -327,9 +415,15 @@ export async function approveOrder(orderId: string) {
     throw new Error('No raw material assigned to design');
   }
 
-  const material = await prisma.rawMaterial.findUnique({
-    where: { id: order.design.rawMaterialId },
-  });
+  let material
+  try {
+    material = await prisma.rawMaterial.findUnique({
+      where: { id: order.design.rawMaterialId },
+    });
+  } catch (error) {
+    console.warn('Failed to find raw material:', error)
+    throw new Error('Database error: Could not find raw material')
+  }
 
   if (!material || material.availableKg < reserveKg) {
     throw new Error('Insufficient stock');

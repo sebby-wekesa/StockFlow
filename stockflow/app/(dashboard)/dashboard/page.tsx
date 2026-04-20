@@ -218,11 +218,17 @@ async function SalesDashboard({ user }: { user: any }) {
 // Warehouse Dashboard - Shows inventory and receiving
 async function WarehouseDashboard({ user }: { user: any }) {
   const { prisma } = await import('@/lib/prisma')
-  const materials = await prisma.rawMaterial.findMany({
-    orderBy: {
-      materialName: "asc",
-    },
-  })
+  let materials = []
+  try {
+    materials = await prisma.rawMaterial.findMany({
+      orderBy: {
+        materialName: "asc",
+      },
+    })
+  } catch (error) {
+    console.warn('Failed to fetch raw materials:', error)
+    materials = []
+  }
 
   return (
     <div>
