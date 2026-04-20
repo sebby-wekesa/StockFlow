@@ -136,6 +136,8 @@ model RawMaterial {
   supplier        Supplier?                @relation(fields: [supplierId], references: [id])
   barcode         String?                  @unique // Phase 3: Unique barcode for batch tracking
   batchNumber     String? // Phase 3: Batch number for traceability
+  availableKg     Decimal                  @db.Decimal(10, 4) @default(0)
+  reservedKg      Decimal                  @db.Decimal(10, 4) @default(0)
   createdAt       DateTime                 @default(now())
   updatedAt       DateTime                 @updatedAt
   receipts        MaterialReceipt[]
