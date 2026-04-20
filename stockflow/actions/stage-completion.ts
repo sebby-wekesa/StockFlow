@@ -79,8 +79,26 @@ export async function completeStage(input: StageCompletionInput) {
 
     // If this is the last stage, create finished goods
     if (isLastStage) {
+      // Generate SKU (FG-YYYY-NNNN)
+      const currentYear = new Date().getFullYear();
+      const lastFinishedGoods = await tx.finishedGoods.findFirst({
+        orderBy: { createdAt: 'desc' },
+        select: { sku: true },
+      });
+
+      let nextNumber = 1;
+      if (lastFinishedGoods?.sku) {
+        const match = lastFinishedGoods.sku.match(/FG-\d{4}-(\d{4})/);
+        if (match) {
+          nextNumber = parseInt(match[1]) + 1;
+        }
+      }
+
+      const sku = `FG-${currentYear}-${nextNumber.toString().padStart(4, '0')}`;
+
       await tx.finishedGoods.create({
         data: {
+          sku,
           designId: order.designId,
           quantity: order.quantity,
           kgProduced: validated.kgOut,

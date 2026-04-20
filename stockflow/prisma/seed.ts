@@ -1,11 +1,18 @@
 import 'dotenv/config'
 import { prisma } from '../lib/prisma'
 import { createClient } from '@supabase/supabase-js'
+import { scryptSync, randomBytes } from 'crypto'
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
+
+function hashPassword(password: string): string {
+  const salt = randomBytes(16).toString("hex");
+  const hash = scryptSync(password, salt, 64).toString("hex");
+  return `${salt}:${hash}`;
+}
 
 async function seedDesigns() {
   const designs = [
@@ -79,7 +86,7 @@ async function main() {
       id: authUserId, // Use Supabase user ID
       email: 'sebby@admin.com',
       name: 'Sebby Admin',
-      password: 'password123', // Password handled by Supabase
+      password: hashPassword('password123'),
       role: 'ADMIN',
     },
   })
@@ -122,7 +129,7 @@ async function main() {
       id: salesAuthUserId,
       email: 'sales@stockflow.com',
       name: 'Sales User',
-      password: 'password123', // Placeholder, actual auth via Supabase
+      password: hashPassword('password123'),
       role: 'SALES',
     },
   })

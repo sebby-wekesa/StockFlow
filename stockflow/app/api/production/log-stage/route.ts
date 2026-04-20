@@ -96,8 +96,26 @@ export async function POST(req: Request) {
 
     // 6. If completed, add to finished goods inventory
     if (isLastStage) {
+      // Generate SKU (FG-YYYY-NNNN)
+      const currentYear = new Date().getFullYear();
+      const lastFinishedGoods = await prisma.finishedGoods.findFirst({
+        orderBy: { createdAt: 'desc' },
+        select: { sku: true },
+      });
+
+      let nextNumber = 1;
+      if (lastFinishedGoods?.sku) {
+        const match = lastFinishedGoods.sku.match(/FG-\d{4}-(\d{4})/);
+        if (match) {
+          nextNumber = parseInt(match[1]) + 1;
+        }
+      }
+
+      const sku = `FG-${currentYear}-${nextNumber.toString().padStart(4, '0')}`;
+
       await prisma.finishedGoods.create({
         data: {
+          sku,
           designId: order.designId,
           quantity: order.quantity,
           kgProduced: kgOut, // kgOut is the total batch weight produced
