@@ -284,7 +284,7 @@ export const ManagerApprovalQueue: React.FC<ManagerApprovalQueueProps> = ({ user
         setOrders(data.data || [])
       } catch (error) {
         console.error('Fetch error:', error)
-        showToast('error', 'Failed to load orders')
+        showToast('Failed to load orders', 'error')
       } finally {
         setIsLoading(false)
       }
@@ -305,10 +305,10 @@ export const ManagerApprovalQueue: React.FC<ManagerApprovalQueueProps> = ({ user
       if (!res.ok) throw new Error('Failed to approve order')
 
       setOrders(orders.filter((o) => o.id !== orderId))
-      showToast('success', 'Order approved and released to production!')
+      showToast('Order approved and released to production!', 'success')
     } catch (error) {
       console.error('Approval error:', error)
-      showToast('error', 'Failed to approve order')
+      showToast('Failed to approve order', 'error')
     } finally {
       setLoadingId(null)
     }
@@ -335,10 +335,10 @@ export const ManagerApprovalQueue: React.FC<ManagerApprovalQueueProps> = ({ user
 
       setOrders(orders.filter((o) => o.id !== data.orderId))
       setShowRejectionModal(false)
-      showToast('success', 'Order rejected with reason noted')
+      showToast('Order rejected with reason noted', 'success')
     } catch (error) {
       console.error('Rejection error:', error)
-      showToast('error', 'Failed to reject order')
+      showToast('Failed to reject order', 'error')
     } finally {
       setLoadingId(null)
     }

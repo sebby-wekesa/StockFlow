@@ -83,8 +83,8 @@ export function CreateOrderForm({ designs }: CreateOrderFormProps) {
       const result = await response.json()
 
       showToast(
-        'success',
-        `Production order created successfully! Status: ${result.order.status}`
+        `Production order created successfully! Status: ${result.order.status}`,
+        'success'
       )
 
       reset()
@@ -92,7 +92,7 @@ export function CreateOrderForm({ designs }: CreateOrderFormProps) {
     } catch (error) {
       const message =
         error instanceof Error ? error.message : 'Failed to create production order'
-      showToast('error', message)
+      showToast(message, 'error')
       console.error('Error creating production order:', error)
     } finally {
       setIsLoading(false)

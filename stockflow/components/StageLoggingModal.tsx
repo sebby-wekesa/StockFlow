@@ -91,7 +91,7 @@ export default function StageLoggingModal({
       onSuccess()
       onClose()
     } catch (error: any) {
-      showToast(`Error: ${error.message}`, 'error')
+      showToast(`Error: ${error.message}`, 'error' as any)
     } finally {
       setIsSubmitting(false)
     }
