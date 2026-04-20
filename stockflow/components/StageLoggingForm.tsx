@@ -150,7 +150,7 @@ export const StageLoggingForm: React.FC<StageLoggingProps> = ({
       onSuccess?.()
     } catch (error) {
       console.error('Submission error:', error)
-      showToast('error', 'Failed to log stage. Please try again.')
+      showToast('Failed to log stage. Please try again.', 'error')
     } finally {
       setIsLoading(false)
     }
