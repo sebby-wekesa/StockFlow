@@ -1,9 +1,10 @@
 "use client";
 
+import { User } from "@prisma/client";
 import { updateUserRole, deleteUser } from "@/app/actions/users";
 import { useTransition, useState } from "react";
 
-export function UserRow({ user }) {
+export function UserRow({ user }: { user: User }) {
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
