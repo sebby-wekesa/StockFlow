@@ -1,5 +1,6 @@
 import { requireAuth } from '@/lib/auth'
 import { Role } from '@/lib/auth'
+import { RawMaterial } from '@prisma/client'
 
 
 export const dynamic = 'force-dynamic'
@@ -218,7 +219,10 @@ async function SalesDashboard({ user }: { user: any }) {
 // Warehouse Dashboard - Shows inventory and receiving
 async function WarehouseDashboard({ user }: { user: any }) {
   const { prisma } = await import('@/lib/prisma')
-  let materials = []
+
+  // Initialize with the specific Prisma type
+  let materials: RawMaterial[] = []
+
   try {
     materials = await prisma.rawMaterial.findMany({
       orderBy: {
