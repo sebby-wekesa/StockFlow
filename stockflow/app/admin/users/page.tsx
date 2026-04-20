@@ -1,13 +1,8 @@
 import { prisma } from "@/lib/prisma";
-import { createClient } from "@supabase/supabase-js";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { updateUserRole } from "@/app/actions/users";
-
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+import { UserRow } from "./UserRow";
+import { supabaseAdmin } from "@/lib/supabase-admin";
 
 async function inviteUser(formData: FormData) {
   "use server";
@@ -45,22 +40,7 @@ async function inviteUser(formData: FormData) {
   revalidatePath("/admin/users");
 }
 
-async function deleteUser(userId: string) {
-  "use server";
 
-  // Delete from Supabase Auth
-  const { error: authError } = await supabaseAdmin.auth.admin.deleteUser(userId);
-  if (authError) {
-    throw new Error(`Failed to delete from auth: ${authError.message}`);
-  }
-
-  // Delete from Prisma
-  await prisma.user.delete({
-    where: { id: userId },
-  });
-
-  revalidatePath("/admin/users");
-}
 
 async function getUsers() {
   return await prisma.user.findMany({
@@ -155,48 +135,7 @@ export default async function AdminUsersPage() {
             </thead>
             <tbody className="bg-gray-800 divide-y divide-gray-700">
               {users.map((user) => (
-                <tr key={user.id}>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
-                    {user.name}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
-                    {user.email}
-                  </td>
-                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
-                     <form action={updateUserRole} className="inline">
-                       <input type="hidden" name="userId" value={user.id} />
-                       <select
-                         name="newRole"
-                         defaultValue={user.role}
-                         className="bg-gray-700 text-white border border-gray-600 rounded px-2 py-1 text-xs focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                          onChange={(e) => e.target.form?.requestSubmit()}
-                       >
-                         <option value="PENDING">Pending</option>
-                         <option value="ADMIN">Admin</option>
-                         <option value="MANAGER">Manager</option>
-                         <option value="OPERATOR">Operator</option>
-                         <option value="WAREHOUSE">Warehouse</option>
-                         <option value="SALES">Sales</option>
-                         <option value="PACKAGING">Packaging</option>
-                       </select>
-                     </form>
-                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <form action={deleteUser.bind(null, user.id)} className="inline">
-                      <button
-                        type="submit"
-                        className="bg-red-600 hover:bg-red-700 text-white font-bold py-1 px-2 rounded text-xs"
-                        onClick={(e) => {
-                          if (!confirm(`Delete user ${user.email}?`)) {
-                            e.preventDefault();
-                          }
-                        }}
-                      >
-                        Delete
-                      </button>
-                    </form>
-                  </td>
-                </tr>
+                <UserRow key={user.id} user={user} />
               ))}
             </tbody>
           </table>
