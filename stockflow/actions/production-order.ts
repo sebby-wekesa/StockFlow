@@ -75,7 +75,15 @@ export async function approveProductionOrder(orderId: string) {
   const order = await prisma.productionOrder.findUnique({
     where: { id: orderId },
     include: {
-      design: true,
+      design: {
+        include: {
+          bomItems: {
+            include: {
+              rawMaterial: true
+            }
+          }
+        }
+      },
     },
   });
 
@@ -87,25 +95,55 @@ export async function approveProductionOrder(orderId: string) {
     throw new Error("Order is not pending approval");
   }
 
-  if (!order.design.rawMaterialId) {
-    throw new Error("Design does not have an assigned raw material");
+  if (order.design.bomItems.length === 0) {
+    throw new Error("Design does not have BOM items configured");
   }
 
-  // Calculate the required KG
-  const requiredKg = order.quantity * order.design.kgPerUnit;
-
-  // Perform the transaction to approve order and reserve inventory
+  // Perform the transaction to approve order and consume materials
   await prisma.$transaction(async (tx) => {
-    // 1. Deduct from Available and add to Reserved
-    await tx.rawMaterial.update({
-      where: { id: order.design.rawMaterialId! },
-      data: {
-        availableKg: { decrement: requiredKg },
-        reservedKg: { increment: requiredKg }
-      }
-    });
+    // 1. Consume materials from BOM
+    const consumptionLogs = [];
 
-    // 2. Update the Order Status
+    for (const bomItem of order.design.bomItems) {
+      const requiredQuantity = Number(bomItem.quantity) * order.quantity;
+
+      // Check if sufficient stock is available
+      const material = await tx.rawMaterial.findUnique({
+        where: { id: bomItem.rawMaterialId }
+      });
+
+      if (!material) {
+        throw new Error(`Material ${bomItem.rawMaterialId} not found`);
+      }
+
+      if (Number(material.availableKg) < requiredQuantity) {
+        throw new Error(
+          `Insufficient stock for ${material.materialName}. Available: ${material.availableKg}${bomItem.unitOfMeasure}, Required: ${requiredQuantity}${bomItem.unitOfMeasure}`
+        );
+      }
+
+      // Deduct from available stock
+      await tx.rawMaterial.update({
+        where: { id: bomItem.rawMaterialId },
+        data: {
+          availableKg: { decrement: requiredQuantity }
+        }
+      });
+
+      // Create consumption log
+      const log = await tx.materialConsumptionLog.create({
+        data: {
+          productionOrderId: orderId,
+          rawMaterialId: bomItem.rawMaterialId,
+          quantityConsumed: requiredQuantity,
+          notes: "Auto-consumed on order approval"
+        }
+      });
+
+      consumptionLogs.push(log);
+    }
+
+    // 2. Update the Order Status to APPROVED
     await tx.productionOrder.update({
       where: { id: orderId },
       data: {
@@ -117,6 +155,52 @@ export async function approveProductionOrder(orderId: string) {
   });
 
   redirect("/approvals");
+}
+
+export async function releaseProductionOrder(orderId: string) {
+  await requireRole("ADMIN");
+
+  const user = await getUser();
+  if (!user) throw new Error("Unauthorized");
+
+  const order = await prisma.productionOrder.findUnique({
+    where: { id: orderId },
+    include: {
+      design: {
+        include: {
+          stages: {
+            orderBy: { sequence: "asc" }
+          }
+        }
+      },
+    },
+  });
+
+  if (!order) {
+    throw new Error("Order not found");
+  }
+
+  if (order.status !== "APPROVED") {
+    throw new Error("Order must be approved before release to production");
+  }
+
+  if (order.design.stages.length === 0) {
+    throw new Error("Design must have at least one production stage");
+  }
+
+  const firstStage = order.design.stages[0];
+
+  // Update order to IN_PRODUCTION status and set initial stage
+  await prisma.productionOrder.update({
+    where: { id: orderId },
+    data: {
+      status: "IN_PRODUCTION",
+      currentStage: firstStage.sequence,
+      currentDept: firstStage.department
+    },
+  });
+
+  redirect("/production");
 }
 
 export async function rejectProductionOrder(orderId: string) {

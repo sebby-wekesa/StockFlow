@@ -1,10 +1,43 @@
 "use client";
 
-import { Settings, Layers, Anchor, Save } from "lucide-react";
-import { useState } from "react";
+import { Settings, Layers, Anchor, Save, Plus, X } from "lucide-react";
+import { useState, useEffect } from "react";
+import { BOMSection } from "./BOMSection";
+
+interface BOMItem {
+  rawMaterialId: string;
+  quantity: number;
+  unitOfMeasure: string;
+}
 
 export function DesignTemplateForm() {
   const [stages, setStages] = useState([{ dept: "Cutting", order: 1 }]);
+  const [bomItems, setBomItems] = useState<BOMItem[]>([]);
+  const [rawMaterials, setRawMaterials] = useState<any[]>([]);
+
+  useEffect(() => {
+    // Load raw materials - for now using mock data
+    // In production, this would call an API
+    setRawMaterials([
+      { id: "1", materialName: "High-Tensile Steel", diameter: "M12" },
+      { id: "2", materialName: "Stainless Steel", diameter: "M10" },
+      { id: "3", materialName: "Carbon Steel", diameter: "M8" }
+    ]);
+  }, []);
+
+  const addBomItem = () => {
+    setBomItems([...bomItems, { rawMaterialId: "", quantity: 0, unitOfMeasure: "kg" }]);
+  };
+
+  const updateBomItem = (index: number, field: keyof BOMItem, value: string | number) => {
+    const updatedItems = [...bomItems];
+    updatedItems[index] = { ...updatedItems[index], [field]: value };
+    setBomItems(updatedItems);
+  };
+
+  const removeBomItem = (index: number) => {
+    setBomItems(bomItems.filter((_, i) => i !== index));
+  };
 
   const addStage = () => {
     setStages([...stages, { dept: "", order: stages.length + 1 }]);
@@ -19,8 +52,8 @@ export function DesignTemplateForm() {
           </h2>
           <p className="text-sm text-[#7a8090]">Define the production sequence and specs for a product.</p>
         </div>
-        <div className="px-4 py-2 bg-[#8b7cf8]/10 border border-[#8b7cf8]/20 rounded-lg text-[#8b7cf8] text-xs font-bold">
-          PHASE 1 CORE
+        <div className="px-4 py-2 bg-[#f0c040]/10 border border-[#f0c040]/20 rounded-lg text-[#f0c040] text-xs font-bold">
+          PHASE 2: BOM INTEGRATION
         </div>
       </div>
 
@@ -36,6 +69,15 @@ export function DesignTemplateForm() {
             <input type="number" placeholder="12.5" className="w-full bg-[#1e2023] border border-[#2c2d33] rounded-xl p-3 text-white outline-none focus:border-[#8b7cf8]" />
           </div>
         </div>
+
+        {/* BOM Section */}
+        <BOMSection
+          rawMaterials={rawMaterials}
+          bomItems={bomItems}
+          onAddItem={addBomItem}
+          onUpdateItem={updateBomItem}
+          onRemoveItem={removeBomItem}
+        />
 
         {/* Dynamic Stages List */}
         <div className="space-y-4">

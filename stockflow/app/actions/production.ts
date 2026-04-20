@@ -127,3 +127,28 @@ export async function getOrderForLogging(id: string) {
     inheritedKg,
   };
 }
+
+export async function updateOrderPriority(orderId: string, priority: string) {
+  const user = await requireAuth();
+
+  // Validate user permissions
+  if (user.role !== 'ADMIN' && user.role !== 'MANAGER') {
+    throw new Error('Unauthorized: Only admins and managers can update order priorities');
+  }
+
+  // Validate priority
+  const validPriorities = ['LOW', 'MEDIUM', 'HIGH', 'URGENT'];
+  if (!validPriorities.includes(priority)) {
+    throw new Error('Invalid priority level');
+  }
+
+  await prisma.productionOrder.update({
+    where: { id: orderId },
+    data: { priority: priority as any }
+  });
+
+  revalidatePath('/admin/scheduling');
+  revalidatePath('/production');
+
+  return { success: true };
+}

@@ -123,10 +123,10 @@ async function OperatorDashboard({ user }: { user: any }) {
 async function SalesDashboard({ user }: { user: any }) {
   // Import sales-specific data
   const { getCatalogue } = await import('@/app/actions/sales')
-  const { getMyOrders } = await import('@/app/actions/sales')
+  const { getSalesOrders } = await import('@/app/actions/sales-orders')
 
   const products = await getCatalogue()
-  const orders = await getMyOrders()
+  const orders = await getSalesOrders()
 
   return (
     <div>
@@ -135,7 +135,7 @@ async function SalesDashboard({ user }: { user: any }) {
           <div className="section-title">Sales Dashboard</div>
           <div className="section-sub">Manage orders and browse catalogue</div>
         </div>
-        <button className="btn btn-primary">Place New Order</button>
+        <a href="/catalogue" className="btn btn-primary">Place New Order</a>
       </div>
 
       {/* Catalogue Section */}
@@ -154,7 +154,7 @@ async function SalesDashboard({ user }: { user: any }) {
                   <span className="job-kg">{product.availableQty} units</span> available
                 </div>
                 <div className="product-price">${product.price}/unit</div>
-                <button className="btn btn-sm">Add to Order</button>
+                <a href="/catalogue" className="btn btn-sm">Order Now</a>
               </div>
             ))}
           </div>

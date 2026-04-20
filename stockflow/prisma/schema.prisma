@@ -1,28 +1,28 @@
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
   binaryTargets = ["native", "rhel-openssl-3.0.x"]
 }
 
 datasource db {
-  provider  = "postgresql"
+  provider = "postgresql"
 }
 
 enum Role {
-  PENDING    // The "Waiting Room"
-  ADMIN      // Can see reports, manage BOM, and release orders
-  MANAGER    // Can review and approve orders
-  OPERATOR   // Can only see their department queue and log weights
-  WAREHOUSE  // Can only log raw material intake
-  SALES      // Can view sales catalogue and place orders
-  PACKAGING  // Can manage finished goods packaging
+  PENDING // The "Waiting Room"
+  ADMIN // Can see reports, manage BOM, and release orders
+  MANAGER // Can review and approve orders
+  OPERATOR // Can only see their department queue and log weights
+  WAREHOUSE // Can only log raw material intake
+  SALES // Can view sales catalogue and place orders
+  PACKAGING // Can manage finished goods packaging
 }
 
 enum ProductionStatus {
-  PENDING       // Waiting for Manager Review 
-  APPROVED      // Released to production [cite: 46]
+  PENDING // Waiting for Manager Review 
+  APPROVED // Released to production [cite: 46]
   IN_PRODUCTION // Moving through departments [cite: 47]
-  COMPLETED     // Finished goods added to stock [cite: 48]
-  REJECTED      // Sent back by Manager [cite: 51]
+  COMPLETED // Finished goods added to stock [cite: 48]
+  REJECTED // Sent back by Manager [cite: 51]
   CANCELLED
 }
 
@@ -34,147 +34,294 @@ enum Priority {
 }
 
 model User {
-  id              String     @id @default(cuid())
-  email           String     @unique
-  password        String
-  name            String?
-  role            Role       @default(PENDING) // New users start here
-  department      String?    // e.g., "Cutting", "Forging" (for Operators)
-  createdAt       DateTime   @default(now())
-  updatedAt       DateTime   @updatedAt
-  stageLogs       StageLog[]
+  id             String        @id @default(cuid())
+  email          String        @unique
+  password       String
+  name           String?
+  role           Role          @default(PENDING) // New users start here
+  department     String? // e.g., "Cutting", "Forging" (for Operators)
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id])
+  branchId       String?
+  branch         Branch?       @relation(fields: [branchId], references: [id])
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  stageLogs           StageLog[]
+  notificationSettings NotificationSettings?
+  auditLogs      AuditLog[]
 }
 
 model Design {
   id               String            @id @default(cuid())
-  name             String            // e.g., Hex Bolt M12 [cite: 67]
+  name             String // e.g., Hex Bolt M12 [cite: 67]
   code             String            @unique // e.g., HB-M12 [cite: 74]
   description      String?
-  targetDimensions String?           // Stores specs like 12mm x 70mm [cite: 71]
-  targetWeight     Float?            // Estimated yield kg per unit [cite: 135]
-  // New Phase 2 Fields
-  rawMaterialId    String?           // Links to the specific rod needed (e.g., M12 High Tensile)
-  rawMaterial      RawMaterial?      @relation(fields: [rawMaterialId], references: [id])
-  kgPerUnit        Float             @default(0.0) // The BOM consumption rate
+  targetDimensions String? // Stores specs like 12mm x 70mm [cite: 71]
+  targetWeight     Decimal?          @db.Decimal(10, 4) // Estimated yield kg per unit [cite: 135]
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
   stages           Stage[]
   productionOrders ProductionOrder[]
   finishedGoods    FinishedGoods[]
+  bomItems         BillOfMaterials[] // Phase 2: Multiple materials per design
 }
 
 model Stage {
-  id          String     @id @default(cuid())
-  name        String     // e.g., Cutting, Forging, Threading [cite: 65]
-  department  String     // The department responsible for this stage [cite: 65]
-  sequence    Int        // Order of operations [cite: 68]
-  designId    String
-  design      Design     @relation(fields: [designId], references: [id], onDelete: Cascade)
-  stageLogs   StageLog[]
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
+  id              String                   @id @default(cuid())
+  name            String // e.g., Cutting, Forging, Threading [cite: 65]
+  department      String // The department responsible for this stage [cite: 65]
+  sequence        Int // Order of operations [cite: 68]
+  designId        String
+  design          Design                   @relation(fields: [designId], references: [id], onDelete: Cascade)
+  stageLogs       StageLog[]
+  consumptionLogs MaterialConsumptionLog[]
+  createdAt       DateTime                 @default(now())
+  updatedAt       DateTime                 @updatedAt
 
   @@unique([designId, sequence])
 }
 
 model ProductionOrder {
-  id            String           @id @default(cuid())
-  orderNumber   String           @unique // e.g., PO-0040 [cite: 93]
-  designId      String
-  design        Design           @relation(fields: [designId], references: [id])
-  quantity      Int              @default(1)
-  targetKg      Float            // Total initial weight (In) [cite: 55]
-  status        ProductionStatus @default(PENDING)
-  priority      Priority         @default(MEDIUM)
-  
+  id          String           @id @default(cuid())
+  orderNumber String           @unique // e.g., PO-0040 [cite: 93]
+  designId    String
+  design      Design           @relation(fields: [designId], references: [id])
+  quantity    Int              @default(1)
+  targetKg    Decimal          @db.Decimal(10, 4) // Total initial weight (In) [cite: 55]
+  status      ProductionStatus @default(PENDING)
+  priority    Priority         @default(MEDIUM)
+
   // Handoff Tracking
-  currentStage  Int              @default(1) // Current sequence number
-  currentDept   String?          // Current department queue (e.g., "Cutting") [cite: 99]
-  
-  assignedTo    String?
-  approvedBy    String?
-  approvedAt    DateTime?
-  completedAt   DateTime?
-  createdAt     DateTime         @default(now())
-  updatedAt     DateTime         @updatedAt
-  logs          StageLog[]
+  currentStage Int     @default(1) // Current sequence number
+  currentDept  String? // Current department queue (e.g., "Cutting") [cite: 99]
+
+  assignedTo      String?
+  approvedBy      String?
+  approvedAt      DateTime?
+  completedAt     DateTime?
+  createdAt       DateTime                 @default(now())
+  updatedAt       DateTime                 @updatedAt
+  logs            StageLog[]
+  consumptionLogs MaterialConsumptionLog[]
 }
 
 model StageLog {
-  id          String          @id @default(cuid())
-  orderId     String
-  order       ProductionOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  stageId     String?
-  stage       Stage?          @relation(fields: [stageId], references: [id])
-  stageName   String
-  sequence    Int
+  id        String          @id @default(cuid())
+  orderId   String
+  order     ProductionOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  stageId   String?
+  stage     Stage?          @relation(fields: [stageId], references: [id])
+  stageName String
+  sequence  Int
 
   // KG Traceability: Enforces In = Out + Scrap [cite: 55, 78]
-  kgIn        Float           // Weight received from previous stage [cite: 77]
-  kgOut       Float           // Weight passed forward [cite: 77]
-  kgScrap     Float           // Weight lost [cite: 77]
-  scrapReason String?         // e.g., "Off-cuts", "Scale", "Swarf" [cite: 65, 153]
-  department  String?         // Department responsible for this stage log [new field]
+  kgIn        Decimal @db.Decimal(10, 4) // Weight received from previous stage [cite: 77]
+  kgOut       Decimal @db.Decimal(10, 4) // Weight passed forward [cite: 77]
+  kgScrap     Decimal @db.Decimal(10, 4) // Weight lost [cite: 77]
+  scrapReason String? // e.g., "Off-cuts", "Scale", "Swarf" [cite: 65, 153]
+  department  String? // Department responsible for this stage log [new field]
 
   operatorId  String
-  operator    User            @relation(fields: [operatorId], references: [id])
+  operator    User     @relation(fields: [operatorId], references: [id])
   notes       String?
-  completedAt DateTime        @default(now())
+  completedAt DateTime @default(now())
 }
 
 model RawMaterial {
-  id            String   @id @default(cuid())
-  materialName  String   // e.g., "High-Tensile Steel"
-  diameter      String   // e.g., "M12"
-  availableKg   Float    @default(0) // Available for reservation
-  reservedKg    Float    @default(0) // Reserved for production
-  supplier      String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  receipts      MaterialReceipt[]
-  designs       Design[]
+  id              String                   @id @default(cuid())
+  sku             String                   @unique // Unique SKU for raw materials
+  materialName    String // e.g., "High-Tensile Steel"
+  diameter        String // e.g., "M12"
+  supplierId      String?
+  supplier        Supplier?                @relation(fields: [supplierId], references: [id])
+  barcode         String?                  @unique // Phase 3: Unique barcode for batch tracking
+  batchNumber     String? // Phase 3: Batch number for traceability
+  createdAt       DateTime                 @default(now())
+  updatedAt       DateTime                 @updatedAt
+  receipts        MaterialReceipt[]
+  bomItems        BillOfMaterials[]
+  consumptionLogs MaterialConsumptionLog[]
+  purchaseItems   PurchaseOrderItem[]
+  forecasts       DemandForecast[]
+  inventories     InventoryRawMaterial[]
 }
 
 model MaterialReceipt {
-  id            String      @id @default(cuid())
-  materialId    String
-  material      RawMaterial @relation(fields: [materialId], references: [id])
-  kgReceived    Float
-  reference     String?     // GRN Number
-  supplier      String?
-  loggedBy      String?
-  createdAt     DateTime    @default(now())
+  id         String      @id @default(cuid())
+  materialId String
+  material   RawMaterial @relation(fields: [materialId], references: [id])
+  kgReceived Decimal     @db.Decimal(10, 4)
+  reference  String? // GRN Number
+  supplierId String?
+  supplier   Supplier?   @relation(fields: [supplierId], references: [id])
+  loggedBy   String?
+  createdAt  DateTime    @default(now())
 }
 
 model FinishedGoods {
-  id          String   @id @default(cuid())
-  designId    String
-  design      Design   @relation(fields: [designId], references: [id])
-  quantity    Int      // Units completed
-  kgProduced  Float    // Total kg of finished goods
-  createdAt   DateTime @default(now())
-  saleItems   SaleItem[]
+  id         String     @id @default(cuid())
+  sku        String     @unique // Unique SKU for finished goods
+  designId   String
+  design     Design     @relation(fields: [designId], references: [id])
+  quantity   Int // Units completed
+  kgProduced Decimal    @db.Decimal(10, 4) // Total kg of finished goods
+  barcode    String?    @unique // Phase 3: Unique barcode for finished goods tracking
+  batchNumber String? // Phase 3: Production batch number
+  createdAt  DateTime   @default(now())
+  saleItems  SaleItem[]
+  inventories InventoryFinishedGoods[]
+}
+
+model InventoryRawMaterial {
+  id            String      @id @default(cuid())
+  branchId      String
+  branch        Branch      @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  rawMaterialId String
+  rawMaterial   RawMaterial @relation(fields: [rawMaterialId], references: [id], onDelete: Cascade)
+  availableKg   Decimal     @db.Decimal(10, 4) @default(0)
+  reservedKg    Decimal     @db.Decimal(10, 4) @default(0)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@unique([branchId, rawMaterialId])
+}
+
+model InventoryFinishedGoods {
+  id               String        @id @default(cuid())
+  branchId         String
+  branch           Branch        @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  finishedGoodsId  String
+  finishedGoods    FinishedGoods @relation(fields: [finishedGoodsId], references: [id], onDelete: Cascade)
+  availableQty     Int           @default(0)
+  reservedQty      Int           @default(0)
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  @@unique([branchId, finishedGoodsId])
+}
+
+// Phase 2: Bill of Materials and Consumption Tracking
+model BillOfMaterials {
+  id            String      @id @default(cuid())
+  designId      String
+  design        Design      @relation(fields: [designId], references: [id], onDelete: Cascade)
+  rawMaterialId String
+  rawMaterial   RawMaterial @relation(fields: [rawMaterialId], references: [id])
+  quantity      Decimal     @db.Decimal(10, 4) // Quantity required per finished unit
+  unitOfMeasure String      @default("kg") // e.g., "kg", "pcs", "m"
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@unique([designId, rawMaterialId]) // One BOM entry per material per design
+}
+
+model MaterialConsumptionLog {
+  id                String          @id @default(cuid())
+  productionOrderId String
+  productionOrder   ProductionOrder @relation(fields: [productionOrderId], references: [id], onDelete: Cascade)
+  rawMaterialId     String
+  rawMaterial       RawMaterial     @relation(fields: [rawMaterialId], references: [id])
+  quantityConsumed  Decimal         @db.Decimal(10, 4) // Amount deducted from stock
+  consumedAt        DateTime        @default(now())
+  stageId           String? // Which stage triggered the consumption (if applicable)
+  stage             Stage?          @relation(fields: [stageId], references: [id])
+  notes             String? // e.g., "Auto-deducted on order release" or "Stage completion"
 }
 
 model SaleOrder {
-  id            String        @id @default(cuid())
-  customerName  String
-  items         SaleItem[]
-  totalAmount   Float         // Calculated total
-  status        SaleStatus    @default(PENDING)
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+  id           String     @id @default(cuid())
+  customerId   String?
+  customer     Customer?  @relation(fields: [customerId], references: [id])
+  customerName String // Keep for legacy/backwards compatibility
+  items        SaleItem[]
+  totalAmount  Decimal    @db.Decimal(10, 2) // Calculated total
+  status       SaleStatus @default(PENDING)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
 }
 
 model SaleItem {
-  id             String      @id @default(cuid())
-  saleOrderId    String
-  saleOrder      SaleOrder   @relation(fields: [saleOrderId], references: [id], onDelete: Cascade)
+  id              String        @id @default(cuid())
+  saleOrderId     String
+  saleOrder       SaleOrder     @relation(fields: [saleOrderId], references: [id], onDelete: Cascade)
   finishedGoodsId String
-  finishedGoods  FinishedGoods @relation(fields: [finishedGoodsId], references: [id])
-  quantity       Int
-  unitPrice      Float
-  totalPrice     Float       // quantity * unitPrice
+  finishedGoods   FinishedGoods @relation(fields: [finishedGoodsId], references: [id])
+  quantity        Int
+  unitPrice       Decimal       @db.Decimal(10, 2)
+  totalPrice      Decimal       @db.Decimal(10, 2) // quantity * unitPrice
+}
+
+// Phase 3: Purchase Orders, Forecasting & Customer Portal
+model PurchaseOrder {
+  id            String            @id @default(cuid())
+  poNumber      String            @unique // e.g., PO-2026-0001
+  supplierId    String
+  supplier      Supplier          @relation(fields: [supplierId], references: [id])
+  status        PurchaseStatus    @default(DRAFT)
+  totalAmount   Decimal           @db.Decimal(10, 2)
+  items         PurchaseOrderItem[]
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  approvedBy    String?
+  approvedAt    DateTime?
+  expectedDelivery DateTime?
+  notes         String?
+}
+
+model PurchaseOrderItem {
+  id              String        @id @default(cuid())
+  purchaseOrderId String
+  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  rawMaterialId   String
+  rawMaterial     RawMaterial   @relation(fields: [rawMaterialId], references: [id])
+  quantity        Decimal       @db.Decimal(10, 4)
+  unitPrice       Decimal       @db.Decimal(10, 2)
+  totalPrice      Decimal       @db.Decimal(10, 2)
+}
+
+enum PurchaseStatus {
+  DRAFT
+  APPROVED
+  ORDERED
+  RECEIVED
+  CANCELLED
+}
+
+model DemandForecast {
+  id                String     @id @default(cuid())
+  rawMaterialId     String
+  rawMaterial       RawMaterial @relation(fields: [rawMaterialId], references: [id])
+  forecastDate      DateTime
+  forecastedDemand  Decimal    @db.Decimal(10, 4) // Predicted kg needed
+  confidenceLevel   Float // 0-1 confidence score
+  basedOnDays       Int // Days of historical data used
+  createdAt         DateTime   @default(now())
+
+  @@unique([rawMaterialId, forecastDate])
+}
+
+model CustomerPortalAccess {
+  id         String    @id @default(cuid())
+  customerId String    @unique
+  customer   Customer  @relation(fields: [customerId], references: [id])
+  accessCode String    @unique // Secure access code for portal
+  isActive   Boolean   @default(true)
+  createdAt  DateTime  @default(now())
+  lastLogin  DateTime?
+}
+
+model NotificationSettings {
+  id                String    @id @default(cuid())
+  userId            String    @unique
+  user              User      @relation(fields: [userId], references: [id])
+  emailEnabled      Boolean   @default(true)
+  whatsappEnabled   Boolean   @default(false)
+  whatsappNumber    String?
+  orderApproved     Boolean   @default(true)
+  highScrapAlert    Boolean   @default(true)
+  stockoutAlert     Boolean   @default(true)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 }
 
 enum SaleStatus {
@@ -182,4 +329,88 @@ enum SaleStatus {
   CONFIRMED
   SHIPPED
   CANCELLED
+}
+
+// Organizations & Multi-tenancy
+model Organization {
+  id        String   @id @default(cuid())
+  name      String // Company name
+  code      String   @unique // Short code for identification
+  address   String?
+  phone     String?
+  email     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  branches  Branch[]
+  users     User[]
+}
+
+model Branch {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  name           String // Branch location name
+  code           String       @unique // Branch code
+  address        String?
+  phone          String?
+  managerId      String? // Branch manager user ID
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  users          User[]
+  rawInventories InventoryRawMaterial[]
+  finishedInventories InventoryFinishedGoods[]
+}
+
+// Master Data Extensions
+model Supplier {
+  id          String            @id @default(cuid())
+  name        String
+  code        String            @unique
+  contactName String?
+  email       String?
+  phone       String?
+  address     String?
+  taxId       String?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  materials     RawMaterial[]
+  receipts      MaterialReceipt[]
+  purchaseOrders PurchaseOrder[]
+}
+
+model Customer {
+  id          String      @id @default(cuid())
+  name        String
+  code        String      @unique
+  contactName String?
+  email       String?
+  phone       String?
+  address     String?
+  taxId       String?
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+  orders       SaleOrder[]
+  portalAccess CustomerPortalAccess?
+}
+
+model UnitOfMeasure {
+  id        String   @id @default(cuid())
+  name      String // e.g., "Kilogram", "Meter", "Piece"
+  symbol    String // e.g., "kg", "m", "pcs"
+  category  String // e.g., "weight", "length", "count"
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  action     String   // e.g., 'BARCODE_SCAN_PROCESSED', 'LOGIN', 'ORDER_APPROVED'
+  entityType String?  // e.g., 'raw_material', 'finished_goods', 'production_order'
+  entityId   String?  // ID of the affected entity
+  details    String?  // JSON string with additional data
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
 }
