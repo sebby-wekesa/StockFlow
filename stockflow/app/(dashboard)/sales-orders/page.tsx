@@ -40,14 +40,14 @@ export default async function SalesOrdersPage() {
     getAvailableStock()
   ]);
 
-  // Transform the data to satisfy the 'StockItem' type
-  const formattedStock = stock.map(item => ({
-    ...item,
-    design: {
-      ...item.design,
-      // Use targetWeight for unit weight (previously kgPerUnit)
-      targetWeight: item.design.targetWeight
-    }
+  // Transform the data to satisfy the 'CatalogueItem' type for SalesOrderForm
+  const formattedProducts = stock.map(item => ({
+    id: item.id,
+    name: item.design.name,
+    code: item.design.code,
+    availableQty: item.quantity,
+    kgProduced: Number(item.kgProduced),
+    createdAt: item.createdAt
   }));
 
   return (
@@ -59,7 +59,7 @@ export default async function SalesOrdersPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <div>
           <h2 className="text-xl font-semibold text-white mb-4">Create New Order</h2>
-          <SalesOrderForm stock={formattedStock} />
+          <SalesOrderForm products={formattedProducts} />
         </div>
         <div>
           <h2 className="text-xl font-semibold text-white mb-4">Recent Orders</h2>

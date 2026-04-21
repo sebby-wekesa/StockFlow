@@ -15,7 +15,7 @@ interface CatalogueItem {
   code: string
   availableQty: number
   kgProduced: number
-  price: number
+  price?: number
   createdAt: Date
 }
 
@@ -50,7 +50,7 @@ export function SalesOrderForm({ products, onOrderPlaced }: SalesOrderFormProps)
 
   const getTotal = () => {
     return getSelectedProducts().reduce((sum, product) => {
-      return sum + (product.price * selectedItems[product.id])
+      return sum + ((product.price || 0) * selectedItems[product.id])
     }, 0)
   }
 
@@ -67,7 +67,7 @@ export function SalesOrderForm({ products, onOrderPlaced }: SalesOrderFormProps)
         items: getSelectedProducts().map(product => ({
           finishedGoodsId: product.id,
           quantity: selectedItems[product.id],
-          unitPrice: product.price
+          unitPrice: product.price || 0
         }))
       }
 
@@ -143,7 +143,7 @@ export function SalesOrderForm({ products, onOrderPlaced }: SalesOrderFormProps)
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="font-medium">${product.price.toFixed(2)}</span>
+                      <span className="font-medium">${(product.price || 0).toFixed(2)}</span>
                       <div className="flex items-center gap-1">
                         <Button
                           type="button"
@@ -185,7 +185,7 @@ export function SalesOrderForm({ products, onOrderPlaced }: SalesOrderFormProps)
                 {getSelectedProducts().map((product) => (
                   <div key={product.id} className="flex justify-between text-sm">
                     <span>{product.name} × {selectedItems[product.id]}</span>
-                    <span>${(product.price * selectedItems[product.id]).toFixed(2)}</span>
+                    <span>${((product.price || 0) * selectedItems[product.id]).toFixed(2)}</span>
                   </div>
                 ))}
                 <div className="border-t pt-2 flex justify-between font-semibold">
