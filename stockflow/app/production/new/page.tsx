@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic';
 import { prisma } from '@/lib/prisma'
 import { CreateOrderForm } from '@/components/OrderForm'
 import { AlertCircle } from 'lucide-react'
-import { Decimal } from '@prisma/client-runtime-utils'
+import { Decimal } from '@prisma/client'
 
 interface Design {
   id: string

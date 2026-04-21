@@ -5,8 +5,31 @@ import { requireAuth } from "@/lib/auth";
 import type { AuthUser } from "@/lib/auth";
 import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/prisma';
-import { RawMaterial } from '@prisma/client';
-import { Decimal } from '@prisma/client-runtime-utils';
+import { RawMaterial, ProductionOrder, Design, StageLog } from '@prisma/client';
+import { Decimal } from '@prisma/client';
+
+interface Stat {
+  label: string;
+  value: number | Decimal;
+  suffix?: string;
+  sub: string;
+  color: string;
+}
+
+interface DepartmentScrap {
+  dept: string;
+  kg: number;
+  pct: number;
+}
+
+interface Throughput {
+  dept: string;
+  jobs: number;
+  kg: number;
+  scrap: number;
+  ops: number;
+  yield: number;
+}
 
 export async function getDashboardStats(user?: AuthUser) {
   const authUser = user || await requireAuth();
@@ -114,7 +137,7 @@ export async function getDashboardStats(user?: AuthUser) {
   // 4. Scrap This Week - Only Admin/Manager see scrap data
   let scrapThisWeek = 0;
   if (isAdmin || isManager) {
-    let weeklyLogs: any[] = []
+    let weeklyLogs: StageLog[] = []
     try {
       weeklyLogs = await prisma.stageLog.findMany({
         where: {
@@ -141,7 +164,7 @@ export async function getDashboardStats(user?: AuthUser) {
     recentOrdersWhere = {}; // Will return empty array below
   }
 
-  let recentOrders = []
+  let recentOrders: (ProductionOrder & { design: Design })[] = []
   if (!(isWarehouse || isSales)) {
     try {
       recentOrders = await prisma.productionOrder.findMany({
@@ -161,8 +184,8 @@ export async function getDashboardStats(user?: AuthUser) {
   }
 
   // 6. Department Metrics (Scrap & Throughput) - Only Admin/Manager see detailed metrics
-  let departmentScrap: any[] = [];
-  let throughput: any[] = [];
+  let departmentScrap: DepartmentScrap[] = [];
+  let throughput: Throughput[] = [];
 
   if (isAdmin || isManager) {
     let weeklyLogs: any[] = []
@@ -234,7 +257,7 @@ export async function getDashboardStats(user?: AuthUser) {
   }
 
   // Build stats array based on role
-  let stats = [];
+  let stats: Stat[] = [];
 
   if (isWarehouse) {
     // Warehouse sees inventory-focused stats
