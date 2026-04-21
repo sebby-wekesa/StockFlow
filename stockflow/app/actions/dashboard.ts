@@ -379,7 +379,7 @@ export async function getManagerData() {
     activeProduction = await prisma.productionOrder.groupBy({
       by: ['currentDept'],
       where: { status: { in: ['APPROVED', 'IN_PRODUCTION'] } },
-      _count: true,
+      _count: { _all: true },
     });
   } catch (error) {
     console.warn('Failed to group active production:', error)
