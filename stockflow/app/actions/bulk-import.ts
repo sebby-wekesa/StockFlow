@@ -7,6 +7,12 @@ import { unlink } from 'fs/promises';
 import ExcelJS from 'exceljs';
 import { z } from 'zod';
 
+// Define the data structure for Excel import rows
+interface ExcelImportRow {
+  data: any[];
+  rowNumber: number;
+}
+
 // Validation schemas for different import types
 const supplierImportSchema = z.object({
   code: z.string().min(1).max(20),
@@ -83,7 +89,7 @@ export async function importMasterData(filePath: string, importType: 'suppliers'
   };
 
   // Skip header row
-  const rows = [];
+  const rows: ExcelImportRow[] = [];
   worksheet.eachRow((row, rowNumber) => {
     if (rowNumber > 1) {
       const values = row.values as any[];
@@ -148,7 +154,7 @@ export async function importStockCounts(filePath: string): Promise<ImportResult>
   };
 
   // Skip header row
-  const rows = [];
+  const rows: ExcelImportRow[] = [];
   worksheet.eachRow((row, rowNumber) => {
     if (rowNumber > 1) {
       const values = row.values as any[];
