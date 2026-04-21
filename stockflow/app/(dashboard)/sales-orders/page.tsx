@@ -35,10 +35,15 @@ async function getAvailableStock() {
 }
 
 export default async function SalesOrdersPage() {
-  const [saleOrders, stock] = await Promise.all([
+  const [rawSaleOrders, stock] = await Promise.all([
     getSaleOrders(),
     getAvailableStock()
   ]);
+
+  // Transform saleOrders to match component expectations
+  const saleOrders = rawSaleOrders.map(order => ({
+    ...order
+  }));
 
   // Transform the data to satisfy the 'CatalogueItem' type for SalesOrderForm
   const formattedProducts = stock.map(item => ({

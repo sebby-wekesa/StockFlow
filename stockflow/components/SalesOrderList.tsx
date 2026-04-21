@@ -1,9 +1,11 @@
 "use client";
 
+import { Decimal } from "@prisma/client-runtime-utils";
+
 interface SaleOrder {
   id: string;
   customerName: string;
-  totalAmount: number;
+  totalAmount: Decimal;
   status: string;
   createdAt: Date;
   items: any[]; // TODO: proper type
@@ -27,7 +29,7 @@ export function SalesOrderList({ orders }: SalesOrderListProps) {
                   <h3 className="text-white font-semibold">{order.customerName}</h3>
                   <p className="text-gray-300">Status: {order.status}</p>
                   <p className="text-gray-300">Items: {order.items.length}</p>
-                  <p className="text-gray-300">Total: ${order.totalAmount}</p>
+                   <p className="text-gray-300">Total: ${order.totalAmount.toString()}</p>
                   <p className="text-gray-300">Date: {order.createdAt.toLocaleDateString()}</p>
                 </div>
                 <div className="space-x-2">
