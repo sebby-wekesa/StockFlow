@@ -1,9 +1,10 @@
 import { prisma } from "@/lib/prisma"
+import { User } from '@prisma/client'
 
 export const dynamic = 'force-dynamic';
 
 export default async function UsersPage() {
-  let users = []
+  let users: User[] = []
   try {
     users = await prisma.user.findMany({
       orderBy: { createdAt: 'desc' }
