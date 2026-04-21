@@ -1,11 +1,16 @@
 // components/admin/RunwayAlerts.tsx
 import { AlertTriangle, TrendingDown, PackageCheck } from "lucide-react";
+import { Decimal } from "@prisma/client";
 
 export function RunwayAlerts({ inventory }: { inventory: any[] }) {
   // Logic: Filter materials where reserved weight is approaching total weight
-  const criticalStock = inventory.filter(item => 
-    (item.availableKg / (item.availableKg + item.reservedKg)) < 0.2
-  );
+  const criticalStock = inventory.filter(item => {
+    const available = new Decimal(item.availableKg || 0);
+    const reserved = new Decimal(item.reservedKg || 0);
+    const total = available.add(reserved);
+    if (total.isZero()) return false;
+    return available.div(total).toNumber() < 0.2;
+  });
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">

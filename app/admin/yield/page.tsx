@@ -1,10 +1,17 @@
 import { prisma } from "@/lib/prisma";
 import { YieldDashboard } from "@/components/YieldDashboard";
+import { Decimal } from "@prisma/client";
 
 function calculateGlobalYield(stats: any[]) {
-  const totalIn = stats.reduce((acc, s) => acc + (s._sum.kgIn || 0), 0);
-  const totalOut = stats.reduce((acc, s) => acc + (s._sum.kgOut || 0), 0);
-  return totalIn ? (totalOut / totalIn) * 100 : 0;
+  const totalIn = stats.reduce(
+    (sum, s) => sum.add(s._sum.kgIn || new Decimal(0)),
+    new Decimal(0)
+  );
+  const totalOut = stats.reduce(
+    (sum, s) => sum.add(s._sum.kgOut || new Decimal(0)),
+    new Decimal(0)
+  );
+  return totalIn.isZero() ? 0 : totalOut.div(totalIn).mul(100).toNumber();
 }
 
 async function getYieldData() {
@@ -66,13 +73,18 @@ async function getYieldData() {
   `;
 
   // Transform trend data
-  const yieldTrends = trendData.map(day => ({
-    date: day.completedAt.toISOString().split('T')[0],
-    kgIn: Number(day._sum.kgIn || 0),
-    kgOut: Number(day._sum.kgOut || 0),
-    kgScrap: Number(day._sum.kgScrap || 0),
-    yieldPct: Number(day._sum.kgIn || 0) > 0 ? (Number(day._sum.kgOut || 0) / Number(day._sum.kgIn || 0)) * 100 : 0
-  }));
+  const yieldTrends = trendData.map(day => {
+    const kgIn = day._sum.kgIn || new Decimal(0);
+    const kgOut = day._sum.kgOut || new Decimal(0);
+    const kgScrap = day._sum.kgScrap || new Decimal(0);
+    return {
+      date: day.completedAt.toISOString().split('T')[0],
+      kgIn: kgIn.toNumber(),
+      kgOut: kgOut.toNumber(),
+      kgScrap: kgScrap.toNumber(),
+      yieldPct: kgIn.isZero() ? 0 : kgOut.div(kgIn).mul(100).toNumber()
+    };
+  });
 
   // Transform department trends
   const deptTrendMap = new Map();
@@ -81,12 +93,15 @@ async function getYieldData() {
     if (!deptTrendMap.has(key)) {
       deptTrendMap.set(key, []);
     }
+    const kgIn = trend._sum.kgIn || new Decimal(0);
+    const kgOut = trend._sum.kgOut || new Decimal(0);
+    const kgScrap = trend._sum.kgScrap || new Decimal(0);
     deptTrendMap.get(key).push({
       date: trend.completedAt.toISOString().split('T')[0],
-      kgIn: Number(trend._sum.kgIn || 0),
-      kgOut: Number(trend._sum.kgOut || 0),
-      kgScrap: Number(trend._sum.kgScrap || 0),
-      yieldPct: Number(trend._sum.kgIn || 0) > 0 ? (Number(trend._sum.kgOut || 0) / Number(trend._sum.kgIn || 0)) * 100 : 0
+      kgIn: kgIn.toNumber(),
+      kgOut: kgOut.toNumber(),
+      kgScrap: kgScrap.toNumber(),
+      yieldPct: kgIn.isZero() ? 0 : kgOut.div(kgIn).mul(100).toNumber()
     });
   });
 
@@ -99,20 +114,24 @@ async function getYieldData() {
   return {
     globalYield: calculateGlobalYield(stats), // Logic: (Total Out / Total In) * 100
     totals: {
-      kgIn: stats.reduce((acc, s) => acc + (s._sum.kgIn || 0), 0),
-      kgOut: stats.reduce((acc, s) => acc + (s._sum.kgOut || 0), 0),
-      kgScrap: stats.reduce((acc, s) => acc + (s._sum.kgScrap || 0), 0),
+      kgIn: stats.reduce((acc, s) => acc.add(s._sum.kgIn || new Decimal(0)), new Decimal(0)).toNumber(),
+      kgOut: stats.reduce((acc, s) => acc.add(s._sum.kgOut || new Decimal(0)), new Decimal(0)).toNumber(),
+      kgScrap: stats.reduce((acc, s) => acc.add(s._sum.kgScrap || new Decimal(0)), new Decimal(0)).toNumber(),
     },
-    departmentStats: stats.map(s => ({
-      department: s.department,
-      kgIn: s._sum.kgIn || 0,
-      kgOut: s._sum.kgOut || 0,
-      kgScrap: s._sum.kgScrap || 0,
-      yieldPct: s._sum.kgIn ? ((s._sum.kgOut || 0) / s._sum.kgIn) * 100 : 0
-    })),
+    departmentStats: stats.map(s => {
+      const kgIn = s._sum.kgIn || new Decimal(0);
+      const kgOut = s._sum.kgOut || new Decimal(0);
+      return {
+        department: s.department,
+        kgIn: kgIn.toNumber(),
+        kgOut: kgOut.toNumber(),
+        kgScrap: (s._sum.kgScrap || new Decimal(0)).toNumber(),
+        yieldPct: kgIn.isZero() ? 0 : kgOut.div(kgIn).mul(100).toNumber()
+      };
+    }),
     scrapDistribution: scrapLogs.map(l => ({
       reason: l.scrapReason || "Unspecified",
-      kgScrap: l._sum.kgScrap || 0
+      kgScrap: (l._sum.kgScrap || new Decimal(0)).toNumber()
     })),
     wip: wipOrders.map(w => ({
       department: w.currentDept || "Unknown",

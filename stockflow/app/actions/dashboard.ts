@@ -5,7 +5,7 @@ import { requireAuth } from "@/lib/auth";
 import type { AuthUser } from "@/lib/auth";
 import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/prisma';
-import { RawMaterial } from '@prisma/client';
+import { RawMaterial, Decimal } from '@prisma/client';
 
 export async function getDashboardStats(user?: AuthUser) {
   const authUser = user || await requireAuth();
@@ -28,8 +28,14 @@ export async function getDashboardStats(user?: AuthUser) {
     console.warn('Failed to fetch raw materials:', error)
     materials = []
   }
-  const rawMaterialStock = materials.reduce((sum, m) => sum + m.availableKg + m.reservedKg, 0);
-  const totalFree = materials.reduce((sum, m) => sum + m.availableKg, 0);
+  const rawMaterialStock = materials.reduce(
+    (sum, m) => sum.add(m.availableKg).add(m.reservedKg),
+    new Decimal(0)
+  ).toNumber();
+  const totalFree = materials.reduce(
+    (sum, m) => sum.add(m.availableKg),
+    new Decimal(0)
+  ).toNumber();
 
   // 2. Active Orders - Filter based on role
   let activeOrdersWhere: any = {};
