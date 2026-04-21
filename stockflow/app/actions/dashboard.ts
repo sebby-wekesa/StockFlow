@@ -374,13 +374,21 @@ export async function getManagerData() {
     pendingApprovals = []
   }
 
-  let activeProduction: any[] = []
+  let activeProduction: { currentDept: string | null; _count: { _all: number } }[] = []
   try {
-    activeProduction = await prisma.productionOrder.groupBy({
-      by: ['currentDept'],
+    const activeOrders = await prisma.productionOrder.findMany({
       where: { status: { in: ['APPROVED', 'IN_PRODUCTION'] } },
-      _count: { _all: true },
+      select: { currentDept: true },
     });
+    const deptMap: Record<string, number> = {};
+    activeOrders.forEach(o => {
+      const dept = o.currentDept ?? 'Unknown';
+      deptMap[dept] = (deptMap[dept] || 0) + 1;
+    });
+    activeProduction = Object.entries(deptMap).map(([currentDept, count]) => ({
+      currentDept,
+      _count: { _all: count },
+    }));
   } catch (error) {
     console.warn('Failed to group active production:', error)
     activeProduction = []
