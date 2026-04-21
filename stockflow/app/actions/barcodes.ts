@@ -100,8 +100,14 @@ export async function generateFinishedGoodsBarcode(finishedGoodsId: string) {
 export async function getBarcodeData(barcode: string) {
   const user = await requireAuth();
 
+  // Define a union type that encompasses both potential database results
+  let item:
+    | (Awaited<ReturnType<typeof prisma.rawMaterial.findUnique>> & { supplier: any })
+    | (Awaited<ReturnType<typeof prisma.finishedGoods.findUnique>> & { design: any })
+    | null = null;
+
   // Try raw material first
-  let item = await prisma.rawMaterial.findUnique({
+  item = await prisma.rawMaterial.findUnique({
     where: { barcode },
     include: { supplier: true }
   });
