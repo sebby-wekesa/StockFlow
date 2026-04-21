@@ -13,6 +13,7 @@ interface Stat {
   value: number | Decimal;
   suffix?: string;
   sub: string;
+  down?: boolean;
   color: string;
 }
 
