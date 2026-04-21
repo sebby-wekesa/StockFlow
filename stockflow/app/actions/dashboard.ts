@@ -5,6 +5,7 @@ import { requireAuth } from "@/lib/auth";
 import type { AuthUser } from "@/lib/auth";
 import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/prisma';
+import { RawMaterial } from '@prisma/client';
 
 export async function getDashboardStats(user?: AuthUser) {
   const authUser = user || await requireAuth();
@@ -20,7 +21,7 @@ export async function getDashboardStats(user?: AuthUser) {
   const isSales = authUser.role === "SALES";
 
   // 1. Raw Material Stock - Everyone can see, but Warehouse sees more detail
-  let materials = []
+  let materials: RawMaterial[] = []
   try {
     materials = await prisma.rawMaterial.findMany();
   } catch (error) {
