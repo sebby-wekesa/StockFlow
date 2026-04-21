@@ -29,7 +29,11 @@ export async function getRawMaterial(id: string) {
       receipts: {
         orderBy: { createdAt: 'desc' }
       },
-      designs: true
+      bomItems: {
+        include: {
+          design: true
+        }
+      }
     }
   });
 
@@ -52,11 +56,15 @@ export async function createRawMaterial(data: {
     throw new Error('Unauthorized: Insufficient permissions');
   }
 
+  // Generate SKU: MATERIAL-DIAMETER-TIMESTAMP
+  const sku = `${data.materialName.replace(/\s+/g, '-').toUpperCase()}-${data.diameter.toUpperCase()}-${Date.now().toString().slice(-6)}`;
+
   return await prisma.rawMaterial.create({
     data: {
+      sku,
       materialName: data.materialName,
       diameter: data.diameter,
-      supplierId: data.supplierId
+      supplierId: data.supplierId || null
     }
   });
 }

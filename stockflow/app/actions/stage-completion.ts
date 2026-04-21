@@ -109,8 +109,10 @@ export async function completeStage(data: {
       });
 
       // Create finished goods entry
+      const sku = `FG-${order.design.code}-${order.quantity}-${Date.now().toString().slice(-6)}`;
       await tx.finishedGoods.create({
         data: {
+          sku,
           designId: order.designId,
           quantity: order.quantity,
           kgProduced: validatedData.kgOut

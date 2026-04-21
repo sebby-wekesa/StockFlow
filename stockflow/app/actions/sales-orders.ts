@@ -25,7 +25,10 @@ export async function createSalesOrder(data: {
     // Validate all items are available
     for (const item of data.items) {
       const finishedGoods = await tx.finishedGoods.findUnique({
-        where: { id: item.finishedGoodsId }
+        where: { id: item.finishedGoodsId },
+        include: {
+          design: true
+        }
       });
 
       if (!finishedGoods || finishedGoods.quantity < item.quantity) {

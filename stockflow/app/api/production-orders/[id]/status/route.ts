@@ -56,29 +56,36 @@ export async function PATCH(
     let updatedOrder;
     if (status === 'RELEASED') {
       updatedOrder = await prisma.$transaction(async (tx) => {
-        // 1. Get the Design to see which raw material is needed
+        // 1. Get the Design to see which raw materials are needed
         const design = await tx.design.findUnique({
           where: { id: order.designId },
-          select: { kgPerUnit: true, rawMaterialId: true }
+          include: {
+            bomItems: {
+              include: { rawMaterial: true }
+            }
+          }
         });
 
         if (!design) {
           throw new Error('Design not found');
         }
 
-        if (!design.rawMaterialId) {
-          throw new Error('Design does not have an assigned raw material');
+        if (!design.bomItems || design.bomItems.length === 0) {
+          throw new Error('Design does not have any BOM items');
         }
 
-        // 2. Calculate the required KG
-        const requiredKg = order.targetKg;
+        // For now, assume single raw material per design (take first BOM item)
+        const primaryBomItem = design.bomItems[0];
+
+        // 2. Calculate the required quantity for this BOM item
+        const requiredQuantity = (order.targetKg.toNumber() / design.targetWeight!.toNumber()) * primaryBomItem.quantity.toNumber();
 
         // 3. Deduct from Available and add to Reserved
         await tx.rawMaterial.update({
-          where: { id: design.rawMaterialId },
+          where: { id: primaryBomItem.rawMaterialId },
           data: {
-            availableKg: { decrement: requiredKg },
-            reservedKg: { increment: requiredKg }
+            availableKg: { decrement: requiredQuantity },
+            reservedKg: { increment: requiredQuantity }
           }
         });
 

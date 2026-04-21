@@ -1,6 +1,6 @@
 // components/admin/RunwayAlerts.tsx
 import { AlertTriangle, TrendingDown, PackageCheck } from "lucide-react";
-import { Decimal } from "@prisma/client";
+import { Decimal } from "@prisma/client-runtime-utils";
 
 export function RunwayAlerts({ inventory }: { inventory: any[] }) {
   // Logic: Filter materials where reserved weight is approaching total weight

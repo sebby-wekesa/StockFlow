@@ -77,7 +77,11 @@ export async function fulfillOrder(orderId: string) {
       include: {
         items: {
           include: {
-            finishedGoods: true
+            finishedGoods: {
+              include: {
+                design: true
+              }
+            }
           }
         }
       }

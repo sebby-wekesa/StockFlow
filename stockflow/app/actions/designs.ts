@@ -51,9 +51,7 @@ export async function createDesign(data: {
         code: validatedData.code,
         description: validatedData.description,
         targetDimensions: validatedData.targetDimensions,
-        targetWeight: validatedData.targetWeight,
-        rawMaterialId: validatedData.rawMaterialId,
-        kgPerUnit: validatedData.kgPerUnit
+        targetWeight: validatedData.targetWeight
       }
     });
 

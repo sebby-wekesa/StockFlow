@@ -25,6 +25,9 @@ export async function getRawMaterials() {
   const user = await requireAuth();
 
   const materials = await prisma.rawMaterial.findMany({
+    include: {
+      supplier: true,
+    },
     orderBy: {
       materialName: "asc",
     },

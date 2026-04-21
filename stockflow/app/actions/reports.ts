@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma'
-import { Decimal } from '@prisma/client'
+import { Decimal } from '@prisma/client-runtime-utils'
 
 export interface DepartmentBreakdown {
   department: string

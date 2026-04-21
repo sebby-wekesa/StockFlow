@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { YieldDashboard } from "@/components/YieldDashboard";
-import { Decimal } from "@prisma/client";
+import { Decimal } from "@prisma/client-runtime-utils";
 
 function calculateGlobalYield(stats: any[]) {
   const totalIn = stats.reduce(

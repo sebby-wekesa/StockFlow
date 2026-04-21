@@ -3,10 +3,12 @@ export const dynamic = 'force-dynamic';
 import { prisma } from '@/lib/prisma'
 import { CreateOrderForm } from '@/components/OrderForm'
 import { AlertCircle } from 'lucide-react'
+import { Decimal } from '@prisma/client-runtime-utils'
 
 interface Design {
   id: string
   name: string
+  targetWeight: Decimal | null
   kgPerUnit: number
 }
 
@@ -16,7 +18,7 @@ async function getDesigns(): Promise<Design[]> {
       select: {
         id: true,
         name: true,
-        kgPerUnit: true,
+        targetWeight: true,
       },
       orderBy: {
         name: 'asc',
@@ -39,8 +41,8 @@ export default async function ProductionNewPage() {
     // Transform the designs array to match what the Form expects
     designs = designs.map(d => ({
       ...d,
-      // Map your Prisma field (e.g., kgPerUnit) to the prop name (kgPerUnit)
-      kgPerUnit: d.kgPerUnit
+      // Map your Prisma field (e.g., targetWeight) to the prop name (kgPerUnit)
+      kgPerUnit: d.targetWeight ? d.targetWeight.toNumber() : 0
     }))
   } catch (err) {
     error =

@@ -45,7 +45,7 @@ export default async function OperatorHistoryPage() {
               </div>
               <div className="job-design">{order.design.name}</div>
               <div className="job-meta" style={{ marginTop: "8px" }}>
-                <span>Target: <span className="job-kg">{order.targetKg} kg</span></span>
+                <span>Target: <span className="job-kg">{order.targetKg.toNumber()} kg</span></span>
                 <span>Qty: {order.quantity} units</span>
               </div>
             </div>

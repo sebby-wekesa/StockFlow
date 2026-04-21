@@ -5,7 +5,8 @@ import { requireAuth } from "@/lib/auth";
 import type { AuthUser } from "@/lib/auth";
 import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/prisma';
-import { RawMaterial, Decimal } from '@prisma/client';
+import { RawMaterial } from '@prisma/client';
+import { Decimal } from '@prisma/client-runtime-utils';
 
 export async function getDashboardStats(user?: AuthUser) {
   const authUser = user || await requireAuth();
@@ -91,14 +92,20 @@ export async function getDashboardStats(user?: AuthUser) {
   }
 
   // 3. Finished Goods - Everyone can see basic counts
-  let finishedGoods = { _sum: { kgProduced: null, quantity: null } }
+  let finishedGoods: { _sum: { kgProduced: number | null, quantity: number | null } } = { _sum: { kgProduced: null, quantity: null } }
   try {
-    finishedGoods = await prisma.finishedGoods.aggregate({
+    const aggResult = await prisma.finishedGoods.aggregate({
       _sum: {
         kgProduced: true,
         quantity: true,
       },
     });
+    finishedGoods = {
+      _sum: {
+        kgProduced: aggResult._sum.kgProduced?.toNumber() ?? null,
+        quantity: aggResult._sum.quantity ?? null,
+      }
+    };
   } catch (error) {
     console.warn('Failed to aggregate finished goods:', error)
     finishedGoods = { _sum: { kgProduced: 0, quantity: 0 } }
@@ -107,7 +114,7 @@ export async function getDashboardStats(user?: AuthUser) {
   // 4. Scrap This Week - Only Admin/Manager see scrap data
   let scrapThisWeek = 0;
   if (isAdmin || isManager) {
-    let weeklyLogs = []
+    let weeklyLogs: any[] = []
     try {
       weeklyLogs = await prisma.stageLog.findMany({
         where: {
@@ -120,7 +127,7 @@ export async function getDashboardStats(user?: AuthUser) {
       console.warn('Failed to fetch weekly logs for scrap:', error)
       weeklyLogs = []
     }
-    scrapThisWeek = weeklyLogs.reduce((sum, log) => sum + log.kgScrap, 0);
+    scrapThisWeek = weeklyLogs.reduce((sum, log) => sum + log.kgScrap.toNumber(), 0);
   }
 
   // 5. Recent Orders - Filter based on role
@@ -158,7 +165,7 @@ export async function getDashboardStats(user?: AuthUser) {
   let throughput: any[] = [];
 
   if (isAdmin || isManager) {
-    let weeklyLogs = []
+    let weeklyLogs: any[] = []
     try {
       weeklyLogs = await prisma.stageLog.findMany({
         where: {
@@ -172,7 +179,7 @@ export async function getDashboardStats(user?: AuthUser) {
       weeklyLogs = []
     }
 
-    let todayLogs = []
+    let todayLogs: any[] = []
     try {
       todayLogs = await prisma.stageLog.findMany({
         where: {
@@ -332,7 +339,7 @@ export async function getDashboardStats(user?: AuthUser) {
 }
 
 export async function getManagerData() {
-  let pendingApprovals = []
+  let pendingApprovals: any[] = []
   try {
     pendingApprovals = await prisma.productionOrder.findMany({
       where: { status: 'PENDING' },
@@ -343,7 +350,7 @@ export async function getManagerData() {
     pendingApprovals = []
   }
 
-  let activeProduction = []
+  let activeProduction: any[] = []
   try {
     activeProduction = await prisma.productionOrder.groupBy({
       by: ['currentDept'],
@@ -355,7 +362,7 @@ export async function getManagerData() {
     activeProduction = []
   }
 
-  let allLogs = []
+  let allLogs: any[] = []
   try {
     allLogs = await prisma.stageLog.findMany({
       where: { kgScrap: { gt: 0 } },
@@ -377,12 +384,17 @@ export async function getManagerData() {
     totalActiveOrders = 0
   }
 
-  let totalTonnageAgg = { _sum: { targetKg: 0 } }
+  let totalTonnageAgg: { _sum: { targetKg: number | null } } = { _sum: { targetKg: 0 } }
   try {
-    totalTonnageAgg = await prisma.productionOrder.aggregate({
+    const aggResult = await prisma.productionOrder.aggregate({
       where: { status: { in: ['APPROVED', 'IN_PRODUCTION'] } },
       _sum: { targetKg: true },
     });
+    totalTonnageAgg = {
+      _sum: {
+        targetKg: aggResult._sum.targetKg?.toNumber() ?? 0
+      }
+    };
   } catch (error) {
     console.warn('Failed to aggregate total tonnage:', error)
     totalTonnageAgg = { _sum: { targetKg: 0 } }
@@ -405,7 +417,15 @@ export async function approveOrder(orderId: string) {
   try {
     order = await prisma.productionOrder.findUnique({
       where: { id: orderId },
-      include: { design: true },
+      include: {
+        design: {
+          include: {
+            bomItems: {
+              include: { rawMaterial: true }
+            }
+          }
+        }
+      },
     });
   } catch (error) {
     console.warn('Failed to find order:', error)
@@ -416,31 +436,33 @@ export async function approveOrder(orderId: string) {
     throw new Error('Invalid order');
   }
 
-  const reserveKg = order.targetKg;
-
-  if (!order.design.rawMaterialId) {
-    throw new Error('No raw material assigned to design');
+  if (!order.design.bomItems || order.design.bomItems.length === 0) {
+    throw new Error('No raw materials assigned to design');
   }
+
+  // For now, assume single raw material per design (take first BOM item)
+  const primaryBomItem = order.design.bomItems[0];
+  const reserveQuantity = (order.targetKg.toNumber() / order.design.targetWeight!.toNumber()) * primaryBomItem.quantity.toNumber();
 
   let material
   try {
     material = await prisma.rawMaterial.findUnique({
-      where: { id: order.design.rawMaterialId },
+      where: { id: primaryBomItem.rawMaterialId },
     });
   } catch (error) {
     console.warn('Failed to find raw material:', error)
     throw new Error('Database error: Could not find raw material')
   }
 
-  if (!material || material.availableKg < reserveKg) {
+  if (!material || material.availableKg.toNumber() < reserveQuantity) {
     throw new Error('Insufficient stock');
   }
 
   await prisma.rawMaterial.update({
     where: { id: material.id },
     data: {
-      availableKg: material.availableKg - reserveKg,
-      reservedKg: material.reservedKg + reserveKg,
+      availableKg: material.availableKg.toNumber() - reserveQuantity,
+      reservedKg: material.reservedKg.toNumber() + reserveQuantity,
     },
   });
 

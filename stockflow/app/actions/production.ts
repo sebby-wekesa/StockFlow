@@ -10,7 +10,7 @@ export async function getOperatorQueue() {
   // If OPERATOR, they see their department's queue.
   const department = user.department;
 
-  let orders = []
+  let orders: any[] = []
   try {
     orders = await prisma.productionOrder.findMany({
       where: {
@@ -54,7 +54,7 @@ export async function getOperatorQueue() {
 export async function getOperatorHistory() {
   const user = await requireAuth();
 
-  let logs = []
+  let logs: any[] = []
   try {
     logs = await prisma.stageLog.findMany({
       where: {

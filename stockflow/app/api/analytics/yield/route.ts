@@ -17,9 +17,9 @@ export async function GET() {
     });
 
     const departmentStats = deptAgg.map((d) => {
-      const kgIn = d._sum.kgIn ?? 0;
-      const kgOut = d._sum.kgOut ?? 0;
-      const kgScrap = d._sum.kgScrap ?? 0;
+      const kgIn = d._sum.kgIn?.toNumber() ?? 0;
+      const kgOut = d._sum.kgOut?.toNumber() ?? 0;
+      const kgScrap = d._sum.kgScrap?.toNumber() ?? 0;
       const yieldPct = kgIn > 0 ? +((kgOut / kgIn) * 100).toFixed(2) : 0;
       return { 
         department: d.stageName || "Unspecified", // Fallback
@@ -64,7 +64,7 @@ export async function GET() {
     const wipMap: Record<string, { kgRemaining: number; orderCount: number }> = {};
     for (const order of wipOrders) {
       const dept = order.currentDept || "Awaiting Start";
-      const totalScrapSoFar = order.logs.reduce((s, l) => s + l.kgScrap, 0);
+      const totalScrapSoFar = order.logs.reduce((s, l) => s + l.kgScrap.toNumber(), 0);
       const kgRemaining = Math.max(0, order.targetKg - totalScrapSoFar);
       if (!wipMap[dept]) wipMap[dept] = { kgRemaining: 0, orderCount: 0 };
       wipMap[dept].kgRemaining += kgRemaining;

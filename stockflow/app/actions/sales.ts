@@ -7,7 +7,7 @@ export async function getCatalogue() {
   const user = await requireAuth();
 
   // Get finished goods that are available for sale
-  let finishedGoods = []
+  let finishedGoods: any[] = []
   try {
     finishedGoods = await prisma.finishedGoods.findMany({
       where: {

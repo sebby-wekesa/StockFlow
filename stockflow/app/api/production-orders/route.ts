@@ -131,11 +131,6 @@ export async function GET(request: NextRequest) {
             select: {
               name: true,
               targetDimensions: true,
-              rawMaterial: {
-                select: {
-                  materialName: true,
-                },
-              },
             },
           },
         },
@@ -157,7 +152,7 @@ export async function GET(request: NextRequest) {
       targetKg: order.targetKg,
       quantity: order.quantity,
       priority: order.priority,
-      specs: `${order.design?.targetDimensions || ''}${order.design?.rawMaterial ? ', ' + order.design.rawMaterial.materialName : ''}`,
+      specs: `${order.design?.targetDimensions || ''}`,
       status: order.status,
     }))
 
