@@ -46,7 +46,7 @@ export async function getOperatorQueue() {
     priority: o.priority,
     targetKg: o.targetKg,
     // Add logic to get the current stage target dims or specific work
-    workDescription: o.design.stages.find(s => s.sequence === o.currentStage)?.name || "Production",
+    workDescription: o.design.stages.find((s: { sequence: number; name: string }) => s.sequence === o.currentStage)?.name || "Production",
     inheritedKg: o.targetKg, // Simplified for now
   }));
 }
