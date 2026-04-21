@@ -471,5 +471,5 @@ export async function generateImportTemplate(importType: 'suppliers' | 'customer
       break;
   }
 
-  return await workbook.xlsx.writeBuffer();
+  return (await workbook.xlsx.writeBuffer()) as any;
 }
