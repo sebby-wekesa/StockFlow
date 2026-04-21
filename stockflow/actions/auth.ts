@@ -30,7 +30,15 @@ export async function signIn(formData: FormData) {
     where: { email: validation.data.email },
   });
 
-  if (!user || !verifyPassword(validation.data.password, user.password)) {
+  console.log("User found in DB:", user ? "YES" : "NO");
+
+  if (user) {
+    const isMatch = verifyPassword(validation.data.password, user.password);
+    console.log("Password Match:", isMatch);
+    if (!isMatch) {
+      return { error: "Invalid email or password. Please try again." };
+    }
+  } else {
     return { error: "Invalid email or password. Please try again." };
   }
 

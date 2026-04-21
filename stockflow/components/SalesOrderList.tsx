@@ -1,6 +1,6 @@
 "use client";
 
-import { Decimal } from "@prisma/client-runtime-utils";
+import { Decimal } from "@prisma/client";
 
 interface SaleOrder {
   id: string;

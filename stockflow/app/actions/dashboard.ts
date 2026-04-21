@@ -6,7 +6,7 @@ import type { AuthUser } from "@/lib/auth";
 import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/prisma';
 import { RawMaterial, ProductionOrder, Design, StageLog } from '@prisma/client';
-import { Decimal } from '@prisma/client';
+import { Decimal } from '@prisma/client-runtime-utils';
 
 interface Stat {
   label: string;
