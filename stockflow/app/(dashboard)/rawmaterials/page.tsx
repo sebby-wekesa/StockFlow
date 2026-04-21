@@ -21,13 +21,15 @@ export default async function RawmaterialsPage() {
       </div>
       <div className="stats-grid mb-24" style={{gridTemplateColumns:'repeat(3,1fr)'}}>
         {materials.map(m => {
-          const free = m.availableKg - m.reservedKg;
+          const availableNum = m.availableKg.toNumber();
+          const reservedNum = m.reservedKg.toNumber();
+          const free = availableNum - reservedNum;
           const trend = free > 500 ? 'teal' : free > 0 ? 'amber' : 'red';
           return (
             <div key={m.id} className={`stat-card ${trend}`}>
               <div className="stat-label">{m.materialName}</div>
-              <div className="stat-value">{(m.availableKg).toLocaleString()}<span style={{fontSize:'14px',color:'var(--muted)'}}> kg</span></div>
-              <div className="stat-sub"><span>{Math.max(0, free).toLocaleString()} kg free</span> · {m.reservedKg.toLocaleString()} kg reserved</div>
+              <div className="stat-value">{availableNum.toLocaleString()}<span style={{fontSize:'14px',color:'var(--muted)'}}> kg</span></div>
+              <div className="stat-sub"><span>{Math.max(0, free).toLocaleString()} kg free</span> · {reservedNum.toLocaleString()} kg reserved</div>
             </div>
           )
         })}
@@ -44,7 +46,7 @@ export default async function RawmaterialsPage() {
               <tr key={r.id}>
                 <td>{r.createdAt.toLocaleDateString()}</td>
                 <td>{r.material.materialName}</td>
-                <td><span className="job-kg">{r.kgReceived.toFixed(2)} kg</span></td>
+                <td><span className="job-kg">{r.kgReceived.toNumber().toFixed(2)} kg</span></td>
                 <td>{r.reference || '—'}</td>
                 <td>{r.loggedBy || 'System'}</td>
               </tr>

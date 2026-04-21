@@ -29,7 +29,7 @@ async function getActiveOrders() {
     return orders.map((order) => ({
       id: order.id,
       code: `ORD-${order.id.slice(0, 6).toUpperCase()}`,
-      weight: order.targetKg,
+      weight: order.targetKg.toNumber(),
       designName: order.design.name,
     }))
   } catch (error) {

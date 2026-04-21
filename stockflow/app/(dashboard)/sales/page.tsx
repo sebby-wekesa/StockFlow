@@ -11,7 +11,7 @@ async function getAvailableStock() {
           name: true,
           code: true,
           description: true,
-          kgPerUnit: true
+          targetWeight: true
         }
       }
     }
@@ -22,8 +22,8 @@ async function getAvailableStock() {
     name: item.design.name,
     description: item.design.description,
     stock: item.quantity,
-    unitWeight: item.design.kgPerUnit,
-    kgProduced: item.kgProduced
+    unitWeight: item.design.targetWeight?.toNumber() || 0,
+    kgProduced: item.kgProduced.toNumber()
   }));
 }
 

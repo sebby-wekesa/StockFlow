@@ -36,7 +36,7 @@ async function getYieldData() {
     for (const order of wipOrders) {
       const dept = order.currentDept || "Awaiting Start";
       const lastLog = order.logs[0];
-      const kgRemaining = lastLog ? lastLog.kgOut : order.targetKg;
+      const kgRemaining = lastLog ? lastLog.kgOut.toNumber() : order.targetKg.toNumber();
       if (!wipMap[dept]) wipMap[dept] = { kgRemaining: 0, orderCount: 0 };
       wipMap[dept].kgRemaining += Math.max(0, kgRemaining);
       wipMap[dept].orderCount += 1;
@@ -51,10 +51,10 @@ async function getYieldData() {
     // Transform into your YieldData type
     const departmentStats = stats.map(s => ({
       department: s.stageName || "Unspecified",
-      kgIn: s._sum.kgIn || 0,
-      kgOut: s._sum.kgOut || 0,
-      kgScrap: s._sum.kgScrap || 0,
-      yieldPct: s._sum.kgIn ? ((s._sum.kgOut || 0) / s._sum.kgIn) * 100 : 0
+      kgIn: s._sum.kgIn?.toNumber() || 0,
+      kgOut: s._sum.kgOut?.toNumber() || 0,
+      kgScrap: s._sum.kgScrap?.toNumber() || 0,
+      yieldPct: s._sum.kgIn && s._sum.kgIn.toNumber() > 0 ? ((s._sum.kgOut?.toNumber() || 0) / s._sum.kgIn.toNumber()) * 100 : 0
     }));
 
     const totals = departmentStats.reduce(

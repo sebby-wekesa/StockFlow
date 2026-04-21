@@ -20,13 +20,14 @@ export default async function FinishedgoodsPage() {
           <thead><tr><th>Design</th><th>Code</th><th>Units</th><th>Total kg</th><th>Kg/unit</th><th>Status</th></tr></thead>
           <tbody>
             {goods.map(g => {
-              const kgUnit = g.quantity > 0 ? (g.kgProduced / g.quantity).toFixed(2) : '0.00';
+              const kgProducedNum = g.kgProduced.toNumber();
+              const kgUnit = g.quantity > 0 ? (kgProducedNum / g.quantity).toFixed(2) : '0.00';
               return (
                 <tr key={g.id}>
                   <td>{g.design.name}</td>
                   <td><span style={{fontFamily:'var(--font-mono)',color:'var(--muted)'}}>{g.design.code}</span></td>
                   <td>{g.quantity}</td>
-                  <td><span className="job-kg">{g.kgProduced.toFixed(2)} kg</span></td>
+                  <td><span className="job-kg">{kgProducedNum.toFixed(2)} kg</span></td>
                   <td>{kgUnit} kg</td>
                   <td><span className={`badge ${g.quantity > 0 ? 'badge-teal' : 'badge-amber'}`}>{g.quantity > 0 ? 'Available' : 'Empty'}</span></td>
                 </tr>

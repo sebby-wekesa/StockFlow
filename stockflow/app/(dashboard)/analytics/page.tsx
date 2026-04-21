@@ -28,17 +28,17 @@ export default async function AnalyticsPage() {
   // 4. Format data for the charts
   const formattedDeptData = deptData.map(d => ({
     name: d.stageName,
-    input: d._sum.kgIn || 0,
-    output: d._sum.kgOut || 0,
+    input: d._sum.kgIn?.toNumber() || 0,
+    output: d._sum.kgOut?.toNumber() || 0,
     // Calculate efficiency as (Output / Input) * 100
-    efficiency: d._sum.kgIn && d._sum.kgIn > 0 
-      ? parseFloat(((d._sum.kgOut || 0) / d._sum.kgIn * 100).toFixed(1)) 
+    efficiency: d._sum.kgIn && d._sum.kgIn.toNumber() > 0
+      ? parseFloat(((d._sum.kgOut?.toNumber() || 0) / d._sum.kgIn.toNumber() * 100).toFixed(1))
       : 0
   }));
 
   const formattedScrapData = scrapData.map(s => ({
     reason: s.scrapReason || 'Unspecified',
-    value: s._sum.kgScrap || 0
+    value: s._sum.kgScrap?.toNumber() || 0
   }));
 
   return (
@@ -57,10 +57,10 @@ export default async function AnalyticsPage() {
       </div>
 
       {/* ── KPI Stat Cards ── */}
-      <StatCards 
-        totalIn={logs._sum.kgIn || 0} 
-        totalOut={logs._sum.kgOut || 0} 
-        totalScrap={logs._sum.kgScrap || 0} 
+      <StatCards
+        totalIn={logs._sum.kgIn?.toNumber() || 0}
+        totalOut={logs._sum.kgOut?.toNumber() || 0}
+        totalScrap={logs._sum.kgScrap?.toNumber() || 0}
       />
 
       {/* ── Visual Analytics Grid ── */}

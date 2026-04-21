@@ -51,7 +51,7 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
         </div>
         <div className="bg-white p-4 rounded-lg border border-zinc-200">
           <p className="text-xs font-medium text-zinc-500 uppercase">Target Kg</p>
-          <p className="text-xl font-bold text-zinc-900">{order.targetKg} kg</p>
+          <p className="text-xl font-bold text-zinc-900">{order.targetKg.toNumber()} kg</p>
         </div>
         <div className="bg-white p-4 rounded-lg border border-zinc-200">
           <p className="text-xs font-medium text-zinc-500 uppercase">Current Stage</p>
@@ -81,7 +81,7 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
             sequence={order.currentStage}
             stageCount={order.design.stages.length}
             operatorId={user.id}
-            previousKgOut={lastLog?.kgOut}
+            previousKgOut={lastLog?.kgOut?.toNumber()}
           />
         </div>
       )}
@@ -103,24 +103,30 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-200">
-              {order.logs.map((log) => (
-                <tr key={log.id}>
-                  <td className="px-4 py-3 text-sm font-medium text-zinc-900">
-                    {log.sequence}. {log.stageName}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-zinc-600">{log.kgIn.toFixed(2)}</td>
-                  <td className="px-4 py-3 text-sm text-zinc-600">{log.kgOut.toFixed(2)}</td>
-                  <td className="px-4 py-3 text-sm text-zinc-600">{log.kgScrap.toFixed(2)}</td>
-                  <td className="px-4 py-3 text-sm">
-                    <span className={Math.abs(log.kgIn - (log.kgOut + log.kgScrap)) < 0.001 ? "text-green-600" : "text-red-600"}>
-                      {(log.kgIn - (log.kgOut + log.kgScrap)).toFixed(3)}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-sm text-zinc-500">
-                    {log.completedAt.toLocaleString()}
-                  </td>
-                </tr>
-              ))}
+              {order.logs.map((log) => {
+                const kgInNum = log.kgIn.toNumber();
+                const kgOutNum = log.kgOut.toNumber();
+                const kgScrapNum = log.kgScrap.toNumber();
+                const balance = kgInNum - (kgOutNum + kgScrapNum);
+                return (
+                  <tr key={log.id}>
+                    <td className="px-4 py-3 text-sm font-medium text-zinc-900">
+                      {log.sequence}. {log.stageName}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-zinc-600">{kgInNum.toFixed(2)}</td>
+                    <td className="px-4 py-3 text-sm text-zinc-600">{kgOutNum.toFixed(2)}</td>
+                    <td className="px-4 py-3 text-sm text-zinc-600">{kgScrapNum.toFixed(2)}</td>
+                    <td className="px-4 py-3 text-sm">
+                      <span className={Math.abs(balance) < 0.001 ? "text-green-600" : "text-red-600"}>
+                        {balance.toFixed(3)}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-sm text-zinc-500">
+                      {log.completedAt.toLocaleString()}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

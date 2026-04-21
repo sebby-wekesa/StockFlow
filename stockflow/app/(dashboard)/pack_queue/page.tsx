@@ -26,7 +26,7 @@ export default async function PackQueuePage() {
         const productSummary = o.items.map(i => i.finishedGoods.design.name).join(", ");
         const totalUnits = o.items.reduce((acc, i) => acc + i.quantity, 0);
         const totalKg = o.items.reduce((acc, i) => {
-          const kgPerUnit = i.finishedGoods.quantity > 0 ? (i.finishedGoods.kgProduced / i.finishedGoods.quantity) : 0;
+          const kgPerUnit = i.finishedGoods.quantity > 0 ? (i.finishedGoods.kgProduced.toNumber() / i.finishedGoods.quantity) : 0;
           return acc + (i.quantity * kgPerUnit);
         }, 0);
 
