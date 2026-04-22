@@ -5,7 +5,7 @@ import { prisma } from '@/lib/prisma'
 
 export async function GET() {
   try {
-    const designs = await prisma.design.findMany({
+    const rawDesigns = await prisma.design.findMany({
       select: {
         id: true,
         name: true,
@@ -14,6 +14,14 @@ export async function GET() {
       },
       orderBy: { name: 'asc' },
     })
+
+    const designs = rawDesigns.map(d => ({
+      id: d.id,
+      name: d.name,
+      description: d.description,
+      kgPerUnit: d.targetWeight ? Number(d.targetWeight) : 0,
+      targetWeight: d.targetWeight
+    }))
 
     return NextResponse.json(designs)
   } catch (error) {
