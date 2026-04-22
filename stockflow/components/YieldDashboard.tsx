@@ -1,5 +1,7 @@
 "use client";
 
+import { Decimal } from "@prisma/client";
+
 import {
   BarChart,
   Bar,
@@ -36,7 +38,7 @@ export type DeptStat = {
 
 export type ScrapEntry = {
   reason: string;
-  kgScrap: number;
+  kgScrap: number | Decimal;
 };
 
 export type WipEntry = {
