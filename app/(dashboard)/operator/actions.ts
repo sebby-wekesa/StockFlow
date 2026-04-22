@@ -1,6 +1,9 @@
 'use server'
-import { prisma } from '@/lib/prisma'
 
 export async function fetchStock() {
-  return await prisma.item.findMany() // Replace 'item' with your actual table name
+  // Mock data
+  return [
+    { id: 1, name: 'Item 1' },
+    { id: 2, name: 'Item 2' },
+  ]
 }

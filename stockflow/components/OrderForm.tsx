@@ -6,6 +6,7 @@ import { z } from 'zod'
 import { useState, useEffect } from 'react'
 import { Loader2, Package, AlertCircle } from 'lucide-react'
 import { useToast } from './Toast'
+import { Design } from '@/types'
 
 const createOrderSchema = z.object({
   designId: z.string().min(1, 'Design is required'),
@@ -20,12 +21,6 @@ const createOrderSchema = z.object({
 })
 
 type OrderFormData = z.infer<typeof createOrderSchema>
-
-interface Design {
-  id: string
-  name: string
-  kgPerUnit: number
-}
 
 interface CreateOrderFormProps {
   designs: Design[]

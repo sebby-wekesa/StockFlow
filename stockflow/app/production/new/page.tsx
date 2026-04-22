@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic';
 import { prisma } from '@/lib/prisma'
 import { CreateOrderForm } from '@/components/OrderForm'
 import { AlertCircle } from 'lucide-react'
-import { Design } from '@/lib/types'
+import { Design } from '@/types'
 
 async function getDesigns(): Promise<Design[]> {
   try {

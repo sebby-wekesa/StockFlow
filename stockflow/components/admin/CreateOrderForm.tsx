@@ -2,12 +2,7 @@
 
 import { ClipboardList, PlayCircle, AlertCircle } from "lucide-react";
 import { useState, useEffect } from "react";
-
-interface Design {
-  id: string;
-  name: string;
-  kgPerUnit: number;
-}
+import { Design } from "@/types";
 
 interface RawMaterial {
   id: string;

@@ -6,6 +6,7 @@ import { z } from 'zod'
 import { useState, useEffect } from 'react'
 import { Loader2, Package, Zap, AlertCircle } from 'lucide-react'
 import { useToast } from './Toast'
+import { Design } from '@/types'
 
 // Enhanced schema with priority field
 const createProductionOrderSchema = z.object({
@@ -20,13 +21,6 @@ const createProductionOrderSchema = z.object({
 })
 
 type ProductionOrderFormData = z.infer<typeof createProductionOrderSchema>
-
-interface Design {
-  id: string
-  name: string
-  kgPerUnit: number
-  description?: string
-}
 
 interface CreateProductionOrderFormProps {
   designs: Design[]
