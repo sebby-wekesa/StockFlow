@@ -191,7 +191,7 @@ async function SalesDashboard({ user }: { user: any }) {
                     </td>
                     <td>{new Date(order.createdAt).toLocaleDateString()}</td>
                     <td>{order.itemCount} items</td>
-                    <td>${order.totalAmount}</td>
+                    <td>${order.amount.toFixed(2)}</td>
                     <td>
                       <span className={`badge ${
                         order.status === 'PENDING' ? 'badge-amber' :

@@ -42,7 +42,8 @@ export default async function SalesOrdersPage() {
 
   // Transform saleOrders to match component expectations
   const saleOrders = rawSaleOrders.map(order => ({
-    ...order
+    ...order,
+    amount: Number(order.totalAmount)
   }));
 
   // Transform the data to satisfy the 'CatalogueItem' type for SalesOrderForm

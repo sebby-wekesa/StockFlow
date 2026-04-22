@@ -110,7 +110,7 @@ export async function getSalesOrders() {
     orderNumber: `SO-${order.id.slice(-6).toUpperCase()}`,
     customerName: order.customer?.name || order.customerName,
     status: order.status,
-    totalAmount: Number(order.totalAmount),
+    amount: Number(order.totalAmount),
     itemCount: order.items.length,
     totalQuantity: order.items.reduce((sum, item) => sum + item.quantity, 0),
     createdAt: order.createdAt,
