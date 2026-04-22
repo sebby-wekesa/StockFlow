@@ -3,7 +3,12 @@ export const dynamic = 'force-dynamic';
 import { prisma } from '@/lib/prisma'
 import { CreateOrderForm } from '@/components/OrderForm'
 import { AlertCircle } from 'lucide-react'
-import { Design } from '@/types'
+
+interface Design {
+  id: string;
+  name: string;
+  kgPerUnit: number;
+}
 
 async function getDesigns(): Promise<Design[]> {
   try {
@@ -21,7 +26,7 @@ async function getDesigns(): Promise<Design[]> {
     const designs: Design[] = rawDesigns.map((d) => ({
       id: d.id,
       name: d.name,
-      targetWeight: d.targetWeight,
+      // This satisfies the 'kgPerUnit' requirement and handles the Decimal/null issue
       kgPerUnit: d.targetWeight ? Number(d.targetWeight) : 0,
     }));
 
