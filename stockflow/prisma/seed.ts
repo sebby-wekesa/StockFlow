@@ -1,12 +1,12 @@
 import 'dotenv/config'
 import { prisma } from '../lib/prisma'
-import { createClient } from '@supabase/supabase-js'
-import { scryptSync, randomBytes } from 'crypto'
+import { scryptSync, randomBytes, randomUUID } from 'crypto'
 
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+// Supabase admin client commented out - seeding without auth for now
+// const supabaseAdmin = createClient(
+//   process.env.NEXT_PUBLIC_SUPABASE_URL!,
+//   process.env.SUPABASE_SERVICE_ROLE_KEY!
+// )
 
 function hashPassword(password: string): string {
   const salt = randomBytes(16).toString("hex");
@@ -49,33 +49,8 @@ async function seedDesigns() {
 async function main() {
   console.log('--- Starting StockFlow Seed ---')
 
-  // Create user in Supabase Auth
-  let authUserId: string
-
-  const { data: authUser, error } = await supabaseAdmin.auth.admin.createUser({
-    email: 'sebby@admin.com',
-    password: 'password123',
-    email_confirm: true, // Auto-confirm the email
-  })
-
-  if (error) {
-    if (error.message === 'A user with this email address has already been registered' || (error as any).code === 'email_exists') {
-      console.log('ℹ️ Admin user already exists in Supabase Auth, fetching ID...')
-      const { data: { users }, error: listError } = await supabaseAdmin.auth.admin.listUsers()
-      if (listError) throw listError
-      const existingUser = users.find(u => u.email === 'sebby@admin.com')
-      if (!existingUser) throw new Error('Could not find existing user in Supabase')
-      authUserId = existingUser.id
-    } else {
-      console.error('❌ Error creating Supabase user:', error)
-      throw error
-    }
-  } else {
-    authUserId = authUser.user!.id
-    console.log('✅ Supabase user created:', authUser.user?.email)
-  }
-
-  // Create corresponding record in Prisma
+  // Create admin user directly in Prisma (skipping Supabase Auth)
+  const adminId = randomUUID()
   const admin = await prisma.user.upsert({
     where: { email: 'sebby@admin.com' },
     update: {
@@ -83,7 +58,7 @@ async function main() {
       name: 'Sebby Admin',
     },
     create: {
-      id: authUserId, // Use Supabase user ID
+      id: adminId,
       email: 'sebby@admin.com',
       name: 'Sebby Admin',
       password: hashPassword('password123'),
@@ -91,34 +66,10 @@ async function main() {
     },
   })
 
-  console.log('✅ Prisma user created/updated:', admin.email)
+  console.log('✅ Admin user created/updated:', admin.email)
 
-  // Create sales user
-  let salesAuthUserId: string
-
-  const { data: salesAuthUser, error: salesError } = await supabaseAdmin.auth.admin.createUser({
-    email: 'sales@stockflow.com',
-    password: 'password123',
-    email_confirm: true,
-  })
-
-  if (salesError) {
-    if (salesError.message === 'A user with this email address has already been registered' || (salesError as any).code === 'email_exists') {
-      console.log('ℹ️ Sales user already exists in Supabase Auth, fetching ID...')
-      const { data: { users }, error: listError } = await supabaseAdmin.auth.admin.listUsers()
-      if (listError) throw listError
-      const existingUser = users.find(u => u.email === 'sales@stockflow.com')
-      if (!existingUser) throw new Error('Could not find existing sales user in Supabase')
-      salesAuthUserId = existingUser.id
-    } else {
-      console.error('❌ Error creating sales Supabase user:', salesError)
-      throw salesError
-    }
-  } else {
-    salesAuthUserId = salesAuthUser.user!.id
-    console.log('✅ Supabase sales user created:', salesAuthUser.user?.email)
-  }
-
+  // Create sales user directly in Prisma
+  const salesId = randomUUID()
   const sales = await prisma.user.upsert({
     where: { email: 'sales@stockflow.com' },
     update: {
@@ -126,7 +77,7 @@ async function main() {
       name: 'Sales User',
     },
     create: {
-      id: salesAuthUserId,
+      id: salesId,
       email: 'sales@stockflow.com',
       name: 'Sales User',
       password: hashPassword('password123'),
@@ -134,9 +85,9 @@ async function main() {
     },
   })
 
-  console.log('✅ Prisma sales user created/updated:', sales.email)
+  console.log('✅ Sales user created/updated:', sales.email)
   console.log('📝 Default password: password123')
-  
+
   await seedDesigns()
   console.log('--- Seed Finished Successfully ---')
 }
