@@ -1,6 +1,7 @@
+export const dynamic = 'force-dynamic';
+
 import { getUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-export const dynamic = 'force-dynamic';
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { RunwayAlerts } from "@/components/admin/RunwayAlerts";
@@ -65,15 +66,15 @@ export default async function AdminDashboardPage() {
         </div>
       </div>
       <div className="stats-grid">
-        <StatCard label="Total Orders" value={stats.totalOrders} />
-        <StatCard label="In Production" value={stats.inProduction} color="purple" />
-        <StatCard label="Completed" value={stats.completed} color="green" />
+        <DashboardStatCard label="Total Orders" value={stats.totalOrders} />
+        <DashboardStatCard label="In Production" value={stats.inProduction} color="purple" />
+        <DashboardStatCard label="Completed" value={stats.completed} color="green" />
       </div>
     </div>
   );
 }
 
-function StatCard({ label, value, color = "" }: { label: string; value: number; color?: "" | "amber" | "teal" | "purple" | "red" | "green" }) {
+function DashboardStatCard({ label, value, color = "" }: { label: string; value: number; color?: "" | "amber" | "teal" | "purple" | "red" | "green" }) {
   // Mockup CSS mapping
   const colorMap: Record<string, string> = {
     "": "",
