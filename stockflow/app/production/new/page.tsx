@@ -14,7 +14,7 @@ interface Design {
 
 async function getDesigns(): Promise<Design[]> {
   try {
-    const designs = await prisma.design.findMany({
+    const rawDesigns = await prisma.design.findMany({
       select: {
         id: true,
         name: true,
@@ -23,7 +23,14 @@ async function getDesigns(): Promise<Design[]> {
       orderBy: {
         name: 'asc',
       },
-    })
+    });
+
+    const designs: Design[] = rawDesigns.map((d) => ({
+      id: d.id,
+      name: d.name,
+      targetWeight: d.targetWeight,
+      kgPerUnit: d.targetWeight ? Number(d.targetWeight) : 0,
+    }));
 
     return designs
   } catch (error) {
@@ -38,12 +45,6 @@ export default async function ProductionNewPage() {
 
   try {
     designs = await getDesigns()
-    // Transform the designs array to match what the Form expects
-    designs = designs.map(d => ({
-      ...d,
-      // Map your Prisma field (e.g., targetWeight) to the prop name (kgPerUnit)
-      kgPerUnit: d.targetWeight ? d.targetWeight.toNumber() : 0
-    }))
   } catch (err) {
     error =
       err instanceof Error

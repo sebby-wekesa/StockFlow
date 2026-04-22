@@ -9,19 +9,15 @@ export async function GET() {
       select: {
         id: true,
         name: true,
-        description: true,
         targetWeight: true,
       },
-      orderBy: { name: 'asc' },
-    })
+    });
 
-    const designs = rawDesigns.map(d => ({
+    const designs: Design[] = rawDesigns.map((d) => ({
       id: d.id,
       name: d.name,
-      description: d.description,
       kgPerUnit: d.targetWeight ? Number(d.targetWeight) : 0,
-      targetWeight: d.targetWeight
-    }))
+    }));
 
     return NextResponse.json(designs)
   } catch (error) {
