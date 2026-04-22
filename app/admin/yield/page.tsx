@@ -140,7 +140,7 @@ async function getYieldData() {
     })),
     yieldTrends,
     departmentTrends: departmentTrendsFormatted,
-    designYield: designYield as any[]
+    designYield: 0
   };
 }
 

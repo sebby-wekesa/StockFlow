@@ -73,9 +73,9 @@ export type YieldData = {
   departmentStats: DeptStat[];
   scrapDistribution: ScrapEntry[];
   wip: WipEntry[];
-  yieldTrends: YieldTrend[];
-  departmentTrends: DepartmentTrend[];
-  designYield: DesignYield[];
+  yieldTrends?: YieldTrend[];
+  departmentTrends?: DepartmentTrend[];
+  designYield?: DesignYield[];
 };
 
 const PIE_COLORS = ["#4a9eff", "#8b7cf8", "#f0c040", "#2ec4a0", "#e05555", "#e07b30", "#4caf7d"];
