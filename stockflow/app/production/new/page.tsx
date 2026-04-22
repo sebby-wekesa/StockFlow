@@ -13,21 +13,21 @@ interface Design {
 async function getDesigns(): Promise<Design[]> {
   try {
     const rawDesigns = await prisma.design.findMany({
-      select: {
-        id: true,
-        name: true,
-        targetWeight: true,
-      },
       orderBy: {
         name: 'asc',
       },
     });
 
-    const designs: Design[] = rawDesigns.map((d) => ({
+    const designs: Design[] = rawDesigns.map(d => ({
       id: d.id,
       name: d.name,
-      // This satisfies the 'kgPerUnit' requirement and handles the Decimal/null issue
+      code: d.code,
+      description: d.description,
+      targetDimensions: d.targetDimensions,
+      targetWeight: d.targetWeight,
       kgPerUnit: d.targetWeight ? Number(d.targetWeight) : 0,
+      createdAt: d.createdAt,
+      updatedAt: d.updatedAt,
     }));
 
     return designs
