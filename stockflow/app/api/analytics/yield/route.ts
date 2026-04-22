@@ -65,7 +65,7 @@ export async function GET() {
     for (const order of wipOrders) {
       const dept = order.currentDept || "Awaiting Start";
       const totalScrapSoFar = order.logs.reduce((s, l) => s + l.kgScrap.toNumber(), 0);
-      const kgRemaining = Math.max(0, order.targetKg - totalScrapSoFar);
+      const kgRemaining = Math.max(0, Number(order.targetKg) - totalScrapSoFar);
       if (!wipMap[dept]) wipMap[dept] = { kgRemaining: 0, orderCount: 0 };
       wipMap[dept].kgRemaining += kgRemaining;
       wipMap[dept].orderCount += 1;
