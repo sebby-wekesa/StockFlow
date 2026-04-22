@@ -16,11 +16,11 @@ interface SalesOrderListProps {
 export function SalesOrderList({ orders }: SalesOrderListProps) {
   return (
     <div className="bg-gray-800 p-6 rounded-lg">
-      {orders.length === 0 ? (
+      {(orders || []).length === 0 ? (
         <p className="text-gray-400">No sales orders yet.</p>
       ) : (
         <div className="space-y-4">
-          {orders.map((order) => (
+          {(orders || []).map((order) => (
             <div key={order.id} className="bg-gray-700 p-4 rounded-lg">
               <div className="flex justify-between items-start">
                 <div>

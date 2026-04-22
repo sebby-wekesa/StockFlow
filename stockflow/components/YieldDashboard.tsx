@@ -114,7 +114,7 @@ const CustomTooltip = ({ active, payload, label, unit = "kg" }: any) => {
 export function YieldDashboard({ data }: { data: YieldData }) {
   const { globalYield, totals, departmentStats, scrapDistribution, wip, yieldTrends, departmentTrends, designYield } = data;
 
-  const barData = departmentStats.map((d) => ({
+  const barData = (departmentStats || []).map((d) => ({
     name: d.department,
     Input: d.kgIn,
     Output: d.kgOut,
@@ -219,7 +219,7 @@ export function YieldDashboard({ data }: { data: YieldData }) {
           </div>
 
           <div className="mt-6 pt-6 border-t border-[#2a2d32] grid grid-cols-2 gap-4">
-             {departmentStats.filter(d => d.yieldPct < YIELD_THRESHOLD).map(d => (
+             {(departmentStats || []).filter(d => d.yieldPct < YIELD_THRESHOLD).map(d => (
                <div key={d.department} className="flex items-center gap-3 p-3 bg-red-900/10 border border-red-500/20 rounded-xl">
                  <AlertTriangle size={16} className="text-red-500 shrink-0" />
                  <div>
@@ -228,7 +228,7 @@ export function YieldDashboard({ data }: { data: YieldData }) {
                  </div>
                </div>
              ))}
-             {departmentStats.filter(d => d.yieldPct < YIELD_THRESHOLD).length === 0 && (
+             {(departmentStats || []).filter(d => d.yieldPct < YIELD_THRESHOLD).length === 0 && (
                <div className="col-span-2 text-center py-4 text-xs text-[#7a8090] italic">
                  All departments operating above efficiency terminal.
                </div>
@@ -244,13 +244,13 @@ export function YieldDashboard({ data }: { data: YieldData }) {
           </div>
 
           <div className="h-[300px] w-full flex items-center justify-center">
-            {scrapDistribution.length === 0 ? (
+            {(scrapDistribution || []).length === 0 ? (
               <div className="text-[#7a8090] text-sm">No scrap data recorded.</div>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
-                    data={scrapDistribution}
+                    data={scrapDistribution || []}
                     cx="50%"
                     cy="50%"
                     innerRadius={70}
@@ -260,7 +260,7 @@ export function YieldDashboard({ data }: { data: YieldData }) {
                     nameKey="reason"
                     stroke="none"
                   >
-                    {scrapDistribution.map((_, index) => (
+                    {(scrapDistribution || []).map((_, index) => (
                       <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
                     ))}
                   </Pie>
@@ -290,7 +290,7 @@ export function YieldDashboard({ data }: { data: YieldData }) {
 
         <div className="h-[400px] w-full">
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={yieldTrends} margin={{ top: 10, right: 30, left: 10, bottom: 20 }}>
+            <AreaChart data={yieldTrends || []} margin={{ top: 10, right: 30, left: 10, bottom: 20 }}>
               <defs>
                 <linearGradient id="yieldGradient" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#2ec4a0" stopOpacity={0.3}/>
@@ -348,7 +348,7 @@ export function YieldDashboard({ data }: { data: YieldData }) {
           </div>
 
           <div className="space-y-4 max-h-[400px] overflow-y-auto">
-            {departmentTrends.map((dept) => (
+            {departmentTrends?.map((dept) => (
               <div key={dept.department} className="space-y-2">
                 <h4 className="text-sm font-semibold text-[#e8eaed]">{dept.department}</h4>
                 <div className="h-20">
@@ -381,7 +381,7 @@ export function YieldDashboard({ data }: { data: YieldData }) {
           </div>
 
           <div className="space-y-4 max-h-[400px] overflow-y-auto">
-            {designYield
+            {(designYield || [])
               .sort((a, b) => a.yield_percentage - b.yield_percentage)
               .map((design) => (
                 <div key={design.design_code} className="flex items-center justify-between p-3 bg-[#1e2023] border border-[#2c2d33] rounded-xl">
@@ -416,12 +416,12 @@ export function YieldDashboard({ data }: { data: YieldData }) {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {wip.length === 0 ? (
+          {(wip || []).length === 0 ? (
             <div className="col-span-full py-12 text-center border border-dashed border-[#2a2d32] rounded-2xl text-[#7a8090]">
               No active production orders found.
             </div>
           ) : (
-            wip.map((item) => (
+            (wip || []).map((item) => (
               <WIPCard key={item.department} {...item} />
             ))
           )}
