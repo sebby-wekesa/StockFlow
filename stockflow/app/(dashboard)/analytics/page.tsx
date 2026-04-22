@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+export const dynamic = 'force-dynamic';
 import YieldCharts from "@/components/analytics/YieldCharts";
 import StatCards from "@/components/analytics/StatCards";
 

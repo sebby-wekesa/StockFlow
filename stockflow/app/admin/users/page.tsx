@@ -1,10 +1,10 @@
-export const dynamic = 'force-dynamic'; // This tells Next.js: "Don't pre-build this, fetch it live"
-
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { UserRow } from "./UserRow";
 import { supabaseAdmin } from "@/lib/supabase-admin";
+
+export const dynamic = 'force-dynamic';
 
 async function inviteUser(formData: FormData) {
   "use server";
