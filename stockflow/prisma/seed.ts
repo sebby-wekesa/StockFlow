@@ -49,13 +49,45 @@ async function seedDesigns() {
 async function main() {
   console.log('--- Starting StockFlow Seed ---')
 
-  // Create admin user directly in Prisma (skipping Supabase Auth)
+  // 1. Create Organization
+  const org = await prisma.organization.upsert({
+    where: { code: 'SF' },
+    update: {},
+    create: {
+      name: 'StockFlow Manufacturing',
+      code: 'SF',
+    }
+  });
+
+  // 2. Create Branches
+  const branches = [
+    { name: 'Mombasa Branch', code: 'MSA', location: 'Mombasa', organizationId: org.id },
+    { name: 'Nairobi Branch', code: 'NBO', location: 'Nairobi', organizationId: org.id },
+    { name: 'Bunje Branch', code: 'BNJ', location: 'Bunje', organizationId: org.id },
+  ];
+
+  const seededBranches = [];
+  for (const branch of branches) {
+    const b = await prisma.branch.upsert({
+      where: { code: branch.code },
+      update: { location: branch.location },
+      create: branch,
+    });
+    seededBranches.push(b);
+  }
+  console.log('✅ Branches seeded:', seededBranches.map(b => b.name).join(', '));
+
+  const defaultBranchId = seededBranches[0].id;
+
+  // 3. Create admin user directly in Prisma (skipping Supabase Auth)
   const adminId = randomUUID()
   const admin = await prisma.user.upsert({
     where: { email: 'sebby@admin.com' },
     update: {
       role: 'ADMIN',
       name: 'Sebby Admin',
+      organizationId: org.id,
+      branchId: defaultBranchId,
     },
     create: {
       id: adminId,
@@ -63,18 +95,22 @@ async function main() {
       name: 'Sebby Admin',
       password: hashPassword('password123'),
       role: 'ADMIN',
+      organizationId: org.id,
+      branchId: defaultBranchId,
     },
   })
 
   console.log('✅ Admin user created/updated:', admin.email)
 
-  // Create sales user directly in Prisma
+  // 4. Create sales user directly in Prisma
   const salesId = randomUUID()
   const sales = await prisma.user.upsert({
     where: { email: 'sales@stockflow.com' },
     update: {
       role: 'SALES',
       name: 'Sales User',
+      organizationId: org.id,
+      branchId: defaultBranchId,
     },
     create: {
       id: salesId,
@@ -82,6 +118,8 @@ async function main() {
       name: 'Sales User',
       password: hashPassword('password123'),
       role: 'SALES',
+      organizationId: org.id,
+      branchId: defaultBranchId,
     },
   })
 

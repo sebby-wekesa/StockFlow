@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic';
 
 import { prisma } from "@/lib/prisma";
 import { UserRow } from "@/components/admin/UserRow";
-import { inviteUser } from "./actions";
+import InviteUserModal from "@/components/admin/InviteUserModal";
 
 
 
@@ -23,63 +23,9 @@ export default async function AdminUsersPage() {
 
   return (
     <div className="p-8 bg-[#0f1113] min-h-screen">
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex justify-between items-center mb-8">
         <h1 className="text-2xl font-bold text-white">User Management</h1>
-      </div>
-
-      <div className="bg-gray-800 p-6 rounded-lg mb-6">
-        <h2 className="text-xl font-semibold text-white mb-4">Invite New User</h2>
-        <form action={inviteUser} className="space-y-4">
-          <div>
-            <label htmlFor="email" className="block text-sm font-medium text-gray-300">
-              Email
-            </label>
-            <input
-              type="email"
-              id="email"
-              name="email"
-              required
-              className="mt-1 block w-full px-3 py-2 border border-gray-600 rounded-md shadow-sm bg-gray-700 text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-            />
-          </div>
-          <div>
-            <label htmlFor="name" className="block text-sm font-medium text-gray-300">
-              Name
-            </label>
-            <input
-              type="text"
-              id="name"
-              name="name"
-              required
-              className="mt-1 block w-full px-3 py-2 border border-gray-600 rounded-md shadow-sm bg-gray-700 text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-            />
-          </div>
-          <div>
-            <label htmlFor="role" className="block text-sm font-medium text-gray-300">
-              Role
-            </label>
-             <select
-               id="role"
-               name="role"
-               required
-               className="mt-1 block w-full px-3 py-2 border border-gray-600 rounded-md shadow-sm bg-gray-700 text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-             >
-               <option value="PENDING">Pending</option>
-               <option value="ADMIN">Admin</option>
-               <option value="MANAGER">Manager</option>
-               <option value="OPERATOR">Operator</option>
-               <option value="WAREHOUSE">Warehouse</option>
-               <option value="SALES">Sales</option>
-               <option value="PACKAGING">Packaging</option>
-             </select>
-          </div>
-          <button
-            type="submit"
-            className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
-          >
-            Invite User
-          </button>
-        </form>
+        <InviteUserModal /> 
       </div>
 
       <div className="bg-gray-800 p-6 rounded-lg">

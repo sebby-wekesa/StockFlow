@@ -13,7 +13,7 @@ export async function getUserFromDb(token: string) {
       where: { id: decoded.userId },
     });
     await prisma.$disconnect()
-    return user as { id: string; email: string; name: string | null; role: Role; department: string | null } | null
+    return user as { id: string; email: string; name: string | null; role: Role; department: string | null; branchId: string | null } | null
   } catch (error) {
     return null;
   }

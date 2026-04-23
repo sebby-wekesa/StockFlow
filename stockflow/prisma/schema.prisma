@@ -33,6 +33,12 @@ enum Priority {
   URGENT
 }
 
+enum StockOrigin {
+  FACTORY_MADE    // Sarazo / Mombasa Production
+  LOCAL_PURCHASE  // Jua Kali / Third-party
+  IMPORTED        // Bulk containers
+}
+
 model User {
   id             String        @id @default(cuid())
   email          String        @unique
@@ -95,6 +101,8 @@ model ProductionOrder {
   currentStage Int     @default(1) // Current sequence number
   currentDept  String? // Current department queue (e.g., "Cutting") [cite: 99]
 
+  branchId        String?
+  branch          Branch?          @relation(fields: [branchId], references: [id])
   assignedTo      String?
   approvedBy      String?
   approvedAt      DateTime?
@@ -156,6 +164,8 @@ model MaterialReceipt {
   reference  String? // GRN Number
   supplierId String?
   supplier   Supplier?   @relation(fields: [supplierId], references: [id])
+  branchId   String?
+  branch     Branch?     @relation(fields: [branchId], references: [id])
   loggedBy   String?
   createdAt  DateTime    @default(now())
 }
@@ -169,9 +179,24 @@ model FinishedGoods {
   kgProduced Decimal    @db.Decimal(10, 4) // Total kg of finished goods
   barcode    String?    @unique // Phase 3: Unique barcode for finished goods tracking
   batchNumber String? // Phase 3: Production batch number
+  branchId   String?
+  branch     Branch?     @relation(fields: [branchId], references: [id])
   createdAt  DateTime   @default(now())
   saleItems  SaleItem[]
   inventories InventoryFinishedGoods[]
+}
+
+model Product {
+  id             String      @id @default(cuid())
+  name           String
+  origin         StockOrigin @default(FACTORY_MADE)
+  uom            String      // KGS or PCS
+  currentStock   Float       @default(0)
+  landingCost    Float?      // Specifically for IMPORTED
+  branchId       String?
+  branch         Branch?     @relation(fields: [branchId], references: [id])
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
 }
 
 model InventoryRawMaterial {
@@ -238,6 +263,8 @@ model SaleOrder {
   items        SaleItem[]
   totalAmount  Decimal    @db.Decimal(10, 2) // Calculated total
   status       SaleStatus @default(PENDING)
+  branchId     String?
+  branch       Branch?    @relation(fields: [branchId], references: [id])
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
 }
@@ -351,7 +378,8 @@ model Branch {
   id             String       @id @default(cuid())
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id])
-  name           String // Branch location name
+  name           String       @unique // Branch location name
+  location       String?      // General location (e.g., Mombasa)
   code           String       @unique // Branch code
   address        String?
   phone          String?
@@ -361,6 +389,11 @@ model Branch {
   users          User[]
   rawInventories InventoryRawMaterial[]
   finishedInventories InventoryFinishedGoods[]
+  receipts       MaterialReceipt[]
+  productionOrders ProductionOrder[]
+  finishedGoods  FinishedGoods[]
+  saleOrders     SaleOrder[]
+  products       Product[]
 }
 
 // Master Data Extensions

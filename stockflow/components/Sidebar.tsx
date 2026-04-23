@@ -44,7 +44,7 @@ const roleNavItems: Record<Role, any[]> = {
     { label: "Sales orders", href: "/sales", badge: "2" },
     { label: "Packaging queue", href: "/packaging" },
     { section: "Settings" },
-    { label: "Users & roles", href: "/users" },
+    { label: "Users & roles", href: "/admin/users" },
   ],
   MANAGER: [
     { section: "Overview" },

@@ -3,28 +3,41 @@ export const dynamic = 'force-dynamic';
 import { prisma } from "@/lib/prisma";
 import YieldCharts from "@/components/analytics/YieldCharts";
 import StatCards from "@/components/analytics/StatCards";
+import BranchSwitcher from "@/components/admin/BranchSwitcher";
+import { Suspense } from "react";
 
-export default async function AnalyticsPage() {
+export default async function AnalyticsPage(props: { searchParams: Promise<{ branchId?: string }> }) {
+  const { branchId } = await props.searchParams;
+  
+  const whereFilter = branchId ? { 
+    order: { branchId }
+  } : {};
+
   // 1. Fetch total stats (kgIn, kgOut, kgScrap)
   const logs = await prisma.stageLog.aggregate({
     _sum: {
       kgIn: true,
       kgOut: true,
       kgScrap: true,
-    }
+    },
+    where: whereFilter
   });
 
   // 2. Fetch scrap distribution by reason
   const scrapData = await prisma.stageLog.groupBy({
     by: ['scrapReason'],
     _sum: { kgScrap: true },
-    where: { kgScrap: { gt: 0 } }
+    where: { 
+      kgScrap: { gt: 0 },
+      ...whereFilter
+    }
   });
 
   // 3. Fetch yield by Stage/Department for performance visualization
   const deptData = await prisma.stageLog.groupBy({
     by: ['stageName'],
-    _sum: { kgIn: true, kgOut: true }
+    _sum: { kgIn: true, kgOut: true },
+    where: whereFilter
   });
 
   // 4. Format data for the charts
@@ -52,9 +65,14 @@ export default async function AnalyticsPage() {
           <h1 className="text-3xl font-bold text-[#e8eaed] tracking-tight">Yield Intelligence</h1>
           <p className="text-[#7a8090]">Real-time material efficiency and waste tracking across the factory floor.</p>
         </div>
-        <div className="flex items-center gap-2 px-4 py-2 bg-[#161719] border border-[#2a2d32] rounded-xl">
-          <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
-          <span className="text-xs font-bold text-[#7a8090] uppercase tracking-widest">Live Integration</span>
+        <div className="flex items-center gap-4">
+          <Suspense fallback={<div className="h-10 w-48 bg-[#161719] animate-pulse rounded-xl" />}>
+            <BranchSwitcher />
+          </Suspense>
+          <div className="flex items-center gap-2 px-4 py-2 bg-[#161719] border border-[#2a2d32] rounded-xl">
+            <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+            <span className="text-xs font-bold text-[#7a8090] uppercase tracking-widest">Live Integration</span>
+          </div>
         </div>
       </div>
 

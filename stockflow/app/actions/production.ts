@@ -17,6 +17,7 @@ export async function getOperatorQueue() {
       where: {
         status: "IN_PRODUCTION",
         ...(user.role === "OPERATOR" && department ? { currentDept: department } : {}),
+        ...(user.role !== "ADMIN" && user.branchId ? { branchId: user.branchId } : {}),
       },
       include: {
         design: {

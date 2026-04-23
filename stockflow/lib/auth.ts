@@ -8,6 +8,7 @@ export type AuthUser = {
   name: string | null;
   role: Role;
   department: string | null;
+  branchId: string | null;
 };
 
 export async function getUser() {
