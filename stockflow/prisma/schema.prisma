@@ -101,8 +101,8 @@ model ProductionOrder {
   currentStage Int     @default(1) // Current sequence number
   currentDept  String? // Current department queue (e.g., "Cutting") [cite: 99]
 
-  branchId        String?
-  branch          Branch?          @relation(fields: [branchId], references: [id])
+  // branchId        String?
+  // branch          Branch?          @relation(fields: [branchId], references: [id])
   assignedTo      String?
   approvedBy      String?
   approvedAt      DateTime?
@@ -179,8 +179,8 @@ model FinishedGoods {
   kgProduced Decimal    @db.Decimal(10, 4) // Total kg of finished goods
   barcode    String?    @unique // Phase 3: Unique barcode for finished goods tracking
   batchNumber String? // Phase 3: Production batch number
-  branchId   String?
-  branch     Branch?     @relation(fields: [branchId], references: [id])
+  // branchId   String?
+  // branch     Branch?     @relation(fields: [branchId], references: [id])
   createdAt  DateTime   @default(now())
   saleItems  SaleItem[]
   inventories InventoryFinishedGoods[]
@@ -263,8 +263,8 @@ model SaleOrder {
   items        SaleItem[]
   totalAmount  Decimal    @db.Decimal(10, 2) // Calculated total
   status       SaleStatus @default(PENDING)
-  branchId     String?
-  branch       Branch?    @relation(fields: [branchId], references: [id])
+  // branchId     String?
+  // branch       Branch?    @relation(fields: [branchId], references: [id])
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
 }
@@ -390,9 +390,9 @@ model Branch {
   rawInventories InventoryRawMaterial[]
   finishedInventories InventoryFinishedGoods[]
   receipts       MaterialReceipt[]
-  productionOrders ProductionOrder[]
-  finishedGoods  FinishedGoods[]
-  saleOrders     SaleOrder[]
+  // productionOrders ProductionOrder[]
+  // finishedGoods  FinishedGoods[]
+  // saleOrders     SaleOrder[]
   products       Product[]
 }
 
