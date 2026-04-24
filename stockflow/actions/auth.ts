@@ -5,11 +5,25 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { loginSchema } from "@/lib/validations";
 import { scryptSync } from "crypto";
+import { Prisma } from "@prisma/client";
 
 function verifyPassword(password: string, storedHash: string): boolean {
   const [salt, hash] = storedHash.split(":");
   const testHash = scryptSync(password, salt, 64).toString("hex");
   return hash === testHash;
+}
+
+function getDatabaseErrorMessage(error: unknown) {
+  if (
+    error instanceof Prisma.PrismaClientInitializationError ||
+    error instanceof Prisma.PrismaClientKnownRequestError ||
+    error instanceof Prisma.PrismaClientRustPanicError ||
+    error instanceof Prisma.PrismaClientUnknownRequestError
+  ) {
+    return "We couldn't reach the database right now. Please try again in a moment."
+  }
+
+  return null
 }
 
 export async function signIn(formData: FormData) {
@@ -26,9 +40,20 @@ export async function signIn(formData: FormData) {
   }
 
   // Find user in database
-  const user = await prisma.user.findUnique({
-    where: { email: validation.data.email },
-  });
+  let user;
+
+  try {
+    user = await prisma.user.findUnique({
+      where: { email: validation.data.email },
+    });
+  } catch (error) {
+    const message = getDatabaseErrorMessage(error)
+    if (message) {
+      console.error("Login database error:", error)
+      return { error: message }
+    }
+    throw error
+  }
 
   console.log("User found in DB:", user ? "YES" : "NO");
 
@@ -95,9 +120,20 @@ export async function signUp(formData: FormData) {
   }
 
   // Check if user exists
-  const existingUser = await prisma.user.findUnique({
-    where: { email },
-  });
+  let existingUser;
+
+  try {
+    existingUser = await prisma.user.findUnique({
+      where: { email },
+    });
+  } catch (error) {
+    const message = getDatabaseErrorMessage(error)
+    if (message) {
+      console.error("Signup lookup database error:", error)
+      return { error: message }
+    }
+    throw error
+  }
 
   if (existingUser) {
     return { error: "User already exists" };
@@ -110,15 +146,26 @@ export async function signUp(formData: FormData) {
   const storedHash = `${salt}:${hash}`;
 
   // Create user
-  const user = await prisma.user.create({
-    data: {
-      email,
-      password: storedHash,
-      name: name || undefined,
-      department: department || undefined,
-      role: "PENDING",
-    },
-  });
+  let user;
+
+  try {
+    user = await prisma.user.create({
+      data: {
+        email,
+        password: storedHash,
+        name: name || undefined,
+        department: department || undefined,
+        role: "PENDING",
+      },
+    });
+  } catch (error) {
+    const message = getDatabaseErrorMessage(error)
+    if (message) {
+      console.error("Signup create database error:", error)
+      return { error: message }
+    }
+    throw error
+  }
 
   // Create session cookie
   const cookieStore = await cookies();

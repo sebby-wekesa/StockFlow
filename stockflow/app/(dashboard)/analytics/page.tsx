@@ -9,8 +9,10 @@ import { Suspense } from "react";
 export default async function AnalyticsPage(props: { searchParams: Promise<{ branchId?: string }> }) {
   const { branchId } = await props.searchParams;
   
-  const whereFilter = branchId ? { 
-    order: { branchId }
+  const whereFilter = branchId ? {
+    order: {
+      is: { branchId }
+    }
   } : {};
 
   // 1. Fetch total stats (kgIn, kgOut, kgScrap)

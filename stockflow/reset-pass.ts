@@ -2,11 +2,11 @@
 const bcrypt = require('bcryptjs');
 const { PrismaClient } = require('@prisma/client');
 
-// Force the connection URL here so the script doesn't fail
+// Use the DIRECT_URL from environment variables
 const prisma = new PrismaClient({
     datasources: {
         db: {
-            url: "YOUR_DIRECT_URL_FROM_SUPABASE"
+            url: process.env.DIRECT_URL
         },
     },
 });
