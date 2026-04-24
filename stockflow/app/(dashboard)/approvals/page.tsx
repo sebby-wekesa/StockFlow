@@ -9,7 +9,6 @@ export default async function OrderApprovalPage() {
     where: { status: "PENDING" },
     include: {
       design: true,
-      branch: true,
     },
     orderBy: { createdAt: "desc" },
   });

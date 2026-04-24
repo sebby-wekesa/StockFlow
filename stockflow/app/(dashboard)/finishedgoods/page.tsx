@@ -6,7 +6,6 @@ export default async function FinishedgoodsPage() {
   const goods = await prisma.finishedGoods.findMany({
     include: {
       design: true,
-      branch: true,
     },
     orderBy: { createdAt: 'desc' }
   });
@@ -27,11 +26,11 @@ export default async function FinishedgoodsPage() {
                 <tr key={g.id}>
                   <td>{g.design.name}</td>
                   <td><span style={{fontFamily:'var(--font-mono)',color:'var(--muted)'}}>{g.design.code}</span></td>
-                  <td>
-                    <span className="badge badge-blue">
-                      {g.branch?.location || 'Unassigned'}
-                    </span>
-                  </td>
+                   <td>
+                     <span className="badge badge-blue">
+                       N/A
+                     </span>
+                   </td>
                   <td>{g.quantity}</td>
                   <td><span className="job-kg">{kgProducedNum.toFixed(2)} kg</span></td>
                   <td>{kgUnit} kg</td>

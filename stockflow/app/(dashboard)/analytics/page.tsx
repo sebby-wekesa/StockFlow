@@ -9,11 +9,12 @@ import { Suspense } from "react";
 export default async function AnalyticsPage(props: { searchParams: Promise<{ branchId?: string }> }) {
   const { branchId } = await props.searchParams;
   
-  const whereFilter = branchId ? {
-    order: {
-      is: { branchId }
-    }
-  } : {};
+  // Note: Branch filtering disabled until ProductionOrder.branchId is uncommented in schema
+  // const whereFilter = branchId ? {
+  //   order: {
+  //     is: { branchId }
+  //   }
+  // } : {};
 
   // 1. Fetch total stats (kgIn, kgOut, kgScrap)
   const logs = await prisma.stageLog.aggregate({
@@ -21,25 +22,22 @@ export default async function AnalyticsPage(props: { searchParams: Promise<{ bra
       kgIn: true,
       kgOut: true,
       kgScrap: true,
-    },
-    where: whereFilter
+    }
   });
 
   // 2. Fetch scrap distribution by reason
   const scrapData = await prisma.stageLog.groupBy({
     by: ['scrapReason'],
     _sum: { kgScrap: true },
-    where: { 
-      kgScrap: { gt: 0 },
-      ...whereFilter
+    where: {
+      kgScrap: { gt: 0 }
     }
   });
 
   // 3. Fetch yield by Stage/Department for performance visualization
   const deptData = await prisma.stageLog.groupBy({
     by: ['stageName'],
-    _sum: { kgIn: true, kgOut: true },
-    where: whereFilter
+    _sum: { kgIn: true, kgOut: true }
   });
 
   // 4. Format data for the charts

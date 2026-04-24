@@ -1,4 +1,4 @@
-clconst { processStockArrivals, generateInventoryCSV } = require('../lib/inventory');
+const { processStockArrivals, generateInventoryCSV } = require('../lib/inventory');
 
 const rawData = [
   "1000 M12 Washers (IMP)",
