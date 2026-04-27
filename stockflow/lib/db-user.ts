@@ -5,7 +5,11 @@ export async function getUserFromDb(token: string) {
   try {
     const decoded = JSON.parse(Buffer.from(token, "base64").toString("utf-8"));
     const prisma = new PrismaClient({
-      datasourceUrl: process.env.DATABASE_URL,
+      datasources: {
+        db: {
+          url: process.env.DATABASE_URL,
+        },
+      },
     })
     const user = await prisma.user.findUnique({
       where: { id: decoded.userId },
