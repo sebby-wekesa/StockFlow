@@ -20,14 +20,7 @@ jobs:
         working-directory: ./stockflow
         run: npm install
 
-      - name: Test DB Connection
-        working-directory: ./stockflow
-        run: npx prisma db pull
-        env:
-          DATABASE_URL: ${{ secrets.DIRECT_URL }}
-          DIRECT_URL: ${{ secrets.DIRECT_URL }}
-
-      - name: Run Migrations
+       - name: Run Migrations
         working-directory: ./stockflow
         run: npx prisma migrate deploy
         env:

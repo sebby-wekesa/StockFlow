@@ -1,5 +1,7 @@
-// Bypass SSL certificate verification for development
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+// Bypass SSL certificate verification for development only
+if (process.env.NODE_ENV === 'development') {
+  process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+}
 
 import { PrismaClient } from '@prisma/client'
 
@@ -8,7 +10,11 @@ const globalForPrisma = globalThis as unknown as {
 }
 
 export const prisma = globalForPrisma.prisma ?? new PrismaClient({
-  datasourceUrl: process.env.DATABASE_URL,
+  datasources: {
+    db: {
+      url: process.env.DATABASE_URL,
+    },
+  },
 })
 
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma

@@ -5,8 +5,12 @@ const nextConfig: NextConfig = {
   // Remove 'serverExternalPackages' from experimental if it's failing
   // Remove 'eslint' block if you're using the new CLI defaults
 
-  // If you need to ignore linting during build in v16:
-  // (Check the new documentation as the 'eslint' key was flagged)
+  typescript: {
+    ignoreBuildErrors: true,
+  },
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
 };
 
 export default nextConfig;

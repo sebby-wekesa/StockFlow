@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "cross-env NODE_OPTIONS=--max-old-space-size=16384 prisma generate --schema=./prisma/schema.prisma && next build --turbo=false",
+    "build": "cross-env NODE_OPTIONS=--max-old-space-size=16384 prisma generate --schema=./prisma/schema.prisma && next build",
     "start": "next start",
     "lint": "next lint"
   },
