@@ -11,7 +11,7 @@ export async function PATCH(
   const params = await props.params;
   try {
     // Verify user has manager or admin role
-    const user = await requireRole('ADMIN')
+    const user = await requireRole('ADMIN', 'MANAGER')
 
     const body = await request.json()
     const { status, rejectionReason } = body
@@ -60,6 +60,9 @@ export async function PATCH(
         const design = await tx.design.findUnique({
           where: { id: order.designId },
           include: {
+            stages: {
+              orderBy: { sequence: 'asc' }
+            },
             bomItems: {
               include: { rawMaterial: true }
             }
@@ -74,11 +77,24 @@ export async function PATCH(
           throw new Error('Design does not have any BOM items');
         }
 
+        const firstStage = design.stages[0];
+        if (!firstStage) {
+          throw new Error('Design has no production stages configured');
+        }
+
         // For now, assume single raw material per design (take first BOM item)
         const primaryBomItem = design.bomItems[0];
 
         // 2. Calculate the required quantity for this BOM item
-        const requiredQuantity = (order.targetKg.toNumber() / design.targetWeight!.toNumber()) * primaryBomItem.quantity.toNumber();
+        const plannedUnits =
+          design.targetWeight && design.targetWeight.gt(0)
+            ? order.targetKg.toNumber() / design.targetWeight.toNumber()
+            : order.quantity;
+        const requiredQuantity = plannedUnits * primaryBomItem.quantity.toNumber();
+
+        if (primaryBomItem.rawMaterial.availableKg.toNumber() < requiredQuantity) {
+          throw new Error('Insufficient stock to release this order');
+        }
 
         // 3. Deduct from Available and add to Reserved
         await tx.rawMaterial.update({
@@ -96,6 +112,8 @@ export async function PATCH(
             status: newStatus,
             approvedBy: user.id,
             approvedAt: new Date(),
+            currentStage: firstStage.sequence,
+            currentDept: firstStage.department,
           },
           include: {
             design: {
@@ -158,8 +176,15 @@ export async function PATCH(
       )
     }
 
+    if (error.message?.startsWith('Forbidden')) {
+      return NextResponse.json(
+        { error: 'Forbidden. Only Managers and Admins can update order status.' },
+        { status: 403 }
+      )
+    }
+
     return NextResponse.json(
-      { error: 'Failed to update order status' },
+      { error: error.message || 'Failed to update order status' },
       { status: 500 }
     )
   }

@@ -1,16 +1,15 @@
 "use server";
 
-import { startOfWeek, endOfWeek, startOfDay } from "date-fns";
+import { startOfDay, startOfWeek } from "date-fns";
 import { requireAuth } from "@/lib/auth";
 import type { AuthUser } from "@/lib/auth";
 import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/prisma';
-import { RawMaterial, ProductionOrder, Design, StageLog } from '@prisma/client';
-import { Decimal } from '@prisma/client';
+import { Prisma, type Design, type ProductionOrder, type RawMaterial, type StageLog } from '@prisma/client';
 
 interface Stat {
   label: string;
-  value: number | Decimal;
+  value: number;
   suffix?: string;
   sub: string;
   down?: boolean;
@@ -30,6 +29,18 @@ interface Throughput {
   scrap: number;
   ops: number;
   yield: number;
+}
+
+type StageLogWithOrder = StageLog & {
+  order: ProductionOrder;
+}
+
+function toNumber(value: Prisma.Decimal | number | null | undefined) {
+  if (typeof value === "number") {
+    return value;
+  }
+
+  return value?.toNumber() ?? 0;
 }
 
 export async function getDashboardStats(user?: AuthUser) {
@@ -54,13 +65,13 @@ export async function getDashboardStats(user?: AuthUser) {
     materials = []
   }
   const rawMaterialStock = materials.reduce(
-    (sum, m) => sum.add(m.availableKg).add(m.reservedKg),
-    new Decimal(0)
-  ).toNumber();
+    (sum, m) => sum + toNumber(m.availableKg) + toNumber(m.reservedKg),
+    0
+  );
   const totalFree = materials.reduce(
-    (sum, m) => sum.add(m.availableKg),
-    new Decimal(0)
-  ).toNumber();
+    (sum, m) => sum + toNumber(m.availableKg),
+    0
+  );
 
   // 2. Active Orders - Filter based on role
   let activeOrdersWhere: any = {};
@@ -189,7 +200,7 @@ export async function getDashboardStats(user?: AuthUser) {
   let throughput: Throughput[] = [];
 
   if (isAdmin || isManager) {
-    let weeklyLogs: any[] = []
+    let weeklyLogs: StageLog[] = []
     try {
       weeklyLogs = await prisma.stageLog.findMany({
         where: {
@@ -203,13 +214,29 @@ export async function getDashboardStats(user?: AuthUser) {
       weeklyLogs = []
     }
 
-    let todayLogs: any[] = []
+    // Group weekly logs by dept for scrap chart
+    const deptScrapMap: Record<string, number> = {};
+    weeklyLogs.forEach(log => {
+      const dept = log.department || "Unknown";
+      deptScrapMap[dept] = (deptScrapMap[dept] || 0) + toNumber(log.kgScrap);
+    });
+
+    const totalScrap = weeklyLogs.reduce((sum, log) => sum + toNumber(log.kgScrap), 0);
+    departmentScrap = Object.entries(deptScrapMap).map(([dept, kg]) => {
+      const pct = totalScrap > 0 ? Math.round((kg / totalScrap) * 100) : 0;
+      return { dept, kg, pct };
+    });
+  }
+
+  if (isAdmin || isManager || isOperator) {
+    let todayLogs: StageLog[] = []
     try {
       todayLogs = await prisma.stageLog.findMany({
         where: {
           completedAt: {
             gte: todayStart,
           },
+          ...(isOperator && authUser.department ? { department: authUser.department } : {}),
         },
       });
     } catch (error) {
@@ -217,29 +244,16 @@ export async function getDashboardStats(user?: AuthUser) {
       todayLogs = []
     }
 
-    // Group weekly logs by dept for scrap chart
-    const deptScrapMap: Record<string, number> = {};
-    weeklyLogs.forEach(log => {
-      const dept = log.department || "Unknown";
-      deptScrapMap[dept] = (deptScrapMap[dept] || 0) + log.kgScrap;
-    });
-
-    const totalScrap = weeklyLogs.reduce((sum, l) => sum + l.kgScrap, 0);
-    departmentScrap = Object.entries(deptScrapMap).map(([dept, kg]) => {
-      const pct = totalScrap > 0 ? Math.round((kg as number / totalScrap) * 100) : 0;
-      return { dept, kg, pct };
-    });
-
     // Group today's logs for throughput
-    const throughputMap: Record<string, any> = {};
+    const throughputMap: Record<string, { dept: string; jobs: Set<string>; kg: number; scrap: number; ops: Set<string> }> = {};
     todayLogs.forEach(log => {
       const dept = log.department || "Unknown";
       if (!throughputMap[dept]) {
         throughputMap[dept] = { dept, jobs: new Set(), kg: 0, scrap: 0, ops: new Set() };
       }
       throughputMap[dept].jobs.add(log.orderId);
-      throughputMap[dept].kg += log.kgOut;
-      throughputMap[dept].scrap += log.kgScrap;
+      throughputMap[dept].kg += toNumber(log.kgOut);
+      throughputMap[dept].scrap += toNumber(log.kgScrap);
       throughputMap[dept].ops.add(log.operatorId);
     });
 
@@ -350,7 +364,7 @@ export async function getDashboardStats(user?: AuthUser) {
     recentOrders: recentOrders.map(o => ({
       id: o.orderNumber,
       design: o.design.name,
-      kg: o.targetKg,
+      kg: toNumber(o.targetKg),
       status: o.status === "PENDING" ? "Pending approval" :
               o.status === "APPROVED" || o.status === "IN_PRODUCTION" ? "In production" : "Complete",
       dept: o.currentDept,
@@ -394,7 +408,7 @@ export async function getManagerData() {
     activeProduction = []
   }
 
-  let allLogs: any[] = []
+  let allLogs: StageLogWithOrder[] = []
   try {
     allLogs = await prisma.stageLog.findMany({
       where: { kgScrap: { gt: 0 } },
@@ -404,7 +418,7 @@ export async function getManagerData() {
     console.warn('Failed to fetch scrap logs:', error)
     allLogs = []
   }
-  const scrapAlerts = allLogs.filter(log => log.kgScrap > log.kgIn * 0.05);
+  const scrapAlerts = allLogs.filter(log => toNumber(log.kgScrap) > toNumber(log.kgIn) * 0.05);
 
   let totalActiveOrders = 0
   try {
@@ -452,6 +466,9 @@ export async function approveOrder(orderId: string) {
       include: {
         design: {
           include: {
+            stages: {
+              orderBy: { sequence: 'asc' }
+            },
             bomItems: {
               include: { rawMaterial: true }
             }
@@ -472,9 +489,18 @@ export async function approveOrder(orderId: string) {
     throw new Error('No raw materials assigned to design');
   }
 
+  const firstStage = order.design.stages[0];
+  if (!firstStage) {
+    throw new Error('Design has no production stages configured');
+  }
+
   // For now, assume single raw material per design (take first BOM item)
   const primaryBomItem = order.design.bomItems[0];
-  const reserveQuantity = (order.targetKg.toNumber() / order.design.targetWeight!.toNumber()) * primaryBomItem.quantity.toNumber();
+  const plannedUnits =
+    order.design.targetWeight && order.design.targetWeight.gt(0)
+      ? order.targetKg.toNumber() / order.design.targetWeight.toNumber()
+      : order.quantity;
+  const reserveQuantity = plannedUnits * primaryBomItem.quantity.toNumber();
 
   let material
   try {
@@ -503,7 +529,8 @@ export async function approveOrder(orderId: string) {
     data: {
       status: 'APPROVED',
       approvedAt: new Date(),
-      currentDept: 'Cutting', // Assuming first department
+      currentStage: firstStage.sequence,
+      currentDept: firstStage.department,
     },
   });
 

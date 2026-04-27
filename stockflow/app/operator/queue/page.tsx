@@ -9,7 +9,10 @@ async function getOperatorStats(department: string | null) {
   if (!department) return null;
 
   const pendingJobs = await prisma.productionOrder.findMany({
-    where: { status: "IN_PRODUCTION" },
+    where: {
+      status: { in: ["APPROVED", "IN_PRODUCTION"] },
+      currentDept: department,
+    },
     include: {
       design: { include: { stages: true } },
       logs: { orderBy: { sequence: "desc" }, take: 1 },

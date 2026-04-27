@@ -6,7 +6,7 @@ import { prisma } from '@/lib/prisma'
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { designId, materialId, quantity, customerRef } = body
+    const { designId, materialId, quantity } = body
 
     // Validate required fields
     if (!designId || !materialId || !quantity) {
@@ -39,6 +39,12 @@ export async function POST(request: NextRequest) {
         throw new Error('Design not found')
       }
 
+      if (design.stages.length === 0) {
+        throw new Error(`Design "${design.name}" has no production stages configured.`)
+      }
+
+      const firstStage = design.stages[0]
+
       // Check if material exists and has sufficient stock
       const material = await tx.rawMaterial.findUnique({
         where: { id: materialId },
@@ -70,8 +76,8 @@ export async function POST(request: NextRequest) {
           targetKg: requiredKg,
           status: 'IN_PRODUCTION',
           priority: 'MEDIUM',
-          currentStage: 1,
-          currentDept: design.stages[0]?.department || 'Cutting', // First department
+          currentStage: firstStage.sequence,
+          currentDept: firstStage.department,
         },
       })
 
@@ -83,25 +89,6 @@ export async function POST(request: NextRequest) {
           reservedKg: material.reservedKg.toNumber() + requiredKg,
         },
       })
-
-      // Initialize first stage (create a pending task)
-      if (design.stages.length > 0) {
-        const firstStage = design.stages[0]
-        await tx.stageLog.create({
-          data: {
-            orderId: productionOrder.id,
-            stageId: firstStage.id,
-            stageName: firstStage.name,
-            sequence: firstStage.sequence,
-            department: firstStage.department,
-            kgIn: requiredKg,
-            kgOut: 0,
-            kgScrap: 0,
-            operatorId: 'system', // Placeholder, should be assigned later
-            notes: 'Production order initialized - pending processing',
-          },
-        })
-      }
 
       return productionOrder
     })
