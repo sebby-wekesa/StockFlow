@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { loginSchema } from "@/lib/validations";
 import { scryptSync } from "crypto";
 import { Prisma } from "@prisma/client";
+import { ROLE_HOME_PAGES, type UserRole } from "@/types/auth";
 
 function verifyPassword(password: string, storedHash: string): boolean {
   const [salt, hash] = storedHash.split(":");
@@ -93,13 +94,7 @@ export async function signIn(formData: FormData) {
   });
 
   // Redirect based on role
-  let redirectPath = '/operator/queue'; // default
-  if (user.role === 'ADMIN') {
-    redirectPath = '/admin/dashboard';
-  } else if (user.role === 'OPERATOR') {
-    redirectPath = '/operator';
-  }
-  // WAREHOUSE and SALES stay on /operator/queue for now
+  const redirectPath = ROLE_HOME_PAGES[user.role as UserRole] || '/operator/queue';
   redirect(redirectPath);
 }
 
@@ -191,5 +186,5 @@ export async function signUp(formData: FormData) {
     maxAge: 60 * 60 * 24 * 7,
   });
 
-  redirect("/operator"); // Operators go to their dashboard
+  redirect(ROLE_HOME_PAGES[user.role as UserRole] || '/operator');
 }
