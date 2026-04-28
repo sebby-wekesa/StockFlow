@@ -187,16 +187,35 @@ model FinishedGoods {
 }
 
 model Product {
-  id             String      @id @default(cuid())
+  id             String           @id @default(cuid())
   name           String
-  origin         StockOrigin @default(FACTORY_MADE)
-  uom            String      // KGS or PCS
-  currentStock   Float       @default(0)
-  landingCost    Float?      // Specifically for IMPORTED
+  sku            String?          @unique
+  origin         StockOrigin      @default(FACTORY_MADE)
+  uom            String           // KGS or PCS
+  currentStock   Float            @default(0)
+  unitCost       Float?           // Purchase price per unit
+  landingCost    Float?           // Specifically for IMPORTED (includes duties/freight)
+  vendor         String?          // Supplier / vendor name
   branchId       String?
-  branch         Branch?     @relation(fields: [branchId], references: [id])
-  createdAt      DateTime    @default(now())
-  updatedAt      DateTime    @updatedAt
+  branch         Branch?          @relation(fields: [branchId], references: [id])
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  receipts       ProductReceipt[]
+}
+
+model ProductReceipt {
+  id          String      @id @default(cuid())
+  productId   String
+  product     Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  qtyReceived Float
+  unitCost    Float?
+  landingCost Float?
+  reference   String?     // GRN / Invoice number
+  vendor      String?
+  loggedBy    String?     // User name/email who received the stock
+  branchId    String?
+  branch      Branch?     @relation(fields: [branchId], references: [id])
+  createdAt   DateTime    @default(now())
 }
 
 model InventoryRawMaterial {
@@ -390,6 +409,7 @@ model Branch {
   rawInventories InventoryRawMaterial[]
   finishedInventories InventoryFinishedGoods[]
   receipts       MaterialReceipt[]
+  productReceipts ProductReceipt[]
   // productionOrders ProductionOrder[]
   // finishedGoods  FinishedGoods[]
   // saleOrders     SaleOrder[]
