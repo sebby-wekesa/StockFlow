@@ -14,10 +14,11 @@ export default async function RawmaterialsPage() {
   return (
     <div>
       <div className="section-header mb-16">
-        <div><div className="section-title">Raw materials</div><div className="section-sub">Current stock levels in kg</div></div>
-        <form action={async () => { 'use server'; console.log("Receive stock action bypassed.") }}>
-          <button type="submit" className="btn btn-primary">+ Receive stock</button>
-        </form>
+        <div>
+          <div className="section-title">Raw materials</div>
+          <div className="section-sub">Current stock levels in kg</div>
+        </div>
+        <button className="btn btn-primary">+ Receive stock</button>
       </div>
       <div className="stats-grid mb-24" style={{gridTemplateColumns:'repeat(3,1fr)'}}>
         {materials.map(m => {

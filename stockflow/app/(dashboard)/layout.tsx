@@ -53,7 +53,7 @@ export default async function DashboardLayout({
     MANAGER: ['/dashboard', '/approvals', '/production', '/reports', '/materials'],
     OPERATOR: ['/dashboard'],
     SALES: ['/dashboard', '/sales-catalog'],
-    ADMIN: ['/dashboard', '/approvals', '/production', '/reports', '/materials', '/designs', '/orders', '/departments', '/rawmaterials', '/finishedgoods', '/sales', '/packaging', '/users'],
+    ADMIN: ['/admin', '/dashboard', '/approvals', '/production', '/reports', '/materials', '/designs', '/orders', '/departments', '/rawmaterials', '/finishedgoods', '/sales', '/packaging', '/users'],
     WAREHOUSE: ['/dashboard', '/receive', '/rawmaterials'],
     PACKAGING: ['/dashboard', '/pack_queue', '/pack_done'],
   };
