@@ -41,34 +41,45 @@ export default async function AdminDashboardPage() {
         </div>
       </div>
 
-      <RunwayAlerts inventory={stats.inventory} />
-      <div className="grid-3 mb-6">
-        <div className="stat-card amber">
-          <div className="stat-label">Pending Approvals</div>
-          <div className="stat-value">{stats.pendingOrders}</div>
-          <Link href="/approvals" className="stat-sub hover:underline">
-            View all pending orders →
-          </Link>
+      <div className="card mb-16">
+        <div className="section-header mb-16">
+          <div className="section-title">Alerts</div>
         </div>
-        <div className="stat-card">
-          <div className="stat-label">Total Designs</div>
-          <div className="stat-value">{stats.designs}</div>
-          <Link href="/designs" className="stat-sub hover:underline">
-            Manage design templates →
-          </Link>
-        </div>
-        <div className="stat-card">
-          <div className="stat-label">Total Users</div>
-          <div className="stat-value">{stats.users}</div>
-          <Link href="/users" className="stat-sub hover:underline">
-            Manage users & roles →
-          </Link>
-        </div>
+        <RunwayAlerts inventory={stats.inventory} />
       </div>
-      <div className="stats-grid">
-        <DashboardStatCard label="Total Orders" value={stats.totalOrders} />
-        <DashboardStatCard label="In Production" value={stats.inProduction} color="purple" />
-        <DashboardStatCard label="Completed" value={stats.completed} color="green" />
+
+      <div className="card">
+        <div className="section-header mb-16">
+          <div className="section-title">Key Metrics</div>
+        </div>
+        <div className="grid-3 mb-6">
+          <div className="stat-card amber">
+            <div className="stat-label">Pending Approvals</div>
+            <div className="stat-value">{stats.pendingOrders}</div>
+            <Link href="/approvals" className="stat-sub hover:underline">
+              View all pending orders →
+            </Link>
+          </div>
+          <div className="stat-card">
+            <div className="stat-label">Total Designs</div>
+            <div className="stat-value">{stats.designs}</div>
+            <Link href="/designs" className="stat-sub hover:underline">
+              Manage design templates →
+            </Link>
+          </div>
+          <div className="stat-card">
+            <div className="stat-label">Total Users</div>
+            <div className="stat-value">{stats.users}</div>
+            <Link href="/users" className="stat-sub hover:underline">
+              Manage users & roles →
+            </Link>
+          </div>
+        </div>
+        <div className="stats-grid">
+          <DashboardStatCard label="Total Orders" value={stats.totalOrders} />
+          <DashboardStatCard label="In Production" value={stats.inProduction} color="purple" />
+          <DashboardStatCard label="Completed" value={stats.completed} color="green" />
+        </div>
       </div>
     </div>
   );

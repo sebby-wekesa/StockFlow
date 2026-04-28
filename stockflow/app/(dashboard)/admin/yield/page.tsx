@@ -96,12 +96,14 @@ async function getYieldData() {
 export default async function YieldPage() {
   const data = await getYieldData();
   return (
-    <div className="p-8 bg-[#0f1113] min-h-screen">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-white">Yield Intelligence</h1>
+    <>
+      <div className="section-header">
+        <div>
+          <h1 className="section-title">Yield Intelligence</h1>
+        </div>
         <ExportButtons />
       </div>
       <YieldDashboard data={data} />
-    </div>
+    </>
   );
 }
