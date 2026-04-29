@@ -18,8 +18,12 @@ export default async function DashboardPage() {
       return <SalesDashboard user={user} />
     case 'WAREHOUSE':
       return <WarehouseDashboard user={user} />
+    case 'PACKAGING':
+      return <PackagingDashboard user={user} />
     case 'ADMIN':
+      return <AdminDashboard user={user} />
     case 'MANAGER':
+      return <ManagerDashboard user={user} />
     default:
       return <AdminDashboard user={user} />
   }
@@ -305,6 +309,212 @@ async function WarehouseDashboard({ user }: { user: any }) {
               ))}
             </tbody>
           </table>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// Manager Dashboard - Shows production management overview
+async function ManagerDashboard({ user }: { user: any }) {
+  const data = await import('@/app/actions/dashboard').then(m => m.getDashboardStats(user))
+  const { stats, recentOrders, departmentScrap, throughput } = data
+
+  return (
+    <div>
+      <div className="section-header mb-16">
+        <div>
+          <div className="section-title">Production Management</div>
+          <div className="section-sub">Oversee production orders and department performance</div>
+        </div>
+        <div style={{display: 'flex', gap: '8px'}}>
+          <a href="/manager" className="btn btn-primary">View Approvals</a>
+          <button className="btn btn-ghost">+ New order</button>
+        </div>
+      </div>
+
+      <div className="stats-grid">
+        {stats.map((stat: any, i: number) => (
+          <div key={i} className={`stat-card ${stat.color}`}>
+            <div className="stat-label">{stat.label}</div>
+            <div className="stat-value">
+              {stat.value}{stat.suffix && <span style={{fontSize:'14px',color:'var(--muted)'}}> {stat.suffix}</span>}
+            </div>
+            <div className="stat-sub">{stat.sub}</div>
+          </div>
+        ))}
+      </div>
+
+      <div className="grid-2 mb-16">
+        {recentOrders.length > 0 && (
+          <div className="card">
+            <div className="section-header mb-16">
+              <div className="section-title">Recent production orders</div>
+              <div style={{fontSize:'11px',color:'var(--muted)'}}>Orders requiring attention</div>
+            </div>
+            <div className="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Order</th>
+                    <th>Design</th>
+                    <th>Kg target</th>
+                    <th>Status</th>
+                    <th>Department</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {recentOrders.slice(0, 5).map((order: any) => (
+                    <tr key={order.id}>
+                      <td>
+                        <span style={{fontFamily:'var(--font-mono)',color:'var(--muted)'}}>{order.id}</span>
+                      </td>
+                      <td>{order.design}</td>
+                      <td>
+                        <span className="job-kg">{order.kg} kg</span>
+                      </td>
+                      <td>
+                        <span className={`badge ${
+                          order.status === 'Pending approval' ? 'badge-amber' :
+                          order.status === 'In production' ? 'badge-purple' :
+                          'badge-green'
+                        }`}>
+                          {order.status}
+                        </span>
+                      </td>
+                      <td>{order.dept || '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {departmentScrap.length > 0 && (
+          <div className="card">
+            <div className="section-header mb-16">
+              <div className="section-title">Department performance</div>
+              <div style={{fontSize:'11px',color:'var(--muted)'}}>Scrap rates this week</div>
+            </div>
+            {departmentScrap.slice(0, 4).map((item: any) => {
+              const cls = item.pct > 10 ? 'bad' : item.pct > 5 ? 'warn' : 'good'
+              return (
+                <div key={item.dept} className="scrap-bar-wrap">
+                  <div className="scrap-bar-label">
+                    <span>{item.dept}</span>
+                    <span>{item.kg} kg · {item.pct}%</span>
+                  </div>
+                  <div className="scrap-bar">
+                    <div className={`scrap-bar-fill ${cls}`} style={{width:`${Math.min(item.pct*4, 100)}%`}} />
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+
+      {throughput.length > 0 && (
+        <div className="card">
+          <div className="section-header mb-16">
+            <div className="section-title">Department activity — today</div>
+            <div style={{fontSize:'11px',color:'var(--muted)'}}>Real-time production metrics</div>
+          </div>
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Department</th>
+                  <th>Active jobs</th>
+                  <th>Kg processed</th>
+                  <th>Yield rate</th>
+                  <th>Operators</th>
+                </tr>
+              </thead>
+              <tbody>
+                {throughput.map((dept: any) => (
+                  <tr key={dept.dept}>
+                    <td>{dept.dept}</td>
+                    <td>{dept.jobs}</td>
+                    <td>
+                      <span className="job-kg">{dept.kg} kg</span>
+                    </td>
+                    <td>
+                      <span className={`badge ${
+                        dept.yield < 70 ? 'badge-red' :
+                        dept.yield < 90 ? 'badge-amber' : 'badge-green'
+                      }`}>
+                        {dept.yield}%
+                      </span>
+                    </td>
+                    <td>{dept.ops}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// Packaging Dashboard - Shows packaging operations overview
+async function PackagingDashboard({ user }: { user: any }) {
+  // For now, show basic packaging-focused stats
+  // TODO: Implement proper packaging dashboard data
+  const data = await import('@/app/actions/dashboard').then(m => m.getDashboardStats(user))
+  const { stats } = data
+
+  return (
+    <div>
+      <div className="section-header mb-16">
+        <div>
+          <div className="section-title">Packaging Operations</div>
+          <div className="section-sub">Manage order fulfillment and shipping</div>
+        </div>
+        <div style={{display: 'flex', gap: '8px'}}>
+          <a href="/packaging" className="btn btn-primary">View Packaging Queue</a>
+          <button className="btn btn-ghost">+ New shipment</button>
+        </div>
+      </div>
+
+      <div className="stats-grid">
+        {stats.map((stat: any, i: number) => (
+          <div key={i} className={`stat-card ${stat.color}`}>
+            <div className="stat-label">{stat.label}</div>
+            <div className="stat-value">
+              {stat.value}{stat.suffix && <span style={{fontSize:'14px',color:'var(--muted)'}}> {stat.suffix}</span>}
+            </div>
+            <div className="stat-sub">{stat.sub}</div>
+          </div>
+        ))}
+      </div>
+
+      <div className="grid-2 mb-16">
+        <div className="card">
+          <div className="section-header mb-16">
+            <div className="section-title">Packaging Status</div>
+            <div style={{fontSize:'11px',color:'var(--muted)'}}>Current queue overview</div>
+          </div>
+          <div style={{padding: '20px', textAlign: 'center', color: 'var(--muted)'}}>
+            Packaging queue and shipment tracking will be displayed here.
+            <br />
+            <a href="/packaging" className="btn btn-primary" style={{marginTop: '16px', display: 'inline-block'}}>
+              Go to Packaging Queue
+            </a>
+          </div>
+        </div>
+
+        <div className="card">
+          <div className="section-header mb-16">
+            <div className="section-title">Recent Shipments</div>
+            <div style={{fontSize:'11px',color:'var(--muted)'}}>Orders marked as shipped</div>
+          </div>
+          <div style={{padding: '20px', textAlign: 'center', color: 'var(--muted)'}}>
+            Recent shipment history will be displayed here.
+          </div>
         </div>
       </div>
     </div>

@@ -78,6 +78,8 @@ const roleNavItems: Record<Role, any[]> = {
     { label: "Fulfilled today", href: "/pack_done" },
   ],
   WAREHOUSE: [
+    { section: "Overview" },
+    { label: "Dashboard", href: "/warehouse" },
     { section: "Receiving" },
     { label: "Receive stock", href: "/receive" },
     { label: "Stock levels", href: "/rawmaterials" },

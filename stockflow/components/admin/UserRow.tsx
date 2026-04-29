@@ -73,7 +73,7 @@ export function UserRow({ user }: UserRowProps) {
         <button
           disabled={isPending}
           onClick={handleDelete}
-          className="bg-[#f0c040] hover:bg-[#f5d060] text-black font-bold py-1 px-2 rounded text-xs"
+          className="bg-red-600 hover:bg-red-700 text-white font-bold py-1 px-2 rounded text-xs"
         >
           Delete
         </button>

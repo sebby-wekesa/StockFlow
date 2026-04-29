@@ -9,7 +9,7 @@ export default async function RawmaterialsPage() {
     include: { material: true },
     orderBy: { createdAt: 'desc' },
     take: 20
-  });
+  }).catch(() => []); // Temporary fallback if schema is out of sync
 
   return (
     <div>
