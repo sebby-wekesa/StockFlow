@@ -26,11 +26,3 @@ export default async function SalesLayout({ children }: { children: React.ReactN
 
   return <>{children}</>;
 }
-
-  // Strict check: If not sales or admin, redirect
-  if (profile.role !== 'SALES' && profile.role !== 'ADMIN') {
-    redirect('/unauthorized');
-  }
-
-  return <>{children}</>;
-}

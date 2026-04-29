@@ -91,15 +91,7 @@ export async function deleteUser(userId: string) {
     console.error("Profile delete error:", profileError);
   }
 
-  // Delete from Supabase Auth
-  const { error: authError } = await supabaseAdmin.auth.admin.deleteUser(userId);
-  if (authError) {
-    throw new Error(`Failed to delete from auth: ${authError.message}`);
-  }
-
-  revalidatePath("/admin/users");
-}
-
+  try {
     // Delete from Supabase Auth
     const { error: authError } = await supabaseAdmin.auth.admin.deleteUser(userId);
     if (authError) {
