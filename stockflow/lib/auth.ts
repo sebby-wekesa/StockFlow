@@ -1,12 +1,13 @@
 import { cookies } from "next/headers";
+import type { UserRole } from "./types";
 
-export type Role = "PENDING" | "ADMIN" | "MANAGER" | "OPERATOR" | "SALES" | "PACKAGING" | "WAREHOUSE";
+export type { UserRole as Role };
 
 export type AuthUser = {
   id: string;
   email: string;
   name: string | null;
-  role: Role;
+  role: UserRole;
   department: string | null;
   branchId: string | null;
 };

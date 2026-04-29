@@ -2,95 +2,103 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Role } from "@/lib/auth";
+import type { UserRole } from "@/lib/types";
+import { ROLE_NAMES, ROLE_COLORS } from "@/lib/types";
 import { signOut } from "@/actions/auth";
 
-const roleColors: Record<Role, string> = {
-  PENDING: "var(--muted)",
-  ADMIN: "var(--accent)",
-  MANAGER: "var(--accent)",
-  OPERATOR: "var(--purple)",
-  SALES: "var(--teal)",
-  PACKAGING: "var(--green)",
-  WAREHOUSE: "var(--muted)",
-};
+// Generate role-specific navigation items
+function getRoleNavItems(role: UserRole): any[] {
+  // Common navigation for all roles
+  const commonItems = [
+    { section: "Account" },
+    { label: "Profile", href: "/profile" },
+    { label: "Settings", href: "/settings" },
+  ];
 
-const roleNames: Record<Role, string> = {
-  PENDING: "Pending Approval",
-  ADMIN: "Admin / Owner",
-  MANAGER: "Production Manager",
-  OPERATOR: "Operator — Cutting",
-  SALES: "Sales Team",
-  PACKAGING: "Packaging Team",
-  WAREHOUSE: "Warehouse Team",
-};
+  // Role-specific navigation
+  switch (role) {
+    case 'PENDING':
+      return [
+        { section: "Account Setup" },
+        { label: "Complete profile", href: "/profile" },
+      ];
 
-const roleNavItems: Record<Role, any[]> = {
-  PENDING: [
-    { section: "Account Setup" },
-    { label: "Complete profile", href: "/profile" },
-  ],
-  ADMIN: [
-    { section: "Overview" },
-    { label: "Dashboard", href: "/dashboard" },
-    { section: "Production" },
-    { label: "Design templates", href: "/designs" },
-    { label: "Production orders", href: "/orders", badge: "4" },
-    { label: "Departments", href: "/departments" },
-    { section: "Inventory" },
-    { label: "Raw materials", href: "/rawmaterials" },
-    { label: "Finished goods", href: "/finishedgoods" },
-    { section: "Sales" },
-    { label: "Sales orders", href: "/sales", badge: "2" },
-    { label: "Packaging queue", href: "/packaging" },
-    { section: "Settings" },
-    { label: "Users & roles", href: "/admin/users" },
-  ],
-  MANAGER: [
-    { section: "Overview" },
-    { label: "Dashboard", href: "/manager_dash" },
-    { section: "Approvals" },
-    { label: "Order approvals", href: "/approvals", badge: "3", badgeColor: "red" },
-    { section: "Production" },
-    { label: "All orders", href: "/orders" },
-    { label: "Dept queues", href: "/departments" },
-    { section: "Reports" },
-    { label: "Scrap report", href: "/scrap" },
-    { label: "Raw materials", href: "/rawmaterials" },
-  ],
-  OPERATOR: [
-    { section: "My Work" },
-    { label: "Job queue", href: "/operator_queue", badge: "3", badgeColor: "purple" },
-    { label: "Log output", href: "/operator_log" },
-    { section: "History" },
-    { label: "Completed jobs", href: "/operator_history" },
-  ],
-  SALES: [
-    { section: "Catalogue" },
-    { label: "Available stock", href: "/catalogue" },
-    { label: "Place order", href: "/place_order" },
-    { section: "My Orders" },
-    { label: "Order history", href: "/my_orders" },
-  ],
-  PACKAGING: [
-    { section: "Fulfilment" },
-    { label: "Pending orders", href: "/pack_queue", badge: "5", badgeColor: "purple" },
-    { label: "Fulfilled today", href: "/pack_done" },
-  ],
-  WAREHOUSE: [
-    { section: "Overview" },
-    { label: "Dashboard", href: "/warehouse" },
-    { section: "Receiving" },
-    { label: "Receive stock", href: "/receive" },
-    { label: "Stock levels", href: "/rawmaterials" },
-  ],
-};
+    case 'ADMIN':
+      return [
+        { section: "Overview" },
+        { label: "Dashboard", href: "/dashboard" },
+        { section: "Production" },
+        { label: "Design templates", href: "/designs" },
+        { label: "Production orders", href: "/orders", badge: "4" },
+        { label: "Departments", href: "/departments" },
+        { section: "Inventory" },
+        { label: "Raw materials", href: "/rawmaterials" },
+        { label: "Finished goods", href: "/finishedgoods" },
+        { section: "Sales" },
+        { label: "Sales orders", href: "/sales", badge: "2" },
+        { label: "Packaging queue", href: "/packaging" },
+        { section: "Settings" },
+        { label: "Users & roles", href: "/admin/users" },
+      ];
 
-export function Sidebar({ user }: { user: { role: Role, name: string } }) {
+    case 'MANAGER':
+      return [
+        { section: "Overview" },
+        { label: "Dashboard", href: "/dashboard" },
+        { section: "Approvals" },
+        { label: "Order approvals", href: "/approvals", badge: "3", badgeColor: "red" },
+        { section: "Production" },
+        { label: "All orders", href: "/orders" },
+        { label: "Dept queues", href: "/departments" },
+        { section: "Reports" },
+        { label: "Scrap report", href: "/scrap" },
+        { label: "Raw materials", href: "/rawmaterials" },
+      ];
+
+    case 'OPERATOR':
+      return [
+        { section: "My Work" },
+        { label: "Job queue", href: "/operator_queue", badge: "3", badgeColor: "purple" },
+        { label: "Log output", href: "/operator_log" },
+        { section: "History" },
+        { label: "Completed jobs", href: "/operator_history" },
+      ];
+
+    case 'SALES':
+      return [
+        { section: "Catalogue" },
+        { label: "Available stock", href: "/catalogue" },
+        { label: "Place order", href: "/place_order" },
+        { section: "My Orders" },
+        { label: "Order history", href: "/my_orders" },
+      ];
+
+    case 'PACKAGING':
+      return [
+        { section: "Fulfilment" },
+        { label: "Pending orders", href: "/packaging", badge: "5", badgeColor: "purple" },
+        { label: "Fulfilled today", href: "/pack_done" },
+      ];
+
+    case 'WAREHOUSE':
+      return [
+        { section: "Overview" },
+        { label: "Dashboard", href: "/dashboard" },
+        { section: "Receiving" },
+        { label: "Receive stock", href: "/receive" },
+        { label: "Stock levels", href: "/rawmaterials" },
+      ];
+
+    default:
+      return commonItems;
+  }
+}
+
+export function Sidebar({ user }: { user: { role: UserRole, name: string } }) {
   const pathname = usePathname();
-  const navItems = roleNavItems[user.role];
-  const roleColor = roleColors[user.role];
-  const roleNameDisplay = roleNames[user.role];
+  const navItems = getRoleNavItems(user.role);
+  const roleColor = ROLE_COLORS[user.role];
+  const roleNameDisplay = ROLE_NAMES[user.role];
 
   return (
     <div className="sidebar">

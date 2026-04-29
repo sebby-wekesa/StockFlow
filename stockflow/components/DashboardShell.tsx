@@ -20,6 +20,28 @@ export function DashboardShell({
     setPreviewRole(role);
   }, [role]);
 
+  const handleRoleSwitch = async (newRole: Role) => {
+    try {
+      // Update the DB so the server-side checks pass
+      const response = await fetch('/api/user/update-role', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role: newRole }),
+      });
+
+      if (response.ok) {
+        // Update the preview role immediately
+        setPreviewRole(newRole);
+        // Hard refresh to trigger the Middleware/Layout guards again
+        window.location.reload();
+      } else {
+        console.error('Failed to update role');
+      }
+    } catch (error) {
+      console.error('Role switch error:', error);
+    }
+  };
+
   return (
     <ToastProvider>
       <div className="app">
@@ -31,7 +53,7 @@ export function DashboardShell({
               {role === "ADMIN" && (
                 <button
                   className={`role-btn ${previewRole === "ADMIN" ? "active" : ""}`}
-                  onClick={() => setPreviewRole("ADMIN")}
+                  onClick={() => handleRoleSwitch("ADMIN")}
                 >
                   Admin
                 </button>
@@ -39,7 +61,7 @@ export function DashboardShell({
               {role === "MANAGER" && (
                 <button
                   className={`role-btn ${previewRole === "MANAGER" ? "active" : ""}`}
-                  onClick={() => setPreviewRole("MANAGER")}
+                  onClick={() => handleRoleSwitch("MANAGER")}
                 >
                   Manager
                 </button>
@@ -47,7 +69,7 @@ export function DashboardShell({
               {role === "OPERATOR" && (
                 <button
                   className={`role-btn ${previewRole === "OPERATOR" ? "active" : ""}`}
-                  onClick={() => setPreviewRole("OPERATOR")}
+                  onClick={() => handleRoleSwitch("OPERATOR")}
                 >
                   Operator
                 </button>
@@ -55,7 +77,7 @@ export function DashboardShell({
               {role === "SALES" && (
                 <button
                   className={`role-btn ${previewRole === "SALES" ? "active" : ""}`}
-                  onClick={() => setPreviewRole("SALES")}
+                  onClick={() => handleRoleSwitch("SALES")}
                 >
                   Sales
                 </button>
@@ -63,7 +85,7 @@ export function DashboardShell({
               {role === "PACKAGING" && (
                 <button
                   className={`role-btn ${previewRole === "PACKAGING" ? "active" : ""}`}
-                  onClick={() => setPreviewRole("PACKAGING")}
+                  onClick={() => handleRoleSwitch("PACKAGING")}
                 >
                   Packaging
                 </button>
@@ -71,7 +93,7 @@ export function DashboardShell({
               {role === "WAREHOUSE" && (
                 <button
                   className={`role-btn ${previewRole === "WAREHOUSE" ? "active" : ""}`}
-                  onClick={() => setPreviewRole("WAREHOUSE")}
+                  onClick={() => handleRoleSwitch("WAREHOUSE")}
                 >
                   Warehouse
                 </button>

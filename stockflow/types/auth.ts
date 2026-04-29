@@ -1,11 +1,6 @@
-export type UserRole =
-  | 'PENDING'
-  | 'ADMIN'
-  | 'MANAGER'
-  | 'OPERATOR'
-  | 'WAREHOUSE'
-  | 'SALES'
-  | 'PACKAGING';
+import type { UserRole } from "@/lib/types";
+
+export type { UserRole };
 
 export interface UserProfile {
   id: string;

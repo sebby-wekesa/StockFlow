@@ -1,14 +1,6 @@
-import { RoleGuard } from "@/components/RoleGuard";
-import ManagerContent from "./ManagerContent";
+import { getManagerData, approveOrder } from '@/app/actions/dashboard'
 
-export default function ManagerDashboardPage() {
-  return (
-    <RoleGuard allowedRoles={['MANAGER', 'ADMIN']}>
-      <ManagerContent />
-    </RoleGuard>
-  );
-}
-
+export default async function ManagerContent() {
   const { pendingApprovals, activeProduction, scrapAlerts, totalActiveOrders, totalTonnage, pendingCount } = await getManagerData()
 
   return (
