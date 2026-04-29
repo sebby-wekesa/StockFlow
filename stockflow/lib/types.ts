@@ -3,10 +3,10 @@ export type UserRole = 'PENDING' | 'ADMIN' | 'MANAGER' | 'OPERATOR' | 'SALES' | 
 
 export const ROLE_PATHS: Record<UserRole, string> = {
   PENDING: '/dashboard',
-  ADMIN: '/admin/dashboard',
+  ADMIN: '/admin',
   MANAGER: '/manager',
   OPERATOR: '/operator',
-  SALES: '/operator/queue',
+  SALES: '/sales',
   PACKAGING: '/packaging',
   WAREHOUSE: '/warehouse',
 };

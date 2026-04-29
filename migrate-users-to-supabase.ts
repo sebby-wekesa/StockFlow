@@ -1,8 +1,11 @@
 // Migration script to move Prisma users to Supabase profiles
 // Run this once to migrate existing user data
 
-import { prisma } from '../lib/prisma';
-import { supabaseAdmin } from '../lib/supabase-admin';
+import { config } from 'dotenv';
+config({ path: './stockflow/.env' });
+
+import { prisma } from './stockflow/lib/prisma';
+import { supabaseAdmin } from './stockflow/lib/supabase-admin';
 
 async function migrateUsersToSupabase() {
   try {

@@ -59,7 +59,7 @@ export async function proxy(request: NextRequest) {
   } = await supabase.auth.getUser()
 
   if (user) {
-    const userRole = user.user_metadata?.role;
+    const userRole = request.cookies.get('user-role')?.value;
 
     // Define role-specific protected paths
     const roleProtections: Record<string, string[]> = {
@@ -79,6 +79,14 @@ export async function proxy(request: NextRequest) {
           return NextResponse.redirect(new URL(redirectPath, request.url));
         }
         break;
+      }
+    }
+
+    // Redirect /dashboard to role-specific page
+    if (request.nextUrl.pathname === '/dashboard' && userRole && userRole !== 'PENDING') {
+      const rolePath = ROLE_PATHS[userRole as keyof typeof ROLE_PATHS];
+      if (rolePath && rolePath !== '/dashboard') {
+        return NextResponse.redirect(new URL(rolePath, request.url));
       }
     }
 

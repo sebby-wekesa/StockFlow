@@ -21,6 +21,10 @@ export async function signIn(formData: FormData) {
   const email = formData.get("email") as string;
   const password = formData.get("password") as string;
 
+  // Debug: Check if environment variables are loading
+  console.log("URL:", process.env.NEXT_PUBLIC_SUPABASE_URL); // Check if this is undefined
+  console.log("KEY:", process.env.SUPABASE_SERVICE_ROLE_KEY ? "Loaded" : "Missing");
+
   // Validate input
   const validation = loginSchema.safeParse({ email, password });
 

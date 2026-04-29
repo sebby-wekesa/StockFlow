@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
-import { prisma } from '@/lib/prisma';
+import { cookies } from 'next/headers';
 import { getUser } from '@/lib/auth';
 import { Sidebar } from "@/components/Sidebar";
 
@@ -7,13 +7,9 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const user = await getUser();
   if (!user) redirect('/login');
 
-  // 1. Fetch the actual role from the database
-  const profile = await prisma.profile.findUnique({
-    where: { id: user.id },
-    select: { role: true, department: true }
-  });
-
-  const role = profile?.role; // 'SALES', 'PACKAGING', etc.
+  // 1. Get the role from the cookie set by auth
+  const cookieStore = await cookies();
+  const role = cookieStore.get('user-role')?.value;
 
   if (role === 'PENDING') {
     return (
