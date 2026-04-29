@@ -108,7 +108,6 @@ export async function signUp(formData: FormData) {
   const email = formData.get("email") as string;
   const password = formData.get("password") as string;
   const name = formData.get("name") as string;
-  const department = formData.get("department") as string;
 
   if (!email || !password) {
     return { error: "Email and password are required" };
@@ -149,7 +148,6 @@ export async function signUp(formData: FormData) {
         email,
         password: storedHash,
         name: name || undefined,
-        department: department || undefined,
         role: "PENDING",
       },
     });

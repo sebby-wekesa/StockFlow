@@ -87,21 +87,7 @@ export default function LoginPage() {
                 />
               </div>
 
-              <div className="form-group" style={{ marginBottom: '16px' }}>
-                <label className="form-label">Department</label>
-                <select name="department" className="form-input" required>
-                  <option value="">Select a department...</option>
-                  <option value="Cutting">Cutting</option>
-                  <option value="Forging">Forging</option>
-                  <option value="Threading">Threading</option>
-                  <option value="Electroplating">Electroplating</option>
-                  <option value="Grinding">Grinding</option>
-                  <option value="Drilling">Drilling</option>
-                  <option value="Locking">Locking</option>
-                  <option value="Chamfering">Chamfering</option>
-                  <option value="Skimming">Skimming</option>
-                </select>
-              </div>
+
             </>
           )}
 

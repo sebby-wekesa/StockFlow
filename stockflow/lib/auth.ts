@@ -49,3 +49,8 @@ export async function requireRole(...roles: Role[]): Promise<AuthUser> {
   }
   return user;
 }
+
+export async function checkRole(user: AuthUser | null, ...roles: Role[]): Promise<boolean> {
+  if (!user) return false;
+  return roles.includes(user.role);
+}

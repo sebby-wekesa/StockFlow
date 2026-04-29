@@ -1,17 +1,15 @@
-import { RoleGuard } from "@/components/RoleGuard";
-import OperatorDashboard from "./OperatorDashboard";
+"use client";
 
-export default function OperatorPage() {
-  return (
-    <RoleGuard allowedRoles={['OPERATOR', 'ADMIN']}>
-      <OperatorDashboard />
-    </RoleGuard>
-  );
-}
+import { useState, useEffect } from "react";
+import { getOperatorData } from "./actions";
+import { DepartmentQueue } from "@/components/DepartmentQueue";
+import { Factory, Terminal, Activity, Info } from "lucide-react";
+
+export default function OperatorDashboard() {
   const [designs, setDesigns] = useState<any[]>([]);
-  
+
   // In a real scenario, this comes from the logged-in user's profile
-  const userDept = "Cutting"; 
+  const userDept = "Cutting";
 
   useEffect(() => {
     const fetchData = async () => {
@@ -25,7 +23,7 @@ export default function OperatorPage() {
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-      
+
       {/* ── Terminal Header ── */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-[#161719] border border-[#2a2d32] rounded-2xl p-6 shadow-sm">
         <div className="flex items-center gap-4">
@@ -41,7 +39,7 @@ export default function OperatorPage() {
             </p>
           </div>
         </div>
-        
+
         <div className="flex items-center gap-3">
           <div className="px-4 py-2 bg-[#1e2023] rounded-lg border border-[#353a40] flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
@@ -89,7 +87,7 @@ export default function OperatorPage() {
             <p className="text-sm text-[#7a8090]">Orders currently staged for {userDept}</p>
           </div>
         </div>
-        
+
         <div className="p-6">
           <DepartmentQueue userDept={userDept} />
         </div>
@@ -103,7 +101,7 @@ export default function OperatorPage() {
         <div>
           <h4 className="text-sm font-bold text-blue-400 mb-1">Station Tip</h4>
           <p className="text-xs text-blue-300/80 leading-relaxed">
-            Ensure all material weights are logged before completing a stage. Accurate &ldquo;Kg Out&rdquo; values 
+            Ensure all material weights are logged before completing a stage. Accurate &ldquo;Kg Out&rdquo; values
             automatically update the target weight for the next department in the sequence.
           </p>
         </div>
