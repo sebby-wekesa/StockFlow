@@ -94,11 +94,11 @@ function getRoleNavItems(role: UserRole): any[] {
   }
 }
 
-export function Sidebar({ user }: { user: { role: UserRole, name: string } }) {
+export function Sidebar({ role }: { role: UserRole }) {
   const pathname = usePathname();
-  const navItems = getRoleNavItems(user.role);
-  const roleColor = ROLE_COLORS[user.role];
-  const roleNameDisplay = ROLE_NAMES[user.role];
+  const navItems = getRoleNavItems(role);
+  const roleColor = ROLE_COLORS[role];
+  const roleNameDisplay = ROLE_NAMES[role];
 
   return (
     <div className="sidebar">

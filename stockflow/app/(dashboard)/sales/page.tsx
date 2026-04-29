@@ -58,7 +58,7 @@ export default async function SalesPage() {
   ]);
 
   return (
-    <div className="space-y-8">
+    <main className="space-y-8">
       {/* Header Section */}
       <div className="bg-gradient-to-r from-surface to-surface2 border border-border rounded-2xl p-8">
         <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-8">
@@ -124,6 +124,6 @@ export default async function SalesPage() {
 
       {/* Catalogue Component */}
       <SalesCatalogue products={stock} />
-    </div>
+    </main>
   );
 }

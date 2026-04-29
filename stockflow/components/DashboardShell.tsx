@@ -7,12 +7,13 @@ import { Role } from "@/lib/auth";
 
 export function DashboardShell({
   user,
+  role,
   children,
 }: {
   user: any;
+  role: Role;
   children: React.ReactNode;
 }) {
-  const role = user.role as Role;
   const [previewRole, setPreviewRole] = useState<Role>(role);
 
   // Handle role switching (for preview purposes)
@@ -45,7 +46,7 @@ export function DashboardShell({
   return (
     <ToastProvider>
       <div className="app">
-        <Sidebar user={{ role: previewRole, name: user.name || '' }} />
+        <Sidebar role={previewRole} />
         <div className="main">
           <div className="topbar">
             <span style={{fontSize:'11px', color:'var(--muted)', textTransform:'uppercase', letterSpacing:'1px'}}>Preview role:</span>
