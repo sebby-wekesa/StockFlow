@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Sidebar } from "@/components/Sidebar";
 import { ToastProvider } from "@/components/Toast";
 import { Role } from "@/lib/auth";
@@ -14,33 +15,20 @@ export function DashboardShell({
   role: Role;
   children: React.ReactNode;
 }) {
-  const [previewRole, setPreviewRole] = useState<Role>(role);
+  const searchParams = useSearchParams();
+  const previewRoleParam = searchParams.get('previewRole') as Role;
+  const [previewRole, setPreviewRole] = useState<Role>(previewRoleParam || role);
 
   // Handle role switching (for preview purposes)
   useEffect(() => {
-    setPreviewRole(role);
-  }, [role]);
+    setPreviewRole(previewRoleParam || role);
+  }, [role, previewRoleParam]);
 
-  const handleRoleSwitch = async (newRole: Role) => {
-    try {
-      // Update the DB so the server-side checks pass
-      const response = await fetch('/api/user/update-role', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ role: newRole }),
-      });
-
-      if (response.ok) {
-        // Update the preview role immediately
-        setPreviewRole(newRole);
-        // Hard refresh to trigger the Middleware/Layout guards again
-        window.location.reload();
-      } else {
-        console.error('Failed to update role');
-      }
-    } catch (error) {
-      console.error('Role switch error:', error);
-    }
+  const handleRoleSwitch = (newRole: Role) => {
+    // Update URL with preview role
+    const url = new URL(window.location.href);
+    url.searchParams.set('previewRole', newRole);
+    window.location.href = url.toString();
   };
 
   return (

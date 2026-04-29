@@ -80,11 +80,12 @@ export async function createSalesOrder(data: {
   });
 }
 
-export async function getSalesOrders() {
+export async function getSalesOrders(role?: string) {
   const user = await requireAuth();
+  const effectiveRole = role || user.role;
 
   // Sales staff see their own orders, admins/managers see all
-  const whereClause = user.role === 'SALES'
+  const whereClause = effectiveRole === 'SALES'
     ? { /* Would need user relation - for now show all */ }
     : {};
 

@@ -43,18 +43,19 @@ function toNumber(value: Prisma.Decimal | number | null | undefined) {
   return value?.toNumber() ?? 0;
 }
 
-export async function getDashboardStats(user?: AuthUser) {
+export async function getDashboardStats(user?: AuthUser, role?: Role) {
   const authUser = user || await requireAuth();
+  const effectiveRole = role || authUser.role;
   const now = new Date();
   const weekStart = startOfWeek(now);
   const todayStart = startOfDay(now);
 
   // Role-based data filtering
-  const isAdmin = authUser.role === "ADMIN";
-  const isManager = authUser.role === "MANAGER";
-  const isOperator = authUser.role === "OPERATOR";
-  const isWarehouse = authUser.role === "WAREHOUSE";
-  const isSales = authUser.role === "SALES";
+  const isAdmin = effectiveRole === "ADMIN";
+  const isManager = effectiveRole === "MANAGER";
+  const isOperator = effectiveRole === "OPERATOR";
+  const isWarehouse = effectiveRole === "WAREHOUSE";
+  const isSales = effectiveRole === "SALES";
 
   // 1. Raw Material Stock - Everyone can see, but Warehouse sees more detail
   let materials: RawMaterial[] = []

@@ -1,36 +1,22 @@
 import { requireAuth } from '@/lib/auth'
 import { Role } from '@/lib/auth'
 import { RawMaterial } from '@prisma/client'
+import { TeamRole } from '@/lib/proxy'
 
 
 export const dynamic = 'force-dynamic'
 
-export default async function DashboardPage() {
+export default async function DashboardPage({ searchParams }: { searchParams: { previewRole?: string } }) {
   const user = await requireAuth()
 
-  // Route to role-specific dashboard components
-  switch (user.role) {
-    case 'PENDING':
-      return <PendingDashboard user={user} />
-    case 'OPERATOR':
-      return <OperatorDashboard user={user} />
-    case 'SALES':
-      return <SalesDashboard user={user} />
-    case 'WAREHOUSE':
-      return <WarehouseDashboard user={user} />
-    case 'PACKAGING':
-      return <PackagingDashboard user={user} />
-    case 'ADMIN':
-      return <AdminDashboard user={user} />
-    case 'MANAGER':
-      return <ManagerDashboard user={user} />
-    default:
-      return <AdminDashboard user={user} />
-  }
+  // Use previewRole from URL if present, else user role
+  const effectiveRole = (searchParams.previewRole || user.role).toUpperCase() as Role;
+  const role = effectiveRole.toLowerCase() as TeamRole;
+  return <TeamDashboard role={role} user={user} />
 }
 
 // Pending Dashboard - Shows pending approval message
-function PendingDashboard({ user }: { user: any }) {
+function PendingView({ user }: { user: any }) {
   return (
     <div className="space-y-8">
       <div className="card">
@@ -58,10 +44,10 @@ function PendingDashboard({ user }: { user: any }) {
 }
 
 // Operator Dashboard - Shows "My jobs" and "History"
-async function OperatorDashboard({ user }: { user: any }) {
+async function OperatorQueue({ user, role }: { user: any; role: TeamRole }) {
   // Import the existing operator components
   const { getOperatorQueue } = await import('@/app/actions/production')
-  const orders = await getOperatorQueue()
+  const orders = await getOperatorQueue(role.toUpperCase(), user.department)
 
   const { getOperatorHistory } = await import('@/app/actions/production')
   const history = await getOperatorHistory()
@@ -154,13 +140,13 @@ async function OperatorDashboard({ user }: { user: any }) {
 }
 
 // Sales Dashboard - Shows "Catalogue" and "My Orders"
-async function SalesDashboard({ user }: { user: any }) {
+async function SalesView({ user, role }: { user: any; role: TeamRole }) {
   // Import sales-specific data
   const { getCatalogue } = await import('@/app/actions/sales')
   const { getSalesOrders } = await import('@/app/actions/sales-orders')
 
   const products = await getCatalogue()
-  const orders = await getSalesOrders()
+  const orders = await getSalesOrders(role.toUpperCase())
 
   return (
     <div>
@@ -251,7 +237,7 @@ async function SalesDashboard({ user }: { user: any }) {
 }
 
 // Warehouse Dashboard - Shows inventory and receiving
-async function WarehouseDashboard({ user }: { user: any }) {
+async function WarehouseView({ user }: { user: any }) {
   const { prisma } = await import('@/lib/prisma')
 
   // Initialize with the specific Prisma type
@@ -316,8 +302,8 @@ async function WarehouseDashboard({ user }: { user: any }) {
 }
 
 // Manager Dashboard - Shows production management overview
-async function ManagerDashboard({ user }: { user: any }) {
-  const data = await import('@/app/actions/dashboard').then(m => m.getDashboardStats(user))
+async function ManagerOverview({ user, role }: { user: any; role: TeamRole }) {
+  const data = await import('@/app/actions/dashboard').then(m => m.getDashboardStats(user, role.toUpperCase() as Role))
   const { stats, recentOrders, departmentScrap, throughput } = data
 
   return (
@@ -460,11 +446,31 @@ async function ManagerDashboard({ user }: { user: any }) {
   )
 }
 
+// TeamDashboard component - switches views based on role
+const TeamDashboard = ({ role, user }: { role: TeamRole; user: any }) => {
+  switch (role) {
+    case 'sales':
+      return <SalesView user={user} role={role} />;
+    case 'packaging':
+      return <PackagingView user={user} role={role} />;
+    case 'warehouse':
+      return <WarehouseView user={user} role={role} />;
+    case 'manager':
+      return <ManagerOverview user={user} role={role} />;
+    case 'operator':
+      return <OperatorQueue user={user} role={role} />;
+    case 'admin':
+      return <AdminView user={user} role={role} />;
+    default:
+      return <AdminView user={user} role={role} />;
+  }
+};
+
 // Packaging Dashboard - Shows packaging operations overview
-async function PackagingDashboard({ user }: { user: any }) {
+async function PackagingView({ user, role }: { user: any; role: TeamRole }) {
   // For now, show basic packaging-focused stats
   // TODO: Implement proper packaging dashboard data
-  const data = await import('@/app/actions/dashboard').then(m => m.getDashboardStats(user))
+  const data = await import('@/app/actions/dashboard').then(m => m.getDashboardStats(user, role.toUpperCase() as Role))
   const { stats } = data
 
   return (
@@ -522,8 +528,8 @@ async function PackagingDashboard({ user }: { user: any }) {
 }
 
 // Admin Dashboard - Shows the full overview
-async function AdminDashboard({ user }: { user: any }) {
-  const data = await import('@/app/actions/dashboard').then(m => m.getDashboardStats(user))
+async function AdminView({ user, role }: { user: any; role: TeamRole }) {
+  const data = await import('@/app/actions/dashboard').then(m => m.getDashboardStats(user, role.toUpperCase() as Role))
   const { stats, recentOrders, departmentScrap, throughput } = data
 
   return (

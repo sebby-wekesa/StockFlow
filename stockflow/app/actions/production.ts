@@ -4,20 +4,20 @@ import { revalidatePath } from 'next/cache';
 import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth";
 
-export async function getOperatorQueue() {
+export async function getOperatorQueue(role?: string, department?: string) {
   const user = await requireAuth();
+  const effectiveRole = role || user.role;
+  const effectiveDept = department || user.department;
 
   // If user is ADMIN or MANAGER, they see all queues.
   // If OPERATOR, they see their department's queue.
-  const department = user.department;
-
   let orders: any[] = []
   try {
     orders = await prisma.productionOrder.findMany({
       where: {
         status: "IN_PRODUCTION",
-        ...(user.role === "OPERATOR" && department ? { currentDept: department } : {}),
-        ...(user.role !== "ADMIN" && user.branchId ? { branchId: user.branchId } : {}),
+        ...(effectiveRole === "OPERATOR" && effectiveDept ? { currentDept: effectiveDept } : {}),
+        ...(effectiveRole !== "ADMIN" && user.branchId ? { branchId: user.branchId } : {}),
       },
       include: {
         design: {

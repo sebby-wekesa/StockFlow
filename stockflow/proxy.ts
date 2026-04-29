@@ -2,6 +2,8 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 import { ROLE_PATHS } from '@/lib/types'
 
+export type TeamRole = 'admin' | 'manager' | 'operator' | 'packaging' | 'warehouse' | 'sales';
+
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
