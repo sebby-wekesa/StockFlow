@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { SalesCatalogue } from "@/components/sales/SalesCatalogue";
+import { Package, TrendingUp, DollarSign } from "lucide-react";
 
 async function getAvailableStock() {
   // Fetch finished goods with available quantity
@@ -59,32 +60,64 @@ export default async function SalesPage() {
   return (
     <div className="space-y-8">
       {/* Header Section */}
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
-        <div>
-          <h1 className="text-3xl font-bold text-white font-head tracking-tight">
-            Sales Catalogue
-          </h1>
-          <p className="text-muted mt-2 text-sm">
-            Manage your product inventory and sales operations
-          </p>
-        </div>
+      <div className="bg-gradient-to-r from-surface to-surface2 border border-border rounded-2xl p-8">
+        <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-8">
+          <div className="space-y-3">
+            <div className="flex items-center gap-3">
+              <div className="p-3 bg-accent/10 rounded-xl">
+                <Package className="text-accent" size={24} />
+              </div>
+              <div>
+                <h1 className="text-3xl font-bold text-white font-head tracking-tight">
+                  Sales Catalogue
+                </h1>
+                <p className="text-muted mt-1 text-sm">
+                  Browse and manage your product inventory for sales operations
+                </p>
+              </div>
+            </div>
+          </div>
 
-        {/* Stats Cards */}
-        <div className="flex gap-4">
-          <div className="stat-card teal">
-            <div className="stat-label">Total Products</div>
-            <div className="stat-value">{stats.totalProducts}</div>
-            <div className="stat-sub">Available for sale</div>
-          </div>
-          <div className="stat-card blue">
-            <div className="stat-label">Total Stock</div>
-            <div className="stat-value">{stats.totalStock.toLocaleString()}</div>
-            <div className="stat-sub">Units in inventory</div>
-          </div>
-          <div className="stat-card purple">
-            <div className="stat-label">Total Weight</div>
-            <div className="stat-value">{stats.totalKgProduced.toLocaleString()}</div>
-            <div className="stat-sub">Kg produced</div>
+          {/* Enhanced Stats Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 xl:min-w-[400px]">
+            <div className="bg-surface border border-border rounded-xl p-5 hover:border-teal/30 transition-all duration-200">
+              <div className="flex items-center justify-between mb-3">
+                <div className="p-2 bg-teal/10 rounded-lg">
+                  <Package className="text-teal" size={16} />
+                </div>
+                <span className="text-xs text-muted uppercase tracking-wider">Products</span>
+              </div>
+              <div className="text-2xl font-bold font-head text-teal mb-1">
+                {stats.totalProducts.toLocaleString()}
+              </div>
+              <div className="text-xs text-muted">Available for sale</div>
+            </div>
+
+            <div className="bg-surface border border-border rounded-xl p-5 hover:border-blue/30 transition-all duration-200">
+              <div className="flex items-center justify-between mb-3">
+                <div className="p-2 bg-blue/10 rounded-lg">
+                  <TrendingUp className="text-blue" size={16} />
+                </div>
+                <span className="text-xs text-muted uppercase tracking-wider">Stock</span>
+              </div>
+              <div className="text-2xl font-bold font-head text-blue mb-1">
+                {stats.totalStock.toLocaleString()}
+              </div>
+              <div className="text-xs text-muted">Units in inventory</div>
+            </div>
+
+            <div className="bg-surface border border-border rounded-xl p-5 hover:border-purple/30 transition-all duration-200">
+              <div className="flex items-center justify-between mb-3">
+                <div className="p-2 bg-purple/10 rounded-lg">
+                  <DollarSign className="text-purple" size={16} />
+                </div>
+                <span className="text-xs text-muted uppercase tracking-wider">Weight</span>
+              </div>
+              <div className="text-2xl font-bold font-head text-purple mb-1">
+                {stats.totalKgProduced.toLocaleString()}
+              </div>
+              <div className="text-xs text-muted">Kg produced</div>
+            </div>
           </div>
         </div>
       </div>

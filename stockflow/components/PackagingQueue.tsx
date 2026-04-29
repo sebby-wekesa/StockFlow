@@ -85,10 +85,10 @@ export function PackagingQueue({ orders: initialOrders }: PackagingQueueProps) {
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center gap-2">
-                <Package className="h-5 w-5 text-blue-600" />
+                <Package className="h-5 w-5 text-[#4a9eff]" />
                 <div>
-                  <p className="text-sm text-gray-600">Pending Orders</p>
-                  <p className="text-2xl font-bold">{stats.pendingOrders}</p>
+                  <p className="text-sm text-[#7a8090]">Pending Orders</p>
+                  <p className="text-2xl font-bold text-[#e8eaed]">{stats.pendingOrders}</p>
                 </div>
               </div>
             </CardContent>
@@ -97,10 +97,10 @@ export function PackagingQueue({ orders: initialOrders }: PackagingQueueProps) {
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center gap-2">
-                <Truck className="h-5 w-5 text-green-600" />
+                <Truck className="h-5 w-5 text-[#2ec4a0]" />
                 <div>
-                  <p className="text-sm text-gray-600">Shipped Today</p>
-                  <p className="text-2xl font-bold">{stats.shippedToday}</p>
+                  <p className="text-sm text-[#7a8090]">Shipped Today</p>
+                  <p className="text-2xl font-bold text-[#e8eaed]">{stats.shippedToday}</p>
                 </div>
               </div>
             </CardContent>
@@ -109,10 +109,10 @@ export function PackagingQueue({ orders: initialOrders }: PackagingQueueProps) {
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center gap-2">
-                <CheckCircle className="h-5 w-5 text-purple-600" />
+                <CheckCircle className="h-5 w-5 text-[#8b7cf8]" />
                 <div>
-                  <p className="text-sm text-gray-600">Weekly Revenue</p>
-                  <p className="text-2xl font-bold">${stats.weeklyRevenue.toFixed(2)}</p>
+                  <p className="text-sm text-[#7a8090]">Weekly Revenue</p>
+                  <p className="text-2xl font-bold text-[#e8eaed]">${stats.weeklyRevenue.toFixed(2)}</p>
                 </div>
               </div>
             </CardContent>
@@ -134,25 +134,25 @@ export function PackagingQueue({ orders: initialOrders }: PackagingQueueProps) {
         <CardContent>
           {orders.length === 0 ? (
             <div className="text-center py-8">
-              <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-500">No orders ready for packaging</p>
-              <p className="text-sm text-gray-400 mt-1">Orders will appear here when all items are available</p>
+              <Package className="h-12 w-12 text-[#7a8090] mx-auto mb-4" />
+              <p className="text-[#7a8090]">No orders ready for packaging</p>
+              <p className="text-sm text-[#7a8090] mt-1">Orders will appear here when all items are available</p>
             </div>
           ) : (
             <div className="space-y-4">
               {orders.map((order) => (
-                <div key={order.id} className="border rounded-lg p-4">
+                <div key={order.id} className="border border-[#2a2d32] rounded-lg p-4 bg-[#1e2023]">
                   <div className="flex justify-between items-start mb-4">
                     <div>
-                      <h3 className="font-semibold text-lg">{order.orderNumber}</h3>
-                      <p className="text-sm text-gray-600">{order.customerName}</p>
-                      <p className="text-xs text-gray-500">
+                      <h3 className="font-semibold text-lg text-[#e8eaed]">{order.orderNumber}</h3>
+                      <p className="text-sm text-[#7a8090]">{order.customerName}</p>
+                      <p className="text-xs text-[#7a8090]">
                         Ordered {new Date(order.createdAt).toLocaleDateString()}
                       </p>
                     </div>
                     <div className="text-right">
                       <Badge variant="outline">{order.totalItems} items</Badge>
-                      <p className="text-sm text-gray-600 mt-1">
+                      <p className="text-sm text-[#7a8090] mt-1">
                         {order.totalQuantity} units • {order.totalKg.toFixed(1)} kg
                       </p>
                     </div>
@@ -161,12 +161,12 @@ export function PackagingQueue({ orders: initialOrders }: PackagingQueueProps) {
                   {/* Order Items */}
                   <div className="space-y-2 mb-4">
                     {order.items.map((item) => (
-                      <div key={item.id} className="flex justify-between items-center bg-gray-50 p-2 rounded">
+                      <div key={item.id} className="flex justify-between items-center bg-[#161719] p-2 rounded border border-[#2a2d32]">
                         <div>
-                          <span className="font-medium">{item.designName}</span>
-                          <span className="text-sm text-gray-500 ml-2">({item.designCode})</span>
+                          <span className="font-medium text-[#e8eaed]">{item.designName}</span>
+                          <span className="text-sm text-[#7a8090] ml-2">({item.designCode})</span>
                         </div>
-                        <div className="text-sm">
+                        <div className="text-sm text-[#e8eaed]">
                           {item.quantity} × ${item.unitPrice.toFixed(2)} = ${item.totalPrice.toFixed(2)}
                         </div>
                       </div>
@@ -178,7 +178,7 @@ export function PackagingQueue({ orders: initialOrders }: PackagingQueueProps) {
                     <Button
                       onClick={() => handleFulfillOrder(order.id)}
                       disabled={fulfilling === order.id}
-                      className="min-w-32"
+                      className="min-w-32 bg-[#f0c040] hover:bg-[#f5d060] text-black border-0"
                     >
                       {fulfilling === order.id ? (
                         <>

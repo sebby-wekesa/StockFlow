@@ -16,7 +16,7 @@ export interface UserProfile {
 
 // Map roles to their dedicated base routes
 export const ROLE_HOME_PAGES: Record<UserRole, string> = {
-  PENDING: '/operator',
+  PENDING: '/dashboard', // PENDING users go to dashboard until approved
   ADMIN: '/admin/dashboard',
   MANAGER: '/manager',
   OPERATOR: '/operator',

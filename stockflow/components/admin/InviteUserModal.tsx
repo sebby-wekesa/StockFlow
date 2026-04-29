@@ -48,7 +48,7 @@ export default function InviteUserModal() {
       {/* The Trigger Button */}
       <button
         onClick={() => setIsOpen(true)}
-        className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-all shadow-lg hover:shadow-blue-500/20 active:scale-95"
+        className="flex items-center gap-2 bg-[#f0c040] hover:bg-[#f5d060] text-black px-4 py-2 rounded-lg transition-all shadow-lg hover:shadow-[#f0c040]/20 active:scale-95"
       >
         <UserPlus size={18} />
         Invite User
@@ -119,7 +119,7 @@ export default function InviteUserModal() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 rounded-lg mt-4 disabled:opacity-50 flex items-center justify-center gap-2 transition-all shadow-lg hover:shadow-blue-500/20"
+                className="w-full bg-[#f0c040] hover:bg-[#f5d060] text-black font-medium py-2 rounded-lg mt-4 disabled:opacity-50 flex items-center justify-center gap-2 transition-all shadow-lg hover:shadow-[#f0c040]/20"
               >
                 {loading ? (
                   <>

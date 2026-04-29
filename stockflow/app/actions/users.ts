@@ -60,6 +60,19 @@ export async function updateUserRole(userId: string, newRole: string) {
 }
 
 export async function deleteUser(userId: string) {
+  // First delete related records that reference this user
+  await prisma.auditLog.deleteMany({
+    where: { userId },
+  });
+
+  await prisma.stageLog.deleteMany({
+    where: { operatorId: userId },
+  });
+
+  await prisma.notificationSettings.deleteMany({
+    where: { userId },
+  });
+
   // Delete from Supabase Auth
   const { error: authError } = await supabaseAdmin.auth.admin.deleteUser(userId);
   if (authError) {

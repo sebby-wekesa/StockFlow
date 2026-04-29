@@ -1,36 +1,15 @@
 "use client";
 
-import { useState } from "react";
-import { DesignTemplateBuilder } from "@/components/DesignTemplateBuilder";
-import { Button } from "@/components/ui/button";
+import { useRouter } from "next/navigation";
 
 export default function DesignsClient({ designs }: { designs: any[] }) {
-  const [showBuilder, setShowBuilder] = useState(false);
-
-  const handleDesignCreated = (design: any) => {
-    setShowBuilder(false);
-    // The page will revalidate and show the new design
-    window.location.reload(); // Simple refresh for now
-  };
-
-  if (showBuilder) {
-    return (
-      <div className="max-w-6xl mx-auto p-6">
-        <div className="mb-6">
-          <Button variant="outline" onClick={() => setShowBuilder(false)}>
-            ← Back to Designs
-          </Button>
-        </div>
-        <DesignTemplateBuilder onComplete={handleDesignCreated} />
-      </div>
-    );
-  }
+  const router = useRouter();
 
   return (
     <div>
       <div className="section-header mb-16">
         <div><div className="section-title">Design templates</div><div className="section-sub">Standardised product designs with process stages and dimensions</div></div>
-        <button className="btn btn-primary" onClick={() => setShowBuilder(true)}>+ New design</button>
+        <button className="btn btn-primary" onClick={() => router.push('/designs/new')}>+ New design</button>
       </div>
       <div className="grid-3 mb-24">
         {designs.map(d => {

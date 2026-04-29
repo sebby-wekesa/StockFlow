@@ -10,6 +10,8 @@ export default async function DashboardPage() {
 
   // Route to role-specific dashboard components
   switch (user.role) {
+    case 'PENDING':
+      return <PendingDashboard user={user} />
     case 'OPERATOR':
       return <OperatorDashboard user={user} />
     case 'SALES':
@@ -21,6 +23,34 @@ export default async function DashboardPage() {
     default:
       return <AdminDashboard user={user} />
   }
+}
+
+// Pending Dashboard - Shows pending approval message
+function PendingDashboard({ user }: { user: any }) {
+  return (
+    <div className="space-y-8">
+      <div className="card">
+        <div className="text-center py-12">
+          <div className="mx-auto mb-6 w-16 h-16 bg-yellow-500/10 rounded-full flex items-center justify-center">
+            <svg className="w-8 h-8 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+            </svg>
+          </div>
+          <h2 className="text-2xl font-bold text-text mb-4">Account Pending Approval</h2>
+          <p className="text-muted mb-6 max-w-md mx-auto">
+            Your account has been created successfully and is waiting for administrator approval.
+            You will receive access to the system once your account is approved.
+          </p>
+          <div className="bg-surface2 border border-border rounded-lg p-4 max-w-sm mx-auto">
+            <div className="text-sm">
+              <div className="font-medium text-text">Welcome, {user.name || user.email}!</div>
+              <div className="text-muted mt-1">Role: Pending Approval</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 // Operator Dashboard - Shows "My jobs" and "History"
