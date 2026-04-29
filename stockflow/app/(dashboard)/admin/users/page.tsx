@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic';
 
-import { prisma } from "@/lib/prisma";
+import { supabaseServer } from "@/lib/supabase-admin";
 import { UserRow } from "@/components/admin/UserRow";
 import InviteUserModal from "@/components/admin/InviteUserModal";
 
@@ -8,10 +8,17 @@ import InviteUserModal from "@/components/admin/InviteUserModal";
 
 async function getUsers() {
   try {
-    return await prisma.user.findMany({
-      select: { id: true, email: true, name: true, role: true, department: true },
-      orderBy: { createdAt: "desc" },
-    });
+    const { data, error } = await supabaseServer()
+      .from('profiles')
+      .select('id, email, name, role, department')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Failed to fetch users:', error);
+      return [];
+    }
+
+    return data || [];
   } catch (error) {
     console.error('Failed to fetch users:', error);
     return [];

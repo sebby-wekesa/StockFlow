@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import { supabaseServer } from "@/lib/supabase-admin";
 import type { UserRole } from "./types";
 
 export type { UserRole as Role };
@@ -25,14 +26,44 @@ export async function getUser() {
       name: "Demo User",
       role: "ADMIN" as Role,
       department: null,
+      branchId: null,
     };
   }
 
   if (!token) return null;
 
-  // Only import and use prisma if needed
-  const { getUserFromDb } = await import('./db-user')
-  return getUserFromDb(token)
+  try {
+    // Get user from Supabase
+    const { data: { user }, error } = await supabaseServer().auth.getUser(token);
+
+    if (error || !user) {
+      return null;
+    }
+
+    // Get profile from profiles table
+    const { data: profile, error: profileError } = await supabaseServer()
+      .from('profiles')
+      .select('email, name, role, department, branch_id')
+      .eq('id', user.id)
+      .single();
+
+    if (profileError || !profile) {
+      return null;
+    }
+
+    return {
+      id: user.id,
+      email: profile.email,
+      name: profile.name,
+      role: profile.role as Role,
+      department: profile.department,
+      branchId: profile.branch_id,
+    };
+
+  } catch (error) {
+    console.error("Error getting user:", error);
+    return null;
+  }
 }
 
 export async function requireAuth(): Promise<AuthUser> {

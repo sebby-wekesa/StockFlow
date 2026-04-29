@@ -2,29 +2,19 @@
 
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { prisma } from "@/lib/prisma";
+import { supabaseAdmin } from "@/lib/supabase-admin";
 import { loginSchema } from "@/lib/validations";
-import { scryptSync } from "crypto";
-import { Prisma } from "@prisma/client";
 import { ROLE_HOME_PAGES, type UserRole } from "@/types/auth";
+import { ROLE_PATHS } from "@/lib/types";
 
-function verifyPassword(password: string, storedHash: string): boolean {
-  const [salt, hash] = storedHash.split(":");
-  const testHash = scryptSync(password, salt, 64).toString("hex");
-  return hash === testHash;
-}
-
-function getDatabaseErrorMessage(error: unknown) {
-  if (
-    error instanceof Prisma.PrismaClientInitializationError ||
-    error instanceof Prisma.PrismaClientKnownRequestError ||
-    error instanceof Prisma.PrismaClientRustPanicError ||
-    error instanceof Prisma.PrismaClientUnknownRequestError
-  ) {
-    return "We couldn't reach the database right now. Please try again in a moment."
+function getAuthErrorMessage(error: any) {
+  if (error?.message?.includes('Invalid login credentials')) {
+    return "Invalid email or password. Please try again.";
   }
-
-  return null
+  if (error?.message?.includes('Email not confirmed')) {
+    return "Please check your email and confirm your account.";
+  }
+  return "Authentication failed. Please try again.";
 }
 
 export async function signIn(formData: FormData) {
@@ -40,67 +30,89 @@ export async function signIn(formData: FormData) {
     return { error: firstError };
   }
 
-  // Find user in database
-  let user;
-
   try {
-    user = await prisma.user.findUnique({
-      where: { email: validation.data.email },
+    // Sign in with Supabase
+    const { data, error } = await supabaseAdmin.auth.signInWithPassword({
+      email: validation.data.email,
+      password: validation.data.password,
     });
+
+    if (error) {
+      console.error("Supabase auth error:", error);
+      return { error: getAuthErrorMessage(error) };
+    }
+
+    if (!data.user) {
+      return { error: "Authentication failed. Please try again." };
+    }
+
+    // Get user profile from profiles table
+    const { data: profile, error: profileError } = await supabaseAdmin
+      .from('profiles')
+      .select('role, department, branch_id')
+      .eq('id', data.user.id)
+      .single();
+
+    if (profileError) {
+      console.error("Profile fetch error:", profileError);
+      return { error: "Failed to load user profile. Please contact support." };
+    }
+
+    // Create session cookies
+    const cookieStore = await cookies();
+
+    // Set auth token for session management
+    cookieStore.set("auth-token", data.session?.access_token || "", {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+      maxAge: 60 * 60 * 24 * 7, // 7 days
+    });
+
+    // Set refresh token
+    cookieStore.set("refresh-token", data.session?.refresh_token || "", {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+      maxAge: 60 * 60 * 24 * 30, // 30 days
+    });
+
+    // Set user-role cookie for middleware (from profile)
+    cookieStore.set("user-role", profile.role || "PENDING", {
+      httpOnly: false, // Allow client-side access
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+      maxAge: 60 * 60 * 24 * 7, // 7 days
+    });
+
+    // Redirect based on role
+    const redirectPath = ROLE_PATHS[profile.role as UserRole] || '/dashboard';
+    redirect(redirectPath);
+
   } catch (error) {
-    const message = getDatabaseErrorMessage(error)
-    if (message) {
-      console.error("Login database error:", error)
-      return { error: message }
-    }
-    throw error
+    console.error("Sign in error:", error);
+    return { error: "An unexpected error occurred. Please try again." };
   }
-
-  console.log("User found in DB:", user ? "YES" : "NO");
-
-  if (user) {
-    const isMatch = verifyPassword(validation.data.password, user.password);
-    console.log("Password Match:", isMatch);
-    if (!isMatch) {
-      return { error: "Invalid email or password. Please try again." };
-    }
-  } else {
-    return { error: "Invalid email or password. Please try again." };
-  }
-
-  // Create session cookie
-  const cookieStore = await cookies();
-  const sessionToken = Buffer.from(JSON.stringify({ 
-    userId: user.id, 
-    email: user.email,
-    timestamp: Date.now()
-  })).toString("base64");
-
-  cookieStore.set("auth-token", sessionToken, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    path: "/",
-    maxAge: 60 * 60 * 24 * 7, // 7 days
-  });
-
-  // Set user-role cookie for middleware
-  cookieStore.set("user-role", user.role, {
-    httpOnly: false, // Allow client-side access
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    path: "/",
-    maxAge: 60 * 60 * 24 * 7, // 7 days
-  });
-
-  // Redirect based on role
-  const redirectPath = ROLE_HOME_PAGES[user.role as UserRole] || '/operator/queue';
-  redirect(redirectPath);
 }
 
 export async function signOut() {
+  try {
+    // Sign out from Supabase
+    await supabaseAdmin.auth.signOut();
+  } catch (error) {
+    console.error("Supabase signout error:", error);
+  }
+
+  // Clear all cookies
   const cookieStore = await cookies();
   cookieStore.delete("auth-token");
+  cookieStore.delete("refresh-token");
+  cookieStore.delete("user-role");
+  cookieStore.delete("demo-logged-in");
+
   redirect("/login");
 }
 
@@ -113,76 +125,36 @@ export async function signUp(formData: FormData) {
     return { error: "Email and password are required" };
   }
 
-  // Check if user exists
-  let existingUser;
-
   try {
-    existingUser = await prisma.user.findUnique({
-      where: { email },
+    // Create user with Supabase Auth
+    const { data, error } = await supabaseAdmin.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          name: name || '',
+        }
+      }
     });
-  } catch (error) {
-    const message = getDatabaseErrorMessage(error)
-    if (message) {
-      console.error("Signup lookup database error:", error)
-      return { error: message }
+
+    if (error) {
+      console.error("Supabase signup error:", error);
+      if (error.message.includes('already registered')) {
+        return { error: "User with this email already exists." };
+      }
+      return { error: getAuthErrorMessage(error) };
     }
-    throw error
-  }
 
-  if (existingUser) {
-    return { error: "User already exists" };
-  }
-
-  // Hash password
-  const importCrypto = await import("crypto");
-  const salt = importCrypto.randomBytes(16).toString("hex");
-  const hash = importCrypto.scryptSync(password, salt, 64).toString("hex");
-  const storedHash = `${salt}:${hash}`;
-
-  // Create user
-  let user;
-
-  try {
-    user = await prisma.user.create({
-      data: {
-        email,
-        password: storedHash,
-        name: name || undefined,
-        role: "PENDING",
-      },
-    });
-  } catch (error) {
-    const message = getDatabaseErrorMessage(error)
-    if (message) {
-      console.error("Signup create database error:", error)
-      return { error: message }
+    if (!data.user) {
+      return { error: "Failed to create account. Please try again." };
     }
-    throw error
+
+    // The profile will be automatically created by the database trigger
+    // Redirect to login or dashboard based on email confirmation setting
+    redirect('/login?message=Check your email to confirm your account');
+
+  } catch (error) {
+    console.error("Sign up error:", error);
+    return { error: "An unexpected error occurred. Please try again." };
   }
-
-  // Create session cookie
-  const cookieStore = await cookies();
-  const sessionToken = Buffer.from(JSON.stringify({ 
-    userId: user.id, 
-    email: user.email,
-    timestamp: Date.now()
-  })).toString("base64");
-
-  cookieStore.set("auth-token", sessionToken, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    path: "/",
-    maxAge: 60 * 60 * 24 * 7, // 7 days
-  });
-
-  cookieStore.set("user-role", user.role, {
-    httpOnly: false,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    path: "/",
-    maxAge: 60 * 60 * 24 * 7,
-  });
-
-  redirect(ROLE_HOME_PAGES[user.role as UserRole] || '/operator');
 }

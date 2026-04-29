@@ -1,7 +1,7 @@
 "use server";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
-import { supabaseAdmin } from "@/lib/supabase-admin";
+import { supabaseAdmin, supabaseServer } from "@/lib/supabase-admin";
 
 export async function inviteUser(data: { name: string; email: string; role: string; branchId: string }) {
   try {
@@ -29,17 +29,20 @@ export async function inviteUser(data: { name: string; email: string; role: stri
       throw new Error(`Auth Error: ${authError.message}`);
     }
 
-    // 2. Create corresponding record in Prisma
-    await prisma.user.create({
-      data: {
-        id: authUser.user!.id,
-        email,
+    // 2. Update profile in Supabase (trigger will create it, but we need to set role and department)
+    const { error: profileError } = await supabaseAdmin
+      .from('profiles')
+      .update({
         name,
-        password: "", // Password handled by Supabase
-        role: role as any,
-        branchId,
-      },
-    });
+        role,
+        branch_id: branchId,
+      })
+      .eq('id', authUser.user!.id);
+
+    if (profileError) {
+      console.error("Profile update error:", profileError);
+      // Don't fail the whole operation, profile might be created by trigger
+    }
 
     revalidatePath("/admin/users");
     revalidatePath("/admin/settings");
@@ -51,10 +54,15 @@ export async function inviteUser(data: { name: string; email: string; role: stri
 }
 
 export async function updateUserRole(userId: string, newRole: string) {
-  await prisma.user.update({
-    where: { id: userId },
-    data: { role: newRole as any }
-  });
+  const { error } = await supabaseAdmin
+    .from('profiles')
+    .update({ role: newRole })
+    .eq('id', userId);
+
+  if (error) {
+    console.error("Role update error:", error);
+    throw new Error("Failed to update user role");
+  }
 
   revalidatePath('/admin/users'); // Refresh the UI immediately
 }
@@ -73,18 +81,36 @@ export async function deleteUser(userId: string) {
     where: { userId },
   });
 
+  // Delete from Supabase profiles table
+  const { error: profileError } = await supabaseAdmin
+    .from('profiles')
+    .delete()
+    .eq('id', userId);
+
+  if (profileError) {
+    console.error("Profile delete error:", profileError);
+  }
+
   // Delete from Supabase Auth
   const { error: authError } = await supabaseAdmin.auth.admin.deleteUser(userId);
   if (authError) {
     throw new Error(`Failed to delete from auth: ${authError.message}`);
   }
 
-  // Delete from Prisma
-  await prisma.user.delete({
-    where: { id: userId },
-  });
-
   revalidatePath("/admin/users");
+}
+
+    // Delete from Supabase Auth
+    const { error: authError } = await supabaseAdmin.auth.admin.deleteUser(userId);
+    if (authError) {
+      throw new Error(`Failed to delete from auth: ${authError.message}`);
+    }
+
+    revalidatePath("/admin/users");
+  } catch (error) {
+    console.error("Delete user error:", error);
+    throw error;
+  }
 }
 
 export async function getBranches() {

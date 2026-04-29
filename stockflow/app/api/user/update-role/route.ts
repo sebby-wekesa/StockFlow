@@ -1,16 +1,22 @@
-import { NextRequest, NextResponse } from 'next/navigation';
+import { NextRequest, NextResponse } from 'next/headers';
 import { supabaseServer } from '@/lib/supabase-admin';
-import { getUser } from '@/lib/auth';
+import { cookies } from 'next/headers';
 
 export async function POST(request: NextRequest) {
   try {
     const { role } = await request.json();
 
-    // For now, using Prisma-based auth since that's the current system
-    // In a full Supabase migration, this would update the profiles table
-    const user = await getUser();
+    // Get current user from Supabase session
+    const cookieStore = await cookies();
+    const token = cookieStore.get("auth-token")?.value;
 
-    if (!user) {
+    if (!token) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { data: { user }, error: userError } = await supabaseServer().auth.getUser(token);
+
+    if (userError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -20,9 +26,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid role' }, { status: 400 });
     }
 
-    // Update role in database (using Prisma for now)
-    const { updateUserRole } = await import('@/app/actions/users');
-    await updateUserRole(user.id, role);
+    // Update role in profiles table
+    const { error } = await supabaseServer()
+      .from('profiles')
+      .update({ role })
+      .eq('id', user.id);
+
+    if (error) {
+      console.error('Role update error:', error);
+      return NextResponse.json({ error: 'Failed to update role' }, { status: 500 });
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {

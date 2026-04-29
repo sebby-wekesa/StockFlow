@@ -1,7 +1,22 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import { ROLE_PATHS } from '@/lib/types'
 
 export async function proxy(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+
+  // Skip middleware for API routes, static files, and auth routes
+  if (
+    pathname.startsWith('/api/') ||
+    pathname.startsWith('/_next/') ||
+    pathname.startsWith('/auth/') ||
+    pathname.includes('.') ||
+    pathname === '/login' ||
+    pathname === '/'
+  ) {
+    return NextResponse.next();
+  }
+
   const demoLoggedIn = request.cookies.get('demo-logged-in')?.value
 
   if (demoLoggedIn === 'true') {
@@ -41,22 +56,42 @@ export async function proxy(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
 
-  // Remove Prisma calls from proxy (can't use Node.js modules in edge runtime)
-  // Instead, handle role-based checks in your API routes or server components
+  if (user) {
+    const userRole = user.user_metadata?.role;
 
-  if (user && request.nextUrl.pathname === '/') {
-    return NextResponse.redirect(new URL('/dashboard', request.url))
+    // Define role-specific protected paths
+    const roleProtections: Record<string, string[]> = {
+      '/admin': ['ADMIN'],
+      '/manager': ['MANAGER', 'ADMIN'],
+      '/operator': ['OPERATOR', 'ADMIN'],
+      '/packaging': ['PACKAGING', 'ADMIN'],
+      '/warehouse': ['WAREHOUSE', 'ADMIN'],
+    };
+
+    // Check if current path requires specific role
+    for (const [path, allowedRoles] of Object.entries(roleProtections)) {
+      if (pathname.startsWith(path)) {
+        if (!allowedRoles.includes(userRole)) {
+          // Redirect to appropriate dashboard based on user role
+          const redirectPath = ROLE_PATHS[userRole as keyof typeof ROLE_PATHS] || '/dashboard';
+          return NextResponse.redirect(new URL(redirectPath, request.url));
+        }
+        break;
+      }
+    }
+
+    if (request.nextUrl.pathname === '/') {
+      return NextResponse.redirect(new URL('/dashboard', request.url))
+    }
+  } else {
+    // User not authenticated, redirect to login for protected paths
+    const protectedPaths = ['/admin', '/manager', '/operator', '/packaging', '/warehouse', '/dashboard'];
+    if (protectedPaths.some(path => pathname.startsWith(path))) {
+      return NextResponse.redirect(new URL('/login', request.url));
+    }
   }
 
-  // Demo mode: allow access to dashboard without auth
-  // if (!user && request.nextUrl.pathname.startsWith('/dashboard')) {
-  //   return NextResponse.redirect(new URL('/login', request.url))
-  // }
 
-  // Demo mode: allow access to login
-  // if (user && request.nextUrl.pathname === '/login') {
-  //   return NextResponse.redirect(new URL('/dashboard', request.url))
-  // }
 
   return supabaseResponse
 }
