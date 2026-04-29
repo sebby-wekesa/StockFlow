@@ -2,6 +2,7 @@
 
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { supabase } from "@/lib/supabase";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { loginSchema } from "@/lib/validations";
 import { ROLE_HOME_PAGES, type UserRole } from "@/types/auth";
@@ -36,7 +37,7 @@ export async function signIn(formData: FormData) {
 
   try {
     // Sign in with Supabase
-    const { data, error } = await supabaseAdmin.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signInWithPassword({
       email: validation.data.email,
       password: validation.data.password,
     });
