@@ -48,7 +48,7 @@ export default function InviteUserModal() {
       {/* The Trigger Button */}
       <button
         onClick={() => setIsOpen(true)}
-        className="flex items-center gap-2 bg-[#f0c040] hover:bg-[#f5d060] text-black px-4 py-2 rounded-lg transition-all shadow-lg hover:shadow-[#f0c040]/20 active:scale-95"
+        className="btn btn-primary"
       >
         <UserPlus size={18} />
         Invite User
