@@ -98,6 +98,9 @@ export async function signIn(formData: FormData) {
     redirect(redirectPath);
 
   } catch (error) {
+    if (error instanceof Error && error.message === 'NEXT_REDIRECT') {
+      throw error;
+    }
     console.error("Sign in error:", error);
     return { error: "An unexpected error occurred. Please try again." };
   }
@@ -132,12 +135,14 @@ export async function signUp(formData: FormData) {
 
   try {
     // Create user with Supabase Auth
-    const { data, error } = await supabaseAdmin.auth.signUp({
+    // We use the standard supabase client to allow the session to be established if email confirmation is off
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
         data: {
           name: name || '',
+          role: 'OPERATOR', // Default role for new signups
         }
       }
     });
@@ -154,11 +159,13 @@ export async function signUp(formData: FormData) {
       return { error: "Failed to create account. Please try again." };
     }
 
-    // The profile will be automatically created by the database trigger
-    // Redirect to login or dashboard based on email confirmation setting
-    redirect('/login?message=Check your email to confirm your account');
+    // Redirect directly to dashboard (assuming email confirmation is disabled in Supabase)
+    redirect('/dashboard');
 
   } catch (error) {
+    if (error instanceof Error && error.message === 'NEXT_REDIRECT') {
+      throw error; // Re-throw redirect errors so Next.js can handle them
+    }
     console.error("Sign up error:", error);
     return { error: "An unexpected error occurred. Please try again." };
   }
