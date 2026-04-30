@@ -1,12 +1,18 @@
 import 'dotenv/config'
 import { prisma } from '../lib/prisma'
-import { scryptSync, randomBytes, randomUUID } from 'crypto'
+import { scryptSync, randomBytes } from 'crypto'
+import { createClient } from '@supabase/supabase-js'
 
-// Supabase admin client commented out - seeding without auth for now
-// const supabaseAdmin = createClient(
-//   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-//   process.env.SUPABASE_SERVICE_ROLE_KEY!
-// )
+const supabaseAdmin = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false
+    }
+  }
+)
 
 function hashPassword(password: string): string {
   const salt = randomBytes(16).toString("hex");
@@ -79,52 +85,91 @@ async function main() {
 
   const defaultBranchId = seededBranches[0].id;
 
-  // 3. Create admin user directly in Prisma (skipping Supabase Auth)
-  const adminId = randomUUID()
-  const admin = await prisma.user.upsert({
-    where: { email: 'sebby@admin.com' },
-    update: {
-      role: 'ADMIN',
-      name: 'Sebby Admin',
-      organizationId: org.id,
-      branchId: defaultBranchId,
-    },
-    create: {
-      id: adminId,
-      email: 'sebby@admin.com',
-      name: 'Sebby Admin',
-      password: hashPassword('password123'),
-      role: 'ADMIN',
-      organizationId: org.id,
-      branchId: defaultBranchId,
-    },
-  })
+  // 3. Helper to create user in both Auth and Prisma
+  async function seedUser(userData: {
+    email: string;
+    password: string;
+    name: string;
+    role: any;
+    organizationId: string;
+    branchId: string;
+  }) {
+    let userId: string;
 
-  console.log('✅ Admin user created/updated:', admin.email)
+    console.log(`--- Seeding User: ${userData.email} ---`);
 
-  // 4. Create sales user directly in Prisma
-  const salesId = randomUUID()
-  const sales = await prisma.user.upsert({
-    where: { email: 'sales@stockflow.com' },
-    update: {
-      role: 'SALES',
-      name: 'Sales User',
-      organizationId: org.id,
-      branchId: defaultBranchId,
-    },
-    create: {
-      id: salesId,
-      email: 'sales@stockflow.com',
-      name: 'Sales User',
-      password: hashPassword('password123'),
-      role: 'SALES',
-      organizationId: org.id,
-      branchId: defaultBranchId,
-    },
-  })
+    // Check if user exists in Auth
+    const { data: { users }, error: listError } = await supabaseAdmin.auth.admin.listUsers();
+    const existingAuthUser = users.find(u => u.email === userData.email);
 
-  console.log('✅ Sales user created/updated:', sales.email)
-  console.log('📝 Default password: password123')
+    if (existingAuthUser) {
+      console.log(`User already exists in Auth: ${userData.email}`);
+      userId = existingAuthUser.id;
+    } else {
+      // Create in Auth
+      const { data: newAuthUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
+        email: userData.email,
+        password: userData.password,
+        email_confirm: true,
+        user_metadata: { name: userData.name, role: userData.role }
+      });
+
+      if (createError) {
+        console.error(`Error creating auth user ${userData.email}:`, createError.message);
+        // If it's a "user already exists" error that listUsers missed (unlikely but possible), 
+        // we might need another strategy, but for now we stop.
+        throw createError;
+      }
+      userId = newAuthUser.user.id;
+      console.log(`Created new Auth user: ${userData.email} (${userId})`);
+    }
+
+    // Upsert in Prisma
+    const user = await prisma.user.upsert({
+      where: { email: userData.email },
+      update: {
+        role: userData.role,
+        name: userData.name,
+        organizationId: userData.organizationId,
+        branchId: userData.branchId,
+      },
+      create: {
+        id: userId,
+        email: userData.email,
+        name: userData.name,
+        password: hashPassword(userData.password),
+        role: userData.role,
+        organizationId: userData.organizationId,
+        branchId: userData.branchId,
+      },
+    });
+
+    return user;
+  }
+
+  // Seed Admin
+  const admin = await seedUser({
+    email: 'sebby@admin.com',
+    password: 'password123',
+    name: 'Sebby Admin',
+    role: 'ADMIN',
+    organizationId: org.id,
+    branchId: defaultBranchId,
+  });
+  console.log('✅ Admin user synced:', admin.email);
+
+  // Seed Sales
+  const sales = await seedUser({
+    email: 'sales@stockflow.com',
+    password: 'password123',
+    name: 'Sales User',
+    role: 'SALES',
+    organizationId: org.id,
+    branchId: defaultBranchId,
+  });
+  console.log('✅ Sales user synced:', sales.email);
+
+  console.log('📝 Default password: password123');
 
   await seedDesigns()
   console.log('--- Seed Finished Successfully ---')
