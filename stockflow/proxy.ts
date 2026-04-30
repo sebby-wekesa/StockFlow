@@ -62,9 +62,9 @@ export async function proxy(request: NextRequest) {
     }
   )
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  // Refresh session if expired - required for Server Components
+  const { data: { session } } = await supabase.auth.getSession()
+  const user = session?.user
 
   if (user) {
     const userRole = request.cookies.get('user-role')?.value;

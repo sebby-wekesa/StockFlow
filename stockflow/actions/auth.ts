@@ -35,6 +35,8 @@ export async function signIn(formData: FormData) {
     return { error: firstError };
   }
 
+  let redirectPath: string;
+
   try {
     // Sign in with Supabase
     const { data, error } = await supabase.auth.signInWithPassword({
@@ -93,9 +95,8 @@ export async function signIn(formData: FormData) {
       maxAge: 60 * 60 * 24 * 7, // 7 days
     });
 
-    // Redirect based on role
-    const redirectPath = ROLE_PATHS[profile.role as UserRole] || '/dashboard';
-    redirect(redirectPath);
+    // Determine redirect path based on role
+    redirectPath = ROLE_PATHS[profile.role as UserRole] || '/dashboard';
 
   } catch (error) {
     if (error instanceof Error && error.message === 'NEXT_REDIRECT') {
@@ -104,6 +105,9 @@ export async function signIn(formData: FormData) {
     console.error("Sign in error:", error);
     return { error: "An unexpected error occurred. Please try again." };
   }
+
+  // Redirect outside try/catch to avoid swallowing
+  redirect(redirectPath);
 }
 
 export async function signOut() {
@@ -159,9 +163,6 @@ export async function signUp(formData: FormData) {
       return { error: "Failed to create account. Please try again." };
     }
 
-    // Redirect directly to dashboard (assuming email confirmation is disabled in Supabase)
-    redirect('/dashboard');
-
   } catch (error) {
     if (error instanceof Error && error.message === 'NEXT_REDIRECT') {
       throw error; // Re-throw redirect errors so Next.js can handle them
@@ -169,4 +170,7 @@ export async function signUp(formData: FormData) {
     console.error("Sign up error:", error);
     return { error: "An unexpected error occurred. Please try again." };
   }
+
+  // Redirect outside try/catch to avoid swallowing
+  redirect('/dashboard');
 }
