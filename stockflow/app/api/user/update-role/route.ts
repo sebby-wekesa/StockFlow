@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { NextRequest, NextResponse } from 'next/headers';
 import { supabaseServer } from '@/lib/supabase-admin';
 import { cookies } from 'next/headers';
