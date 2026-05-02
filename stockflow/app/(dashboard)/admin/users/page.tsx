@@ -1,31 +1,55 @@
 export const dynamic = 'force-dynamic';
 
+import { redirect } from "next/navigation";
+import { getUser } from "@/lib/auth";
 import { supabaseServer } from "@/lib/supabase-admin";
+import type { UserRole } from "@/lib/types";
 import { UserRow } from "@/components/admin/UserRow";
 import InviteUserModal from "@/components/admin/InviteUserModal";
 
-
+type AdminUserRow = {
+  id: string;
+  email: string;
+  name: string | null;
+  role: UserRole;
+  department: string | null;
+};
 
 async function getUsers() {
   try {
-    const { data, error } = await supabaseServer()
+    const supabase = supabaseServer() as any;
+    if (!supabase) {
+      return [] as AdminUserRow[];
+    }
+
+    const { data, error } = await supabase
       .from('profiles')
       .select('id, email, name, role, department')
       .order('created_at', { ascending: false });
 
     if (error) {
       console.error('Failed to fetch users:', error);
-      return [];
+      return [] as AdminUserRow[];
     }
 
-    return data || [];
+    return (data || []) as AdminUserRow[];
   } catch (error) {
     console.error('Failed to fetch users:', error);
-    return [];
+    return [] as AdminUserRow[];
   }
 }
 
 export default async function AdminUsersPage() {
+  const user = await getUser();
+
+  if (!user) {
+    redirect("/login");
+  }
+
+  if (user.role !== "ADMIN") {
+    redirect("/unauthorized");
+  }
+
   const users = await getUsers();
 
   return (

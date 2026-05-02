@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import type { Role } from "@/lib/auth";
 import type { UserRole } from "@/lib/types";
 import { ROLE_NAMES, ROLE_COLORS } from "@/lib/types";
 import { signOut } from "@/actions/auth";

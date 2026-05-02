@@ -1,9 +1,22 @@
 // lib/types.ts
-export type UserRole = 'PENDING' | 'ADMIN' | 'MANAGER' | 'OPERATOR' | 'SALES' | 'PACKAGING' | 'WAREHOUSE';
+export const USER_ROLES = ['PENDING', 'ADMIN', 'MANAGER', 'OPERATOR', 'SALES', 'PACKAGING', 'WAREHOUSE'] as const;
+
+export type UserRole = (typeof USER_ROLES)[number];
+
+const USER_ROLE_SET = new Set<string>(USER_ROLES);
+
+export function normalizeUserRole(role: unknown): UserRole {
+  if (typeof role !== 'string') {
+    return 'PENDING';
+  }
+
+  const normalizedRole = role.toUpperCase();
+  return USER_ROLE_SET.has(normalizedRole) ? (normalizedRole as UserRole) : 'PENDING';
+}
 
 export const ROLE_PATHS: Record<UserRole, string> = {
   PENDING: '/dashboard',
-  ADMIN: '/admin',
+  ADMIN: '/admin/dashboard',
   MANAGER: '/manager',
   OPERATOR: '/operator',
   SALES: '/sales',

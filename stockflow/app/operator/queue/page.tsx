@@ -23,17 +23,18 @@ async function getOperatorStats(department: string | null) {
   return { pendingJobs, department };
 }
 
+type OperatorStats = NonNullable<Awaited<ReturnType<typeof getOperatorStats>>>;
+type PendingJob = OperatorStats["pendingJobs"][number];
+
 export default async function OperatorQueuePage() {
   const user = await getUser();
   if (!user) redirect("/login");
 
-  const dbUser = await prisma.user.findUnique({
-    where: { email: user.email! },
-  });
+  if (user.role !== "OPERATOR" && user.role !== "ADMIN") {
+    redirect("/unauthorized");
+  }
 
-  if (!dbUser) redirect("/login");
-
-  const department = dbUser.department;
+  const department = user.department;
   const stats = department ? await getOperatorStats(department) : null;
 
   if (!stats) {
@@ -61,7 +62,7 @@ export default async function OperatorQueuePage() {
       ) : (
         <div>
           {stats.pendingJobs.map((order) => (
-            <JobCard key={order.id} order={order} department={department ?? "General"} />
+            <JobCard key={order.id} order={order} />
           ))}
         </div>
       )}
@@ -69,8 +70,8 @@ export default async function OperatorQueuePage() {
   );
 }
 
-function JobCard({ order, department }: { order: any; department: string }) {
-  const currentStage = order.design.stages.find((s: any) => s.sequence === order.currentStage);
+function JobCard({ order }: { order: PendingJob }) {
+  const currentStage = order.design.stages.find((stage) => stage.sequence === order.currentStage);
 
   return (
     <div className="job-card inprog" style={{ marginBottom: "10px" }}>
@@ -81,7 +82,7 @@ function JobCard({ order, department }: { order: any; department: string }) {
         </div>
         <div className="job-design">{order.design.name} — {currentStage?.name || "Unknown"}</div>
         <div className="job-meta" style={{ marginTop: "8px" }}>
-          <span>Target: <span className="job-kg">{order.targetKg} kg</span></span>
+          <span>Target: <span className="job-kg">{order.targetKg.toString()} kg</span></span>
           <span>Qty: {order.quantity} units</span>
         </div>
       </Link>

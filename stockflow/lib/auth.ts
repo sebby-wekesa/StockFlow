@@ -1,8 +1,16 @@
 import { cookies } from "next/headers";
-import { supabaseServer } from "@/lib/supabase-admin";
-import type { UserRole } from "./types";
+import { supabaseServer } from "./supabase-admin";
+import { normalizeUserRole, type UserRole } from "./types";
 
-export type { UserRole as Role };
+export type Role = UserRole;
+
+type ProfileRow = {
+  email: string | null;
+  name: string | null;
+  role: string | null;
+  department: string | null;
+  branch_id: string | null;
+};
 
 export type AuthUser = {
   id: string;
@@ -15,53 +23,57 @@ export type AuthUser = {
 
 export async function getUser() {
   const cookieStore = await cookies();
-  const token = cookieStore.get("auth-token")?.value;
-  const demoLoggedIn = cookieStore.get("demo-logged-in")?.value;
+  const accessToken = cookieStore.get("auth-token")?.value;
 
-  if (!token && demoLoggedIn === "true") {
-    // Demo mode: return mock user
-    return {
-      id: "demo-user",
-      email: "demo@stockflow.com",
-      name: "Demo User",
-      role: "ADMIN" as Role,
-      department: null,
-      branchId: null,
-    };
+  console.log("--- GET USER CHECK ---");
+  console.log("Cookies available:", cookieStore.getAll().length);
+
+  if (!accessToken) {
+    console.log("No auth token found.");
+    return null;
   }
 
-  if (!token) return null;
+  const supabase = supabaseServer() as any;
+
+  if (!supabase) {
+    console.error("Missing Supabase server client");
+    return null;
+  }
+
+  const { data: { user }, error } = await supabase.auth.getUser(accessToken)
+
+  if (error || !user) {
+    console.log("No user found:", error?.message);
+    return null;
+  }
+
+  console.log("User found:", user.email);
 
   try {
-    // Get user from Supabase
-    const { data: { user }, error } = await supabaseServer().auth.getUser(token);
-
-    if (error || !user) {
-      return null;
-    }
-
     // Get profile from profiles table
-    const { data: profile, error: profileError } = await supabaseServer()
+    const { data, error: profileError } = await supabase
       .from('profiles')
       .select('email, name, role, department, branch_id')
       .eq('id', user.id)
-      .single();
+      .maybeSingle();
 
-    if (profileError || !profile) {
-      return null;
+    const profile = (data ?? null) as ProfileRow | null;
+
+    if (profileError) {
+      console.error("Profile lookup failed:", profileError.message);
     }
 
     return {
       id: user.id,
-      email: profile.email,
-      name: profile.name,
-      role: profile.role as Role,
-      department: profile.department,
-      branchId: profile.branch_id,
+      email: profile?.email ?? user.email ?? "",
+      name: profile?.name ?? (typeof user.user_metadata?.name === "string" ? user.user_metadata.name : null),
+      role: normalizeUserRole(profile?.role ?? user.user_metadata?.role),
+      department: profile?.department ?? null,
+      branchId: profile?.branch_id ?? null,
     };
 
   } catch (error) {
-    console.error("Error getting user:", error);
+    console.error("Error getting user profile:", error);
     return null;
   }
 }

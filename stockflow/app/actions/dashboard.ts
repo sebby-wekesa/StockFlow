@@ -2,7 +2,7 @@
 
 import { startOfDay, startOfWeek } from "date-fns";
 import { requireAuth } from "@/lib/auth";
-import type { AuthUser } from "@/lib/auth";
+import type { AuthUser, Role } from "@/lib/auth";
 import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/prisma';
 import { Prisma, type Design, type ProductionOrder, type RawMaterial, type StageLog } from '@prisma/client';

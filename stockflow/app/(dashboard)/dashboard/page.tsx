@@ -237,7 +237,7 @@ async function SalesView({ user, role }: { user: any; role: TeamRole }) {
 }
 
 // Warehouse Dashboard - Shows inventory and receiving
-async function WarehouseView({ user }: { user: any }) {
+async function WarehouseView({ user, role }: { user: any; role: TeamRole }) {
   const { prisma } = await import('@/lib/prisma')
 
   // Initialize with the specific Prisma type

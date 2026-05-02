@@ -2,15 +2,20 @@ import { prisma } from "@/lib/prisma";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Package, Truck, TrendingUp, AlertTriangle, CheckCircle, Clock } from "lucide-react";
+import { Package, Truck, AlertTriangle, CheckCircle, Clock } from "lucide-react";
+
+const LOW_STOCK_THRESHOLD = 50;
+
+type RecentDelivery = Awaited<ReturnType<typeof getRecentDeliveries>>[number];
+type LowStockItem = Awaited<ReturnType<typeof getLowStockAlerts>>[number];
 
 async function getWarehouseStats() {
   const totalRawMaterials = await prisma.rawMaterial.count();
   const lowStockItems = await prisma.rawMaterial.count({
-    where: { quantity: { lt: 50 } }
+    where: { availableKg: { lt: LOW_STOCK_THRESHOLD } }
   });
 
-  const recentDeliveries = await prisma.rawMaterialDelivery.count({
+  const recentDeliveries = await prisma.materialReceipt.count({
     where: {
       createdAt: {
         gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) // Last 7 days
@@ -31,12 +36,12 @@ async function getWarehouseStats() {
 }
 
 async function getRecentDeliveries() {
-  return await prisma.rawMaterialDelivery.findMany({
+  return await prisma.materialReceipt.findMany({
     take: 5,
     orderBy: { createdAt: "desc" },
     include: {
-      rawMaterial: {
-        select: { name: true, unit: true }
+      material: {
+        select: { materialName: true, diameter: true }
       }
     }
   });
@@ -44,15 +49,14 @@ async function getRecentDeliveries() {
 
 async function getLowStockAlerts() {
   return await prisma.rawMaterial.findMany({
-    where: { quantity: { lt: 50 } },
+    where: { availableKg: { lt: LOW_STOCK_THRESHOLD } },
     select: {
       id: true,
-      name: true,
-      quantity: true,
-      unit: true,
-      minQuantity: true
+      materialName: true,
+      diameter: true,
+      availableKg: true,
     },
-    orderBy: { quantity: "asc" }
+    orderBy: { availableKg: "asc" }
   });
 }
 
@@ -162,16 +166,16 @@ export default async function WarehousePage() {
               </div>
             ) : (
               <div className="space-y-3">
-                {lowStockAlerts.map((item) => (
+                {lowStockAlerts.map((item: LowStockItem) => (
                   <div key={item.id} className="flex items-center justify-between p-3 bg-[#1e2023] rounded-lg border border-[#2a2d32]">
                     <div>
-                      <p className="font-medium text-[#e8eaed]">{item.name}</p>
+                      <p className="font-medium text-[#e8eaed]">{item.materialName}</p>
                       <p className="text-sm text-[#7a8090]">
-                        Min: {item.minQuantity} {item.unit}
+                        Size: {item.diameter}
                       </p>
                     </div>
                     <Badge variant="destructive">
-                      {item.quantity} {item.unit}
+                      {item.availableKg.toString()} kg
                     </Badge>
                   </div>
                 ))}
@@ -199,16 +203,16 @@ export default async function WarehousePage() {
               </div>
             ) : (
               <div className="space-y-3">
-                {recentDeliveries.map((delivery) => (
+                {recentDeliveries.map((delivery: RecentDelivery) => (
                   <div key={delivery.id} className="flex items-center justify-between p-3 bg-[#1e2023] rounded-lg border border-[#2a2d32]">
                     <div>
-                      <p className="font-medium text-[#e8eaed]">{delivery.rawMaterial.name}</p>
+                      <p className="font-medium text-[#e8eaed]">{delivery.material.materialName}</p>
                       <p className="text-sm text-[#7a8090]">
-                        {new Date(delivery.createdAt).toLocaleDateString()}
+                        {new Date(delivery.createdAt).toLocaleDateString()} · {delivery.material.diameter}
                       </p>
                     </div>
                     <Badge variant="outline">
-                      {delivery.quantity} {delivery.rawMaterial.unit}
+                      {delivery.kgReceived.toString()} kg
                     </Badge>
                   </div>
                 ))}

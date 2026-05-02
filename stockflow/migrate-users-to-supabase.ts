@@ -3,6 +3,7 @@
 
 import { config } from 'dotenv';
 import path from 'path';
+import type { User } from '@supabase/supabase-js';
 config({ path: path.join(process.cwd(), '.env') });
 
 console.log('DATABASE_URL:', process.env.DATABASE_URL);
@@ -83,7 +84,7 @@ async function migrateUsersToSupabase() {
               console.error(`Error listing users:`, listError);
               continue;
             }
-            authUser = existingUsers.users.find(u => u.email === user.email);
+            authUser = existingUsers.users.find((u: User) => u.email === user.email);
             if (authUser) {
               // Update password
               const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(authUser.id, {

@@ -25,6 +25,73 @@ export async function getRawMaterials() {
   }));
 }
 
+export async function addRawMaterial(formData: FormData) {
+  const user = await requireAuth();
+
+  const materialName = String(formData.get("materialName") || "").trim();
+  const diameter = String(formData.get("diameter") || "").trim();
+  const supplierName = String(formData.get("supplier") || "").trim();
+  const kg = Number(formData.get("kg"));
+
+  if (!materialName || !diameter || !Number.isFinite(kg) || kg <= 0) {
+    throw new Error("Material name, diameter, and received kilograms are required.");
+  }
+
+  let supplierId: string | undefined;
+  if (supplierName) {
+    const existingSupplier = await prisma.supplier.findFirst({
+      where: { name: supplierName },
+      select: { id: true },
+    });
+
+    if (existingSupplier) {
+      supplierId = existingSupplier.id;
+    } else {
+      const createdSupplier = await prisma.supplier.create({
+        data: {
+          name: supplierName,
+          code: `SUP-${Date.now().toString().slice(-6)}`,
+        },
+        select: { id: true },
+      });
+      supplierId = createdSupplier.id;
+    }
+  }
+
+  const sku = `RAW-${materialName.replace(/\s+/g, "-").toUpperCase()}-${diameter.replace(/\s+/g, "").toUpperCase()}`;
+
+  const material = await prisma.rawMaterial.upsert({
+    where: { sku },
+    update: {
+      materialName,
+      diameter,
+      supplierId,
+      availableKg: { increment: kg },
+    },
+    create: {
+      sku,
+      materialName,
+      diameter,
+      supplierId,
+      availableKg: kg,
+      reservedKg: 0,
+    },
+  });
+
+  await prisma.materialReceipt.create({
+    data: {
+      materialId: material.id,
+      kgReceived: kg,
+      supplierId,
+      loggedBy: user.email || user.name || "System",
+    },
+  });
+
+  revalidatePath("/rawmaterials");
+  revalidatePath("/warehouse");
+  revalidatePath("/inventory");
+}
+
 // ─── Local Purchase & Imported Goods ────────────────────────────────────────
 
 export type AddProductStockInput = {

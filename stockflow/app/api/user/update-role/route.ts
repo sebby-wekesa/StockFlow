@@ -1,38 +1,42 @@
 export const dynamic = 'force-dynamic';
 
-import { NextRequest, NextResponse } from 'next/headers';
+import { NextRequest, NextResponse } from 'next/server';
+import { getUser } from '@/lib/auth';
 import { supabaseServer } from '@/lib/supabase-admin';
-import { cookies } from 'next/headers';
+import { USER_ROLES, normalizeUserRole } from '@/lib/types';
 
 export async function POST(request: NextRequest) {
   try {
-    const { role } = await request.json();
-
-    // Get current user from Supabase session
-    const cookieStore = await cookies();
-    const token = cookieStore.get("auth-token")?.value;
-
-    if (!token) {
+    const currentUser = await getUser();
+    if (!currentUser) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { data: { user }, error: userError } = await supabaseServer().auth.getUser(token);
-
-    if (userError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (currentUser.role !== "ADMIN") {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    // Validate role
-    const validRoles = ['ADMIN', 'MANAGER', 'OPERATOR', 'WAREHOUSE', 'SALES', 'PACKAGING'];
-    if (!validRoles.includes(role)) {
+    const { userId, role } = await request.json();
+    const normalizedRole = normalizeUserRole(role);
+
+    if (!userId) {
+      return NextResponse.json({ error: 'User ID is required' }, { status: 400 });
+    }
+
+    if (typeof role !== "string" || !USER_ROLES.includes(role.toUpperCase() as typeof USER_ROLES[number])) {
       return NextResponse.json({ error: 'Invalid role' }, { status: 400 });
     }
 
+    const supabase = supabaseServer() as any;
+    if (!supabase) {
+      return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
+    }
+
     // Update role in profiles table
-    const { error } = await supabaseServer()
+    const { error } = await supabase
       .from('profiles')
-      .update({ role })
-      .eq('id', user.id);
+      .update({ role: normalizedRole })
+      .eq('id', userId);
 
     if (error) {
       console.error('Role update error:', error);

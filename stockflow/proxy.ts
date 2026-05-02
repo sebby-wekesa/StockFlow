@@ -1,119 +1,81 @@
-import { createServerClient } from '@supabase/ssr'
-import { NextResponse, type NextRequest } from 'next/server'
-import { ROLE_PATHS } from '@/lib/types'
+import { NextResponse, type NextRequest } from "next/server";
+import { clearAuthCookies, getRoleHomePage, getSessionContext, setUserRoleCookie } from "@/lib/auth-session";
+import type { UserRole } from "@/lib/types";
 
-export type TeamRole = 'admin' | 'manager' | 'operator' | 'packaging' | 'warehouse' | 'sales';
+const PUBLIC_PATHS = new Set(["/login"]);
+
+const ROLE_PROTECTIONS: Array<{ prefix: string; roles: UserRole[] }> = [
+  { prefix: "/admin", roles: ["ADMIN"] },
+  { prefix: "/manager", roles: ["MANAGER", "ADMIN"] },
+  { prefix: "/operator", roles: ["OPERATOR", "ADMIN"] },
+  { prefix: "/sales", roles: ["SALES", "ADMIN"] },
+  { prefix: "/packaging", roles: ["PACKAGING", "ADMIN"] },
+  { prefix: "/warehouse", roles: ["WAREHOUSE", "ADMIN"] },
+  { prefix: "/approvals", roles: ["MANAGER", "ADMIN"] },
+  { prefix: "/users", roles: ["ADMIN"] },
+];
+
+function isPublicPath(pathname: string) {
+  return (
+    pathname.startsWith("/api/") ||
+    pathname.startsWith("/_next/") ||
+    pathname.startsWith("/auth/") ||
+    pathname.includes(".") ||
+    PUBLIC_PATHS.has(pathname)
+  );
+}
+
+function redirectTo(url: URL, role?: UserRole) {
+  const response = NextResponse.redirect(url);
+
+  if (role) {
+    setUserRoleCookie(response.cookies, role);
+  }
+
+  return response;
+}
+
+function matchProtectedRoute(pathname: string) {
+  return ROLE_PROTECTIONS.find(({ prefix }) => pathname === prefix || pathname.startsWith(`${prefix}/`));
+}
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Skip middleware for API routes, static files, and auth routes
-  if (
-    pathname.startsWith('/api/') ||
-    pathname.startsWith('/_next/') ||
-    pathname.startsWith('/auth/') ||
-    pathname.includes('.') ||
-    pathname === '/login' ||
-    pathname === '/'
-  ) {
+  if (isPublicPath(pathname)) {
     return NextResponse.next();
   }
 
-  const demoLoggedIn = request.cookies.get('demo-logged-in')?.value
+  const accessToken = request.cookies.get("auth-token")?.value;
 
-  if (demoLoggedIn === 'true') {
-    // Demo mode: skip Supabase auth, allow access
-    return NextResponse.next({ request })
+  if (!accessToken) {
+    return redirectTo(new URL("/login", request.url));
   }
 
-  let supabaseResponse = NextResponse.next({
-    request,
-  })
+  const session = await getSessionContext(accessToken);
 
-  // Set pathname header for role checks
-  supabaseResponse.headers.set('x-pathname', request.nextUrl.pathname)
-
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-
-  if (!supabaseUrl || !supabaseAnonKey) {
-    console.error("Supabase Proxy: Missing environment variables. Skipping auth check.");
-    return supabaseResponse;
+  if (!session) {
+    const response = redirectTo(new URL("/login", request.url));
+    clearAuthCookies(response.cookies);
+    return response;
   }
 
-  const supabase = createServerClient(
-    supabaseUrl,
-    supabaseAnonKey,
-    {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll()
-        },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) => request.cookies.set(name, value))
-          supabaseResponse = NextResponse.next({
-            request,
-          })
-          cookiesToSet.forEach(({ name, value, options }) =>
-            supabaseResponse.cookies.set(name, value, options)
-          )
-        },
-      },
-    }
-  )
+  const roleHome = getRoleHomePage(session.role);
 
-  // Refresh session if expired - required for Server Components
-  const { data: { session } } = await supabase.auth.getSession()
-  const user = session?.user
-
-  if (user) {
-    const userRole = request.cookies.get('user-role')?.value;
-
-    // Define role-specific protected paths
-    const roleProtections: Record<string, string[]> = {
-      '/admin': ['ADMIN'],
-      '/manager': ['MANAGER', 'ADMIN'],
-      '/operator': ['OPERATOR', 'ADMIN'],
-      '/packaging': ['PACKAGING', 'ADMIN'],
-      '/warehouse': ['WAREHOUSE', 'ADMIN'],
-    };
-
-    // Check if current path requires specific role
-    for (const [path, allowedRoles] of Object.entries(roleProtections)) {
-      if (pathname.startsWith(path)) {
-        if (!allowedRoles.includes(userRole)) {
-          // Redirect to appropriate dashboard based on user role
-          const redirectPath = ROLE_PATHS[userRole as keyof typeof ROLE_PATHS] || '/dashboard';
-          return NextResponse.redirect(new URL(redirectPath, request.url));
-        }
-        break;
-      }
-    }
-
-    // Redirect /dashboard to role-specific page
-    if (request.nextUrl.pathname === '/dashboard' && userRole && userRole !== 'PENDING') {
-      const rolePath = ROLE_PATHS[userRole as keyof typeof ROLE_PATHS];
-      if (rolePath && rolePath !== '/dashboard') {
-        return NextResponse.redirect(new URL(rolePath, request.url));
-      }
-    }
-
-    if (request.nextUrl.pathname === '/') {
-      return NextResponse.redirect(new URL('/dashboard', request.url))
-    }
-  } else {
-    // User not authenticated, redirect to login for protected paths
-    const protectedPaths = ['/admin', '/manager', '/operator', '/packaging', '/warehouse', '/dashboard'];
-    if (protectedPaths.some(path => pathname.startsWith(path))) {
-      return NextResponse.redirect(new URL('/login', request.url));
-    }
+  if (pathname === "/" || pathname === "/dashboard") {
+    return redirectTo(new URL(roleHome, request.url), session.role);
   }
 
+  const protectedRoute = matchProtectedRoute(pathname);
+  if (protectedRoute && !protectedRoute.roles.includes(session.role)) {
+    return redirectTo(new URL(roleHome, request.url), session.role);
+  }
 
-
-  return supabaseResponse
+  const response = NextResponse.next();
+  setUserRoleCookie(response.cookies, session.role);
+  return response;
 }
 
 export const config = {
-  matcher: ['/((?!api|_next/static|_next/image|favicon.ico).*)'],
-}
+  matcher: ["/((?!api|_next/static|_next/image|favicon.ico).*)"],
+};

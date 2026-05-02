@@ -1,7 +1,7 @@
 // components/RoleGuard.tsx
 import { ReactNode } from 'react';
 import { redirect } from 'next/navigation';
-import { requireAuth } from '@/lib/auth';
+import { getUser } from '@/lib/auth';
 import type { Role } from '@/lib/auth';
 
 export async function RoleGuard({
@@ -11,9 +11,13 @@ export async function RoleGuard({
   children: ReactNode,
   allowedRoles: Role[]
 }) {
-  const user = await requireAuth();
+  const user = await getUser();
 
-  if (!user || !allowedRoles.includes(user.role)) {
+  if (!user) {
+    redirect('/login');
+  }
+
+  if (!allowedRoles.includes(user.role)) {
     // This will show the permission denied page
     return (
       <div className="flex h-screen items-center justify-center bg-zinc-950 text-white">

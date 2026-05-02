@@ -2,6 +2,7 @@
 
 import { updateUserRole, deleteUser } from "@/app/actions/users";
 import { useTransition, useState } from "react";
+import type { UserRole } from "@/lib/types";
 
 // Define exactly what the component needs
 interface UserRowProps {
@@ -9,7 +10,7 @@ interface UserRowProps {
     id: string;
     name: string | null;
     email: string;
-    role: any; // Or your Role enum
+    role: UserRole;
     department?: string | null;
   }
 }
@@ -26,7 +27,7 @@ export function UserRow({ user }: UserRowProps) {
     startTransition(async () => {
       try {
         await updateUserRole(user.id, newRole);
-      } catch (err) {
+      } catch {
         setError("Failed to update role. Please try again.");
       }
     });
@@ -38,7 +39,7 @@ export function UserRow({ user }: UserRowProps) {
       startTransition(async () => {
         try {
           await deleteUser(user.id);
-        } catch (err) {
+        } catch {
           setError("Failed to delete user. Please try again.");
         }
       });

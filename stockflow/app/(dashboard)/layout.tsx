@@ -1,5 +1,4 @@
 import { redirect } from 'next/navigation';
-import { cookies } from 'next/headers';
 import { getUser } from '@/lib/auth';
 import { Sidebar } from "@/components/Sidebar";
 
@@ -7,9 +6,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const user = await getUser();
   if (!user) redirect('/login');
 
-  // 1. Get the role from the cookie set by auth
-  const cookieStore = await cookies();
-  const role = cookieStore.get('user-role')?.value;
+  const role = user.role;
 
   if (role === 'PENDING') {
     return (

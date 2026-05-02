@@ -4,15 +4,20 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { supabaseAdmin } from "@/lib/supabase-admin";
+import { clearAuthCookies, getRoleHomePage, resolveUserRole, setAuthCookies } from "@/lib/auth-session";
 import { loginSchema } from "@/lib/validations";
-import { ROLE_HOME_PAGES, type UserRole } from "@/types/auth";
-import { ROLE_PATHS } from "@/lib/types";
 
-function getAuthErrorMessage(error: any) {
-  if (error?.message?.includes('Invalid login credentials')) {
+function readErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : "";
+}
+
+function getAuthErrorMessage(error: unknown) {
+  const message = readErrorMessage(error);
+
+  if (message.includes('Invalid login credentials')) {
     return "Invalid email or password. Please try again.";
   }
-  if (error?.message?.includes('Email not confirmed')) {
+  if (message.includes('Email not confirmed')) {
     return "Please check your email and confirm your account.";
   }
   return "Authentication failed. Please try again.";
@@ -21,10 +26,6 @@ function getAuthErrorMessage(error: any) {
 export async function signIn(formData: FormData) {
   const email = formData.get("email") as string;
   const password = formData.get("password") as string;
-
-  // Debug: Check if environment variables are loading
-  console.log("URL:", process.env.NEXT_PUBLIC_SUPABASE_URL); // Check if this is undefined
-  console.log("KEY:", process.env.SUPABASE_SERVICE_ROLE_KEY ? "Loaded" : "Missing");
 
   // Validate input
   const validation = loginSchema.safeParse({ email, password });
@@ -35,79 +36,32 @@ export async function signIn(formData: FormData) {
     return { error: firstError };
   }
 
-  let redirectPath: string;
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email: validation.data.email,
+    password: validation.data.password,
+  });
 
-  try {
-    // Sign in with Supabase
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email: validation.data.email,
-      password: validation.data.password,
-    });
-
-    if (error) {
-      console.error("Supabase auth error:", error);
-      return { error: getAuthErrorMessage(error) };
-    }
-
-    if (!data.user) {
-      return { error: "Authentication failed. Please try again." };
-    }
-
-    // Get user profile from profiles table
-    const { data: profile, error: profileError } = await supabaseAdmin
-      .from('profiles')
-      .select('role, department, branch_id')
-      .eq('id', data.user.id)
-      .single();
-
-    if (profileError) {
-      console.error("Profile fetch error:", profileError);
-      return { error: "Failed to load user profile. Please contact support." };
-    }
-
-    // Create session cookies
-    const cookieStore = await cookies();
-
-    // Set auth token for session management
-    cookieStore.set("auth-token", data.session?.access_token || "", {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      path: "/",
-      maxAge: 60 * 60 * 24 * 7, // 7 days
-    });
-
-    // Set refresh token
-    cookieStore.set("refresh-token", data.session?.refresh_token || "", {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      path: "/",
-      maxAge: 60 * 60 * 24 * 30, // 30 days
-    });
-
-    // Set user-role cookie for middleware (from profile)
-    cookieStore.set("user-role", profile.role || "PENDING", {
-      httpOnly: false, // Allow client-side access
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      path: "/",
-      maxAge: 60 * 60 * 24 * 7, // 7 days
-    });
-
-    // Determine redirect path based on role
-    redirectPath = ROLE_PATHS[profile.role as UserRole] || '/dashboard';
-
-  } catch (error) {
-    if (error instanceof Error && error.message === 'NEXT_REDIRECT') {
-      throw error;
-    }
-    console.error("Sign in error:", error);
-    return { error: "An unexpected error occurred. Please try again." };
+  if (error) {
+    console.error("Supabase auth error:", error);
+    return { error: getAuthErrorMessage(error) };
   }
 
-  // Redirect outside try/catch to avoid swallowing
-  redirect(redirectPath);
+  if (!data.user) {
+    return { error: "Authentication failed. Please try again." };
+  }
+
+  if (!data.session) {
+    return { error: "Authentication failed. Please try again." };
+  }
+
+  const role = await resolveUserRole(data.user.id, data.user.user_metadata?.role);
+
+  // Success - set cookies and redirect
+  const cookieStore = await cookies();
+  setAuthCookies(cookieStore, data.session, role);
+
+  const redirectTo = getRoleHomePage(role);
+  return { redirectTo };
 }
 
 export async function signOut() {
@@ -120,10 +74,7 @@ export async function signOut() {
 
   // Clear all cookies
   const cookieStore = await cookies();
-  cookieStore.delete("auth-token");
-  cookieStore.delete("refresh-token");
-  cookieStore.delete("user-role");
-  cookieStore.delete("demo-logged-in");
+  clearAuthCookies(cookieStore);
 
   redirect("/login");
 }
@@ -163,6 +114,18 @@ export async function signUp(formData: FormData) {
       return { error: "Failed to create account. Please try again." };
     }
 
+    if (!data.session) {
+      return {
+        message: "Account created successfully. Please sign in to continue.",
+      };
+    }
+
+    const role = await resolveUserRole(data.user.id, data.user.user_metadata?.role);
+    const cookieStore = await cookies();
+    setAuthCookies(cookieStore, data.session, role);
+
+    return { redirectTo: getRoleHomePage(role) };
+
   } catch (error) {
     if (error instanceof Error && error.message === 'NEXT_REDIRECT') {
       throw error; // Re-throw redirect errors so Next.js can handle them
@@ -170,7 +133,4 @@ export async function signUp(formData: FormData) {
     console.error("Sign up error:", error);
     return { error: "An unexpected error occurred. Please try again." };
   }
-
-  // Redirect outside try/catch to avoid swallowing
-  redirect('/dashboard');
 }

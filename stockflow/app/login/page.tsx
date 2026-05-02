@@ -1,22 +1,35 @@
 "use client";
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { signIn, signUp } from '@/actions/auth';
 
 export default function LoginPage() {
   const [isLogin, setIsLogin] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
+  const router = useRouter();
 
   async function handleSubmit(formData: FormData) {
     setError(null);
+    setMessage(null);
     try {
       const action = isLogin ? signIn : signUp;
       const res = await action(formData);
       if (res?.error) {
         setError(res.error);
+        return;
       }
-    } catch (e: any) {
-      setError(e.message || "An unexpected error occurred");
+      if (res && "message" in res && res.message) {
+        setMessage(res.message);
+        setIsLogin(true);
+        return;
+      }
+      if (res?.redirectTo) {
+        router.replace(res.redirectTo);
+      }
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "An unexpected error occurred");
     }
   }
 
@@ -74,6 +87,19 @@ export default function LoginPage() {
             </div>
           )}
 
+          {message && (
+            <div style={{
+              background: 'rgba(16, 185, 129, 0.12)',
+              color: '#10b981',
+              padding: '12px',
+              borderRadius: 'var(--radius)',
+              marginBottom: '16px',
+              fontSize: '14px'
+            }}>
+              {message}
+            </div>
+          )}
+
           {!isLogin && (
             <>
               <div className="form-group" style={{ marginBottom: '16px' }}>
@@ -128,6 +154,7 @@ export default function LoginPage() {
             onClick={() => {
               setIsLogin(!isLogin);
               setError(null);
+              setMessage(null);
             }}
             style={{
               background: 'none',

@@ -1,9 +1,18 @@
 import { prisma } from "@/lib/prisma";
 import ApprovalTable from "./ApprovalTable";
-import { requireRole } from "@/lib/auth";
+import { getUser } from "@/lib/auth";
+import { redirect } from "next/navigation";
 
 export default async function OrderApprovalPage() {
-  await requireRole('ADMIN', 'MANAGER');
+  const user = await getUser();
+
+  if (!user) {
+    redirect("/login");
+  }
+
+  if (user.role !== "ADMIN" && user.role !== "MANAGER") {
+    redirect("/unauthorized");
+  }
 
   const pendingOrders = await prisma.productionOrder.findMany({
     where: { status: "PENDING" },

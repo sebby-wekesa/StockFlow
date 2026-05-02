@@ -1,15 +1,37 @@
 "use server";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
-import { supabaseAdmin, supabaseServer } from "@/lib/supabase-admin";
+import { getUser } from "@/lib/auth";
+import { supabaseAdmin } from "@/lib/supabase-admin";
+import { normalizeUserRole, USER_ROLES } from "@/lib/types";
+
+async function assertAdminAccess() {
+  const currentUser = await getUser();
+
+  if (!currentUser) {
+    throw new Error("Unauthorized");
+  }
+
+  if (currentUser.role !== "ADMIN") {
+    throw new Error("Forbidden");
+  }
+}
 
 export async function inviteUser(data: { name: string; email: string; role: string; branchId: string }) {
   try {
+    await assertAdminAccess();
+
     const { name, email, role, branchId } = data;
 
     if (!email || !name || !role || !branchId) {
       return { success: false, error: "All fields are required" };
     }
+
+    if (typeof role !== "string" || !USER_ROLES.includes(role.toUpperCase() as typeof USER_ROLES[number])) {
+      return { success: false, error: "Invalid role" };
+    }
+
+    const normalizedRole = normalizeUserRole(role);
 
     // 1. Create user in Supabase Auth
     const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.createUser({
@@ -19,6 +41,7 @@ export async function inviteUser(data: { name: string; email: string; role: stri
       user_metadata: {
         name,
         branchId,
+        role: normalizedRole,
       }
     });
 
@@ -34,7 +57,7 @@ export async function inviteUser(data: { name: string; email: string; role: stri
       .from('profiles')
       .update({
         name,
-        role,
+        role: normalizedRole,
         branch_id: branchId,
       })
       .eq('id', authUser.user!.id);
@@ -54,9 +77,17 @@ export async function inviteUser(data: { name: string; email: string; role: stri
 }
 
 export async function updateUserRole(userId: string, newRole: string) {
+  await assertAdminAccess();
+
+  if (typeof newRole !== "string" || !USER_ROLES.includes(newRole.toUpperCase() as typeof USER_ROLES[number])) {
+    throw new Error("Invalid role");
+  }
+
+  const normalizedRole = normalizeUserRole(newRole);
+
   const { error } = await supabaseAdmin
     .from('profiles')
-    .update({ role: newRole })
+    .update({ role: normalizedRole })
     .eq('id', userId);
 
   if (error) {
@@ -68,6 +99,8 @@ export async function updateUserRole(userId: string, newRole: string) {
 }
 
 export async function deleteUser(userId: string) {
+  await assertAdminAccess();
+
   // First delete related records that reference this user
   await prisma.auditLog.deleteMany({
     where: { userId },

@@ -8,11 +8,9 @@ export default async function OperatorHistoryPage() {
   const user = await getUser();
   if (!user) redirect("/login");
 
-  const dbUser = await prisma.user.findUnique({
-    where: { email: user.email! },
-  });
-
-  if (!dbUser) redirect("/login");
+  if (user.role !== "OPERATOR" && user.role !== "ADMIN") {
+    redirect("/unauthorized");
+  }
 
   // Get completed orders or logs for the user
   const completedOrders = await prisma.productionOrder.findMany({

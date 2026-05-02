@@ -21,12 +21,7 @@ async function getAdminStats() {
 export default async function AdminDashboardPage() {
   const user = await getUser();
   if (!user) redirect("/login");
-
-  const dbUser = await prisma.user.findUnique({
-    where: { email: user.email! },
-  });
-
-  if (!dbUser || dbUser.role !== 'ADMIN') redirect("/login");
+  if (user.role !== "ADMIN") redirect("/unauthorized");
 
   const stats = await getAdminStats();
 
@@ -70,7 +65,7 @@ export default async function AdminDashboardPage() {
           <div className="stat-card">
             <div className="stat-label">Total Users</div>
             <div className="stat-value">{stats.users}</div>
-            <Link href="/users" className="stat-sub hover:underline">
+            <Link href="/admin/users" className="stat-sub hover:underline">
               Manage users & roles →
             </Link>
           </div>
