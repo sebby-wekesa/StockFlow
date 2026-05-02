@@ -6,7 +6,6 @@ export type Role = UserRole;
 
 type ProfileRow = {
   email: string | null;
-  name: string | null;
   role: string | null;
   department: string | null;
   branch_id: string | null;
@@ -50,10 +49,13 @@ export async function getUser() {
   console.log("User found:", user.email);
 
   try {
+    const metadataName =
+      typeof user.user_metadata?.name === "string" ? user.user_metadata.name : null;
+
     // Get profile from profiles table
     const { data, error: profileError } = await supabase
       .from('profiles')
-      .select('email, name, role, department, branch_id')
+      .select('email, role, department, branch_id')
       .eq('id', user.id)
       .maybeSingle();
 
@@ -66,7 +68,7 @@ export async function getUser() {
     return {
       id: user.id,
       email: profile?.email ?? user.email ?? "",
-      name: profile?.name ?? (typeof user.user_metadata?.name === "string" ? user.user_metadata.name : null),
+      name: metadataName,
       role: normalizeUserRole(profile?.role ?? user.user_metadata?.role),
       department: profile?.department ?? null,
       branchId: profile?.branch_id ?? null,

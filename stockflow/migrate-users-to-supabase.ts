@@ -48,7 +48,6 @@ async function migrateUsersToSupabase() {
           // Update existing profile
           const updateData: any = {
             email: user.email,
-            name: user.name,
             role: user.role,
             department: user.department,
           };
@@ -74,6 +73,8 @@ async function migrateUsersToSupabase() {
             email_confirm: true, // Auto-confirm email
             user_metadata: {
               name: user.name,
+              role: user.role,
+              branchId: user.branchId,
             }
           });
 
@@ -89,6 +90,11 @@ async function migrateUsersToSupabase() {
               // Update password
               const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(authUser.id, {
                 password: 'TempPass123!',
+                user_metadata: {
+                  name: user.name,
+                  role: user.role,
+                  branchId: user.branchId,
+                },
               });
               if (updateError) {
                 console.error(`Error updating password for ${user.email}:`, updateError);
@@ -113,7 +119,6 @@ async function migrateUsersToSupabase() {
           const profileData: any = {
             id: profileId,
             email: user.email,
-            name: user.name,
             role: user.role,
             department: user.department,
           };

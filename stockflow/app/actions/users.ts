@@ -56,7 +56,6 @@ export async function inviteUser(data: { name: string; email: string; role: stri
     const { error: profileError } = await supabaseAdmin
       .from('profiles')
       .update({
-        name,
         role: normalizedRole,
         branch_id: branchId,
       })

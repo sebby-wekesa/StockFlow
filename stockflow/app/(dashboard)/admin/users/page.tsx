@@ -15,6 +15,10 @@ type AdminUserRow = {
   department: string | null;
 };
 
+function getAuthMetadataName(user: { user_metadata?: Record<string, unknown> } | undefined) {
+  return typeof user?.user_metadata?.name === "string" ? user.user_metadata.name : null;
+}
+
 async function getUsers() {
   try {
     const supabase = supabaseServer() as any;
@@ -24,15 +28,34 @@ async function getUsers() {
 
     const { data, error } = await supabase
       .from('profiles')
-      .select('id, email, name, role, department')
-      .order('created_at', { ascending: false });
+      .select('id, email, role, department')
+      .order('updated_at', { ascending: false });
 
     if (error) {
       console.error('Failed to fetch users:', error);
       return [] as AdminUserRow[];
     }
 
-    return (data || []) as AdminUserRow[];
+    const { data: authData, error: authError } = await supabase.auth.admin.listUsers({
+      page: 1,
+      perPage: 1000,
+    });
+
+    if (authError) {
+      console.error('Failed to fetch auth users:', authError);
+    }
+
+    const authUsersById = new Map(
+      (authData?.users ?? []).map((authUser: { id: string; user_metadata?: Record<string, unknown> }) => [
+        authUser.id,
+        authUser,
+      ]),
+    );
+
+    return ((data ?? []) as Omit<AdminUserRow, "name">[]).map((profile) => ({
+      ...profile,
+      name: getAuthMetadataName(authUsersById.get(profile.id)),
+    }));
   } catch (error) {
     console.error('Failed to fetch users:', error);
     return [] as AdminUserRow[];
