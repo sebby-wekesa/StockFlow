@@ -142,12 +142,11 @@ export function Sidebar({ role }: { role: UserRole }) {
         
         <div style={{ marginTop: 'auto', paddingTop: '20px' }}>
           <form action={signOut} style={{ display: 'block', width: '100%' }}>
-            <button 
+            <button
               type="submit"
-              className="nav-item" 
-              style={{ width: '100%', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', color: '#fbbf24', marginTop: '20px' }}
+              className="bg-[#f0c040] hover:bg-[#f5d060] text-black"
+              style={{ width: '100%', padding: '8px 18px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: '600', marginTop: '20px' }}
             >
-              <span className="nav-dot" style={{ background: '#fbbf24' }}></span>
               Log out
             </button>
           </form>
