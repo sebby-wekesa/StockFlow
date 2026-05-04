@@ -25,61 +25,112 @@ export default function ApprovalTable({ orders }: { orders: any[] }) {
   };
 
   return (
-    <div className="overflow-x-auto rounded-lg border border-gray-800 bg-[#1e1e1e]">
-      <table className="w-full text-left text-sm">
-        <thead className="bg-[#2a2a2a] text-gray-300 uppercase text-xs">
-          <tr>
-            <th className="px-6 py-4">Order #</th>
-            <th className="px-6 py-4">Design / Product</th>
-            <th className="px-6 py-4">Branch</th>
-            <th className="px-6 py-4">Quantity</th>
-            <th className="px-6 py-4">Target (kg)</th>
-            <th className="px-6 py-4">Date</th>
-            <th className="px-6 py-4 text-right">Actions</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-gray-800">
+    <div className="card">
+      <div className="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Order #</th>
+              <th>Design / Product</th>
+              <th>Branch</th>
+              <th>Quantity</th>
+              <th>Target (kg)</th>
+              <th>Date</th>
+              <th style={{ textAlign: 'right' }}>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
           {orders.map((order) => (
-            <tr key={order.id} className="hover:bg-[#252525] transition-colors">
-              <td className="px-6 py-4 font-medium text-white">
-                <div className="flex items-center gap-2">
-                  <Package size={14} className="text-gray-500" />
-                  {order.orderNumber}
+            <tr key={order.id}>
+              <td>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Package size={14} style={{ color: 'var(--muted)' }} />
+                  <span style={{
+                    fontWeight: 500,
+                    color: 'var(--text)',
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: '12px'
+                  }}>
+                    {order.orderNumber}
+                  </span>
                 </div>
               </td>
-              <td className="px-6 py-4 text-gray-300">{order.design?.name}</td>
-              <td className="px-6 py-4 text-gray-300">
-                <span className="px-2 py-1 bg-blue-500/10 text-blue-400 rounded-md text-[10px] font-bold uppercase border border-blue-500/20">
+              <td style={{ fontWeight: 500, color: 'var(--text)' }}>
+                {order.design?.name}
+              </td>
+              <td>
+                <span className="badge badge-blue">
                   {order.branch?.location || 'Mombasa'}
                 </span>
               </td>
-              <td className="px-6 py-4 text-gray-300">{order.quantity}</td>
-              <td className="px-6 py-4 text-gray-300">{Number(order.targetKg).toFixed(2)} kg</td>
-              <td className="px-6 py-4 text-gray-400">
+              <td style={{
+                fontFamily: 'var(--font-mono)',
+                fontWeight: 500,
+                color: 'var(--text)'
+              }}>
+                {order.quantity}
+              </td>
+              <td style={{
+                fontFamily: 'var(--font-mono)',
+                fontWeight: 500,
+                color: 'var(--green)'
+              }}>
+                {Number(order.targetKg).toFixed(2)} kg
+              </td>
+              <td style={{
+                fontSize: '12px',
+                color: 'var(--muted)'
+              }}>
                 {new Date(order.createdAt).toLocaleDateString()}
               </td>
-              <td className="px-6 py-4 text-right space-x-2">
-                <button 
-                  onClick={() => handleAction(order.id, "APPROVED")}
-                  disabled={loadingId === order.id}
-                  className={`p-2 bg-green-600/10 text-green-500 rounded hover:bg-green-600 hover:text-white transition-all ${loadingId === order.id ? 'opacity-50 cursor-not-allowed' : ''}`}
-                  title="Approve"
-                >
-                  <Check size={18} />
-                </button>
-                <button 
-                  onClick={() => handleAction(order.id, "REJECTED")}
-                  disabled={loadingId === order.id}
-                  className={`p-2 bg-red-600/10 text-red-500 rounded hover:bg-red-600 hover:text-white transition-all ${loadingId === order.id ? 'opacity-50 cursor-not-allowed' : ''}`}
-                  title="Reject"
-                >
-                  <X size={18} />
-                </button>
+              <td style={{ textAlign: 'right' }}>
+                <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                  <button
+                    onClick={() => handleAction(order.id, "APPROVED")}
+                    disabled={loadingId === order.id}
+                    className="btn btn-teal"
+                    style={{
+                      padding: '6px 10px',
+                      fontSize: '12px',
+                      opacity: loadingId === order.id ? 0.6 : 1,
+                      cursor: loadingId === order.id ? 'not-allowed' : 'pointer'
+                    }}
+                    title="Approve"
+                  >
+                    {loadingId === order.id ? (
+                      <div style={{
+                        width: '14px',
+                        height: '14px',
+                        border: '1px solid var(--text)',
+                        borderTop: '1px solid transparent',
+                        borderRadius: '50%',
+                        animation: 'spin 1s linear infinite'
+                      }}></div>
+                    ) : (
+                      <Check size={14} />
+                    )}
+                  </button>
+                  <button
+                    onClick={() => handleAction(order.id, "REJECTED")}
+                    disabled={loadingId === order.id}
+                    className="btn btn-red"
+                    style={{
+                      padding: '6px 10px',
+                      fontSize: '12px',
+                      opacity: loadingId === order.id ? 0.6 : 1,
+                      cursor: loadingId === order.id ? 'not-allowed' : 'pointer'
+                    }}
+                    title="Reject"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
               </td>
             </tr>
           ))}
         </tbody>
-      </table>
+        </table>
+      </div>
     </div>
   );
 }

@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import ApprovalTable from "./ApprovalTable";
 import { getUser } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { Check } from "lucide-react";
 
 export default async function OrderApprovalPage() {
   const user = await getUser();
@@ -23,15 +24,53 @@ export default async function OrderApprovalPage() {
   });
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-white">Order Approvals</h1>
-        <p className="text-gray-400">Review and approve incoming stock orders.</p>
+    <div className="dashboard-content">
+      <div className="section-header">
+        <div>
+          <h1>Order Approvals</h1>
+          <div className="section-sub">Review and approve incoming production orders</div>
+        </div>
+        <div style={{
+          fontSize: '12px',
+          color: 'var(--muted)',
+          background: 'var(--surface2)',
+          padding: '4px 8px',
+          borderRadius: 'var(--radius-sm)',
+          border: '1px solid var(--border2)'
+        }}>
+          {pendingOrders.length} pending
+        </div>
       </div>
 
       {pendingOrders.length === 0 ? (
-        <div className="bg-[#1e1e1e] p-10 text-center rounded-lg border border-gray-800">
-          <p className="text-gray-500">No orders awaiting approval.</p>
+        <div className="card" style={{ textAlign: 'center', padding: '40px 20px' }}>
+          <div style={{
+            display: 'inline-block',
+            marginBottom: '12px'
+          }}>
+            <div style={{
+              padding: '16px',
+              background: 'var(--surface2)',
+              border: '1px solid var(--border2)',
+              borderRadius: 'var(--radius)',
+              display: 'inline-block'
+            }}>
+              <Check size={24} style={{ color: 'var(--muted)' }} />
+            </div>
+          </div>
+          <p style={{
+            fontSize: '14px',
+            color: 'var(--muted)',
+            marginBottom: '4px'
+          }}>
+            No orders awaiting approval
+          </p>
+          <p style={{
+            fontSize: '12px',
+            color: 'var(--muted)'
+          }}>
+            All orders have been processed
+          </p>
         </div>
       ) : (
         <ApprovalTable orders={JSON.parse(JSON.stringify(pendingOrders))} />

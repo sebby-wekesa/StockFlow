@@ -64,10 +64,21 @@ export default function OrdersPage() {
           <div>
             <h1>Production Orders</h1>
             <div className="section-sub">Manage and create new manufacturing orders</div>
+          </div>
         </div>
-      </div>
-      </ToastProvider>
-    </div>
+
+        {/* Create Order Form */}
+        <div className="mb-6">
+          <CreateProductionOrderForm
+            designs={designs}
+            onSuccess={() => {
+              // Refresh orders list
+              fetch('/api/production-orders')
+                .then((res) => res.json())
+                .then((data) => setOrders(Array.isArray(data) ? data : []))
+            }}
+          />
+        </div>
 
         {/* Orders List */}
         <div className="card">
@@ -231,7 +242,7 @@ export default function OrdersPage() {
             </div>
           )}
         </div>
-      </div>
-    </ToastProvider>
+      </ToastProvider>
+    </div>
   )
 }
