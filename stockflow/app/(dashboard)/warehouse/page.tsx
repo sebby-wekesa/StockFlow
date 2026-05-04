@@ -1,7 +1,4 @@
 import { prisma } from "@/lib/prisma";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Package, Truck, AlertTriangle, CheckCircle, Clock } from "lucide-react";
 
 const LOW_STOCK_THRESHOLD = 50;
@@ -68,158 +65,118 @@ export default async function WarehousePage() {
   ]);
 
   return (
-    <div className="space-y-8">
+    <div>
       {/* Header */}
-      <div className="section-header mb-8">
+      <div className="section-header mb-16">
         <div>
-          <h1 className="section-title">Warehouse Dashboard</h1>
-          <p className="section-sub">Manage inventory, track deliveries, and monitor stock levels</p>
+          <div className="section-title">Warehouse Dashboard</div>
+          <div className="section-sub">Manage inventory, track deliveries, and monitor stock levels</div>
         </div>
         <div className="flex gap-3">
-          <Button className="bg-[#f0c040] hover:bg-[#f5d060] text-black">
+          <button className="btn btn-primary">
             <Truck className="h-4 w-4 mr-2" />
             Receive Stock
-          </Button>
-          <Button variant="outline">
+          </button>
+          <button className="btn btn-ghost">
             <Package className="h-4 w-4 mr-2" />
             View Inventory
-          </Button>
+          </button>
         </div>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-[#4a9eff]/10 rounded-lg">
-                <Package className="h-6 w-6 text-[#4a9eff]" />
-              </div>
-              <div>
-                <p className="text-sm text-[#7a8090]">Total Materials</p>
-                <p className="text-2xl font-bold text-[#e8eaed]">{stats.totalRawMaterials}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+      <div className="stats-grid">
+        <div className="stat-card blue">
+          <div className="stat-label">Total Materials</div>
+          <div className="stat-value">{stats.totalRawMaterials}</div>
+          <div className="stat-sub">Active inventory</div>
+        </div>
 
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-[#e05555]/10 rounded-lg">
-                <AlertTriangle className="h-6 w-6 text-[#e05555]" />
-              </div>
-              <div>
-                <p className="text-sm text-[#7a8090]">Low Stock Alerts</p>
-                <p className="text-2xl font-bold text-[#e8eaed]">{stats.lowStockItems}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="stat-card red">
+          <div className="stat-label">Low Stock Alerts</div>
+          <div className="stat-value">{stats.lowStockItems}</div>
+          <div className="stat-sub">Need attention</div>
+        </div>
 
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-[#2ec4a0]/10 rounded-lg">
-                <Truck className="h-6 w-6 text-[#2ec4a0]" />
-              </div>
-              <div>
-                <p className="text-sm text-[#7a8090]">Recent Deliveries</p>
-                <p className="text-2xl font-bold text-[#e8eaed]">{stats.recentDeliveries}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="stat-card teal">
+          <div className="stat-label">Recent Deliveries</div>
+          <div className="stat-value">{stats.recentDeliveries}</div>
+          <div className="stat-sub">This week</div>
+        </div>
 
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-[#f0c040]/10 rounded-lg">
-                <Clock className="h-6 w-6 text-[#f0c040]" />
-              </div>
-              <div>
-                <p className="text-sm text-[#7a8090]">Pending Orders</p>
-                <p className="text-2xl font-bold text-[#e8eaed]">{stats.pendingOrders}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="stat-card amber">
+          <div className="stat-label">Pending Orders</div>
+          <div className="stat-value">{stats.pendingOrders}</div>
+          <div className="stat-sub">Awaiting stock</div>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="grid-2 mb-16">
         {/* Low Stock Alerts */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-[#e05555]" />
+        <div className="card">
+          <div className="section-header mb-16">
+            <div className="section-title" style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
+              <AlertTriangle className="h-5 w-5" style={{color: 'var(--red)'}} />
               Low Stock Alerts
-            </CardTitle>
-            <CardDescription>
-              Materials that need attention
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {lowStockAlerts.length === 0 ? (
-              <div className="text-center py-8">
-                <CheckCircle className="h-12 w-12 text-[#2ec4a0] mx-auto mb-4" />
-                <p className="text-[#7a8090]">All materials are well stocked!</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {lowStockAlerts.map((item: LowStockItem) => (
-                  <div key={item.id} className="flex items-center justify-between p-3 bg-[#1e2023] rounded-lg border border-[#2a2d32]">
-                    <div>
-                      <p className="font-medium text-[#e8eaed]">{item.materialName}</p>
-                      <p className="text-sm text-[#7a8090]">
-                        Size: {item.diameter}
-                      </p>
-                    </div>
-                    <Badge variant="destructive">
-                      {item.availableKg.toString()} kg
-                    </Badge>
+            </div>
+            <div className="section-sub">Materials that need attention</div>
+          </div>
+          {lowStockAlerts.length === 0 ? (
+            <div className="text-center py-8">
+              <CheckCircle className="h-12 w-12 mx-auto mb-4" style={{color: 'var(--teal)'}} />
+              <p style={{color: 'var(--muted)'}}>All materials are well stocked!</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {lowStockAlerts.map((item: LowStockItem) => (
+                <div key={item.id} className="flex items-center justify-between p-3" style={{background: 'var(--surface2)', borderRadius: 'var(--radius)', border: '1px solid var(--border)'}}>
+                  <div>
+                    <p className="font-medium" style={{color: 'var(--text)'}}>{item.materialName}</p>
+                    <p className="text-sm" style={{color: 'var(--muted)'}}>
+                      Size: {item.diameter}
+                    </p>
                   </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                  <span className="badge badge-red">
+                    {item.availableKg.toString()} kg
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
 
         {/* Recent Deliveries */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Truck className="h-5 w-5 text-[#2ec4a0]" />
+        <div className="card">
+          <div className="section-header mb-16">
+            <div className="section-title" style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
+              <Truck className="h-5 w-5" style={{color: 'var(--teal)'}} />
               Recent Deliveries
-            </CardTitle>
-            <CardDescription>
-              Latest stock received
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {recentDeliveries.length === 0 ? (
-              <div className="text-center py-8">
-                <Truck className="h-12 w-12 text-[#7a8090] mx-auto mb-4" />
-                <p className="text-[#7a8090]">No recent deliveries</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {recentDeliveries.map((delivery: RecentDelivery) => (
-                  <div key={delivery.id} className="flex items-center justify-between p-3 bg-[#1e2023] rounded-lg border border-[#2a2d32]">
-                    <div>
-                      <p className="font-medium text-[#e8eaed]">{delivery.material.materialName}</p>
-                      <p className="text-sm text-[#7a8090]">
-                        {new Date(delivery.createdAt).toLocaleDateString()} · {delivery.material.diameter}
-                      </p>
-                    </div>
-                    <Badge variant="outline">
-                      {delivery.kgReceived.toString()} kg
-                    </Badge>
+            </div>
+            <div className="section-sub">Latest stock received</div>
+          </div>
+          {recentDeliveries.length === 0 ? (
+            <div className="text-center py-8">
+              <Truck className="h-12 w-12 mx-auto mb-4" style={{color: 'var(--muted)'}} />
+              <p style={{color: 'var(--muted)'}}>No recent deliveries</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {recentDeliveries.map((delivery: RecentDelivery) => (
+                <div key={delivery.id} className="flex items-center justify-between p-3" style={{background: 'var(--surface2)', borderRadius: 'var(--radius)', border: '1px solid var(--border)'}}>
+                  <div>
+                    <p className="font-medium" style={{color: 'var(--text)'}}>{delivery.material.materialName}</p>
+                    <p className="text-sm" style={{color: 'var(--muted)'}}>
+                      {new Date(delivery.createdAt).toLocaleDateString()} · {delivery.material.diameter}
+                    </p>
                   </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                  <span className="badge badge-muted">
+                    {delivery.kgReceived.toString()} kg
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

@@ -137,7 +137,7 @@ export function CreateProductionOrderForm({
         </div>
       </div>
 
-        <form onSubmit={handleSubmit(onSubmit)} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      <form onSubmit={handleSubmit(onSubmit)} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           {/* Order Number (Read-only) */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
             <label style={{

@@ -22,91 +22,111 @@ export default function OperatorDashboard() {
   }, []);
 
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-
-      {/* ── Terminal Header ── */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-[#161719] border border-[#2a2d32] rounded-2xl p-6 shadow-sm">
-        <div className="flex items-center gap-4">
-          <div className="p-3 bg-blue-500/10 rounded-xl border border-blue-500/20">
-            <Terminal className="text-[#4a9eff]" size={24} />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold text-[#e8eaed] flex items-center gap-2">
-              Station Terminal: <span className="text-[#4a9eff]">{userDept}</span>
-            </h1>
-            <p className="text-sm text-[#7a8090]">
-              Process active jobs | <span className="text-[#4a9eff]">{designs.length} Products</span> in Registry
-            </p>
+    <div className="dashboard-content">
+      <div className="section-header">
+        <div>
+          <h1>Station Terminal: {userDept}</h1>
+          <div className="section-sub">
+            Process active jobs • {designs.length} products in registry
           </div>
         </div>
-
-        <div className="flex items-center gap-3">
-          <div className="px-4 py-2 bg-[#1e2023] rounded-lg border border-[#353a40] flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span className="text-xs font-bold text-[#7a8090] uppercase tracking-wider">System Online</span>
-          </div>
-        </div>
-      </div>
-
-      {/* ── Dashboard Stats (Mini) ── */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-[#161719] border border-[#2a2d32] rounded-xl p-4 flex items-center gap-4">
-          <div className="p-2 bg-purple-500/10 rounded-lg">
-            <Activity className="text-purple-400" size={18} />
-          </div>
-          <div>
-            <div className="text-[10px] font-bold text-[#7a8090] uppercase">Station Efficiency</div>
-            <div className="text-lg font-bold text-[#e8eaed]">98.2%</div>
-          </div>
-        </div>
-        <div className="bg-[#161719] border border-[#2a2d32] rounded-xl p-4 flex items-center gap-4">
-          <div className="p-2 bg-blue-500/10 rounded-lg">
-            <Factory className="text-blue-400" size={18} />
-          </div>
-          <div>
-            <div className="text-[10px] font-bold text-[#7a8090] uppercase">Queue Health</div>
-            <div className="text-lg font-bold text-[#e8eaed]">Optimal</div>
-          </div>
-        </div>
-        <div className="bg-[#161719] border border-[#2a2d32] rounded-xl p-4 flex items-center gap-4">
-          <div className="p-2 bg-amber-500/10 rounded-lg">
-            <Info className="text-amber-400" size={18} />
-          </div>
-          <div>
-            <div className="text-[10px] font-bold text-[#7a8090] uppercase">Pending Handoffs</div>
-            <div className="text-lg font-bold text-[#e8eaed]">Live Sync</div>
-          </div>
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          background: 'var(--surface2)',
+          border: '1px solid var(--border2)',
+          borderRadius: 'var(--radius-sm)',
+          padding: '6px 12px'
+        }}>
+          <div style={{
+            width: '8px',
+            height: '8px',
+            borderRadius: '50%',
+            background: 'var(--green)',
+            animation: 'pulse 2s infinite'
+          }}></div>
+          <span style={{
+            fontSize: '11px',
+            fontWeight: 700,
+            color: 'var(--muted)',
+            textTransform: 'uppercase',
+            letterSpacing: '1px'
+          }}>
+            System Online
+          </span>
         </div>
       </div>
 
-      {/* ── Active Queue ── */}
-      <section className="bg-[#161719] border border-[#2a2d32] rounded-2xl overflow-hidden min-h-[400px]">
-        <div className="p-6 border-b border-[#2a2d32] flex items-center justify-between bg-gradient-to-r from-blue-500/5 to-transparent">
+      {/* Dashboard Stats */}
+      <div className="stats-grid">
+        <div className="stat-card purple">
+          <div className="stat-label">Station Efficiency</div>
+          <div className="stat-value">98.2%</div>
+          <div className="stat-sub">Current performance</div>
+        </div>
+        <div className="stat-card blue">
+          <div className="stat-label">Queue Health</div>
+          <div className="stat-value">Optimal</div>
+          <div className="stat-sub">System status</div>
+        </div>
+        <div className="stat-card amber">
+          <div className="stat-label">Pending Handoffs</div>
+          <div className="stat-value">Live Sync</div>
+          <div className="stat-sub">Real-time updates</div>
+        </div>
+      </div>
+
+      {/* Active Queue */}
+      <div className="card">
+        <div className="section-header">
           <div>
-            <h2 className="text-lg font-bold text-[#e8eaed]">Active Production Queue</h2>
-            <p className="text-sm text-[#7a8090]">Orders currently staged for {userDept}</p>
+            <div className="section-title">Active Production Queue</div>
+            <div className="section-sub">Orders currently staged for {userDept}</div>
           </div>
         </div>
 
-        <div className="p-6">
-          <DepartmentQueue userDept={userDept} />
-        </div>
-      </section>
+        <DepartmentQueue userDept={userDept} />
+      </div>
 
-      {/* ── Operational Tip ── */}
-      <div className="bg-blue-900/10 border border-blue-500/20 rounded-xl p-4 flex items-start gap-4">
-        <div className="p-1.5 bg-blue-500/20 rounded-md mt-0.5">
-          <Info className="text-blue-400" size={16} />
+      {/* Operational Tip */}
+      <div style={{
+        background: 'rgba(74,158,255,0.1)',
+        border: '1px solid rgba(74,158,255,0.2)',
+        borderRadius: 'var(--radius)',
+        padding: '16px',
+        display: 'flex',
+        alignItems: 'flex-start',
+        gap: '12px'
+      }}>
+        <div style={{
+          padding: '6px',
+          background: 'rgba(74,158,255,0.2)',
+          borderRadius: 'var(--radius-sm)'
+        }}>
+          <Info style={{ color: 'var(--blue)' }} size={16} />
         </div>
         <div>
-          <h4 className="text-sm font-bold text-blue-400 mb-1">Station Tip</h4>
-          <p className="text-xs text-blue-300/80 leading-relaxed">
-            Ensure all material weights are logged before completing a stage. Accurate &ldquo;Kg Out&rdquo; values
+          <h4 style={{
+            fontSize: '14px',
+            fontWeight: 700,
+            color: 'var(--blue)',
+            fontFamily: 'var(--font-head)',
+            marginBottom: '4px'
+          }}>
+            Station Tip
+          </h4>
+          <p style={{
+            fontSize: '13px',
+            color: 'var(--text)',
+            lineHeight: 1.5
+          }}>
+            Ensure all material weights are logged before completing a stage. Accurate "Kg Out" values
             automatically update the target weight for the next department in the sequence.
           </p>
         </div>
+        </div>
       </div>
-
     </div>
   );
 }
