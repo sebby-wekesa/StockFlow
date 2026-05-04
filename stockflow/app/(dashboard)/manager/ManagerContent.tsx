@@ -33,10 +33,12 @@ export default async function ManagerContent() {
       </div>
 
       {/* Approvals List */}
-      <div className="card mb-16">
-        <div className="section-header mb-16">
-          <div className="section-title">Pending Approvals</div>
-          <div className="section-sub">Review and release orders to production</div>
+      <div className="card">
+        <div className="section-header">
+          <div>
+            <div className="section-title">Pending Approvals</div>
+            <div className="section-sub">Review and release orders to production</div>
+          </div>
         </div>
         {pendingApprovals.length > 0 ? (
           pendingApprovals.map((order: any) => (
@@ -65,9 +67,11 @@ export default async function ManagerContent() {
 
       {/* Department Queues */}
       <div className="card">
-        <div className="section-header mb-16">
-          <div className="section-title">Department Queues</div>
-          <div className="section-sub">Current workload distribution</div>
+        <div className="section-header">
+          <div>
+            <div className="section-title">Department Queues</div>
+            <div className="section-sub">Current workload distribution</div>
+          </div>
         </div>
         {activeProduction.length > 0 ? (
           activeProduction.map((dept: any) => (
