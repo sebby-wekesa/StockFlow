@@ -37,75 +37,119 @@ export function SalesCatalogue({ products }: { products: any[] }) {
   };
 
   return (
-    <div className="space-y-6">
+    <div>
       {/* Controls Section */}
-      <div className="bg-surface border border-border rounded-2xl p-6 space-y-4">
-        <div className="flex flex-col lg:flex-row gap-6 items-start lg:items-center justify-between">
-          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center flex-1">
-            {/* Enhanced Search Bar */}
-            <div className="relative flex-1 max-w-lg">
-              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-muted" size={20} />
-              <input
-                type="text"
-                placeholder="Search products, descriptions, or codes..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full bg-surface2 border border-border2 rounded-xl py-3 pl-12 pr-10 text-text placeholder-muted focus:border-accent focus:bg-surface focus:shadow-lg focus:shadow-accent/10 outline-none transition-all duration-200 text-sm"
-              />
-              {searchTerm && (
-                <button
-                  onClick={() => setSearchTerm("")}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted hover:text-text transition-colors"
-                >
-                  <X size={16} />
-                </button>
-              )}
-            </div>
+      <div className="card-sm mb-6">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', alignItems: 'flex-start', flex: 1 }}>
+              {/* Search Bar */}
+              <div style={{ position: 'relative', flex: 1, maxWidth: '400px' }}>
+                <Search style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--muted)' }} size={18} />
+                <input
+                  type="text"
+                  placeholder="Search products, descriptions, or codes..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  style={{
+                    width: '100%',
+                    background: 'var(--surface2)',
+                    border: '1px solid var(--border2)',
+                    borderRadius: 'var(--radius-sm)',
+                    padding: '8px 10px 8px 36px',
+                    color: 'var(--text)',
+                    fontSize: '13px',
+                    outline: 'none'
+                  }}
+                />
+                {searchTerm && (
+                  <button
+                    onClick={() => setSearchTerm("")}
+                    style={{
+                      position: 'absolute',
+                      right: '10px',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      color: 'var(--muted)',
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <X size={14} />
+                  </button>
+                )}
+              </div>
 
-            {/* Filter and Sort */}
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2">
-                <Filter size={16} className="text-muted" />
+              {/* Filter and Sort */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Filter size={14} style={{ color: 'var(--muted)' }} />
                 <select
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value)}
-                  className="bg-surface2 border border-border2 rounded-lg px-4 py-2.5 text-sm text-text focus:border-accent focus:bg-surface outline-none transition-all duration-200 min-w-[140px]"
+                  style={{
+                    background: 'var(--surface2)',
+                    border: '1px solid var(--border2)',
+                    borderRadius: 'var(--radius-sm)',
+                    padding: '6px 10px',
+                    color: 'var(--text)',
+                    fontSize: '12px',
+                    outline: 'none'
+                  }}
                 >
                   <option value="name">Sort by Name</option>
                   <option value="stock">Sort by Stock</option>
                 </select>
               </div>
             </div>
-          </div>
 
-          {/* Results Counter */}
-          <div className="flex items-center gap-2 text-sm">
-            <div className="bg-accent/10 text-accent px-3 py-1.5 rounded-lg font-medium">
-              {filteredProducts.length.toLocaleString()}
+            {/* Results Counter */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px' }}>
+              <span style={{
+                background: 'rgba(240,192,64,0.15)',
+                color: 'var(--accent)',
+                padding: '4px 8px',
+                borderRadius: 'var(--radius-sm)',
+                fontWeight: 600
+              }}>
+                {filteredProducts.length}
+              </span>
+              <span style={{ color: 'var(--muted)' }}>of {products.length} products</span>
             </div>
-            <span className="text-muted">of {products.length.toLocaleString()} products</span>
           </div>
-        </div>
 
-        {/* Search Suggestions/Info */}
-        {searchTerm && (
-          <div className="flex items-center gap-2 text-xs text-muted">
-            <span>Searching for:</span>
-            <span className="bg-accent/10 text-accent px-2 py-1 rounded font-medium">"{searchTerm}"</span>
-          </div>
-        )}
+          {/* Search Info */}
+          {searchTerm && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '11px', color: 'var(--muted)' }}>
+              <span>Searching for:</span>
+              <span style={{
+                background: 'rgba(240,192,64,0.15)',
+                color: 'var(--accent)',
+                padding: '2px 6px',
+                borderRadius: 'var(--radius-sm)',
+                fontWeight: 500
+              }}>
+                "{searchTerm}"
+              </span>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Product Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+        gap: '16px'
+      }}>
         {filteredProducts.map((product) => {
           const price = getPrice(product);
           const stockStatus = getStockStatus(product.stock);
           const totalValue = price * product.stock;
 
           return (
-            <div key={product.id} className="bg-surface border border-border rounded-2xl overflow-hidden group hover:border-accent/40 hover:shadow-xl hover:shadow-accent/5 transition-all duration-300 hover:-translate-y-1">
-              <div className="p-6 space-y-5">
+            <div key={product.id} className="card" style={{ cursor: 'pointer' }}>
+              <div style={{ padding: '20px' }}>
                 {/* Header */}
                 <div className="flex justify-between items-start">
                   <div className="flex items-start gap-3 flex-1">
@@ -188,19 +232,54 @@ export function SalesCatalogue({ products }: { products: any[] }) {
       </div>
 
       {filteredProducts.length === 0 && (
-        <div className="text-center py-16">
-          <div className="relative inline-block mb-6">
-            <div className="p-6 bg-surface2 border border-border2 rounded-2xl">
-              <Package size={48} className="text-muted" />
+        <div style={{
+          textAlign: 'center',
+          padding: '40px 20px',
+          color: 'var(--muted)'
+        }}>
+          <div style={{
+            display: 'inline-block',
+            position: 'relative',
+            marginBottom: '20px'
+          }}>
+            <div style={{
+              padding: '20px',
+              background: 'var(--surface2)',
+              border: '1px solid var(--border2)',
+              borderRadius: 'var(--radius)',
+              display: 'inline-block'
+            }}>
+              <Package size={36} style={{ color: 'var(--muted)' }} />
             </div>
-            <div className="absolute -top-1 -right-1 w-6 h-6 bg-accent rounded-full flex items-center justify-center">
-              <Search size={12} className="text-black" />
+            <div style={{
+              position: 'absolute',
+              top: '-4px',
+              right: '-4px',
+              width: '20px',
+              height: '20px',
+              background: 'var(--accent)',
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}>
+              <Search size={10} style={{ color: '#000' }} />
             </div>
           </div>
-          <h3 className="text-xl font-head font-bold text-text mb-3">
+          <h3 style={{
+            fontSize: '18px',
+            fontFamily: 'var(--font-head)',
+            fontWeight: 700,
+            color: 'var(--text)',
+            marginBottom: '8px'
+          }}>
             {searchTerm ? "No products match your search" : "No products available"}
           </h3>
-          <p className="text-muted max-w-md mx-auto">
+          <p style={{
+            color: 'var(--muted)',
+            maxWidth: '400px',
+            margin: '0 auto 20px'
+          }}>
             {searchTerm
               ? `We couldn't find any products matching "${searchTerm}". Try different keywords or clear your search.`
               : "There are currently no products available in your catalogue."
@@ -209,7 +288,8 @@ export function SalesCatalogue({ products }: { products: any[] }) {
           {searchTerm && (
             <button
               onClick={() => setSearchTerm("")}
-              className="mt-6 px-6 py-2 bg-accent text-black rounded-lg hover:bg-accent2 transition-colors font-medium"
+              className="btn-primary"
+              style={{ marginTop: '0' }}
             >
               Clear Search
             </button>

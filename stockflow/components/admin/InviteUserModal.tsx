@@ -48,50 +48,159 @@ export default function InviteUserModal() {
       {/* The Trigger Button */}
       <button
         onClick={() => setIsOpen(true)}
-        className="btn btn-primary"
+        className="btn-primary"
+        style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
       >
-        <UserPlus size={18} />
+        <UserPlus size={16} />
         Invite User
       </button>
 
       {/* The Modal Overlay */}
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-[#1e1e1e] border border-gray-800 w-full max-w-md p-6 rounded-xl shadow-2xl animate-in zoom-in-95 duration-200">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-semibold text-white">Invite New User</h2>
-              <button 
-                onClick={() => setIsOpen(false)} 
-                className="text-gray-400 hover:text-white transition-colors"
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          zIndex: 50,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '16px',
+          background: 'rgba(0, 0, 0, 0.6)',
+          backdropFilter: 'blur(4px)',
+          animation: 'fadeIn 0.2s ease-out'
+        }}>
+          <div style={{
+            background: 'var(--surface)',
+            border: '1px solid var(--border)',
+            borderRadius: 'var(--radius)',
+            width: '100%',
+            maxWidth: '400px',
+            padding: '24px',
+            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+            animation: 'zoomIn 0.2s ease-out'
+          }}>
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: '24px'
+            }}>
+              <h2 style={{
+                fontSize: '20px',
+                fontWeight: 600,
+                color: 'var(--text)',
+                fontFamily: 'var(--font-head)'
+              }}>
+                Invite New User
+              </h2>
+              <button
+                onClick={() => setIsOpen(false)}
+                style={{
+                  color: 'var(--muted)',
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  padding: '4px',
+                  borderRadius: 'var(--radius-sm)',
+                  transition: 'color 0.15s'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.color = 'var(--text)'}
+                onMouseLeave={(e) => e.currentTarget.style.color = 'var(--muted)'}
                 disabled={loading}
               >
-                <X size={24} />
+                <X size={20} />
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm text-gray-400 mb-1">Full Name</label>
-                <input 
-                  name="name" 
-                  required 
+            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <label style={{
+                  fontSize: '12px',
+                  color: 'var(--muted)',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.5px',
+                  fontWeight: 600
+                }}>
+                  Full Name
+                </label>
+                <input
+                  name="name"
+                  required
                   placeholder="John Doe"
-                  className="w-full bg-[#2a2a2a] border border-gray-700 rounded-lg p-2 text-white outline-none focus:border-blue-500 transition-all" 
+                  style={{
+                    width: '100%',
+                    background: 'var(--surface2)',
+                    border: '1px solid var(--border2)',
+                    borderRadius: 'var(--radius-sm)',
+                    padding: '8px 12px',
+                    color: 'var(--text)',
+                    fontSize: '14px',
+                    outline: 'none',
+                    transition: 'border-color 0.15s'
+                  }}
+                  onFocus={(e) => e.target.style.borderColor = 'var(--accent)'}
+                  onBlur={(e) => e.target.style.borderColor = 'var(--border2)'}
                 />
               </div>
-              <div>
-                <label className="block text-sm text-gray-400 mb-1">Email Address</label>
-                <input 
-                  name="email" 
-                  type="email" 
-                  required 
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <label style={{
+                  fontSize: '12px',
+                  color: 'var(--muted)',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.5px',
+                  fontWeight: 600
+                }}>
+                  Email Address
+                </label>
+                <input
+                  name="email"
+                  type="email"
+                  required
                   placeholder="john@example.com"
-                  className="w-full bg-[#2a2a2a] border border-gray-700 rounded-lg p-2 text-white outline-none focus:border-blue-500 transition-all" 
+                  style={{
+                    width: '100%',
+                    background: 'var(--surface2)',
+                    border: '1px solid var(--border2)',
+                    borderRadius: 'var(--radius-sm)',
+                    padding: '8px 12px',
+                    color: 'var(--text)',
+                    fontSize: '14px',
+                    outline: 'none',
+                    transition: 'border-color 0.15s'
+                  }}
+                  onFocus={(e) => e.target.style.borderColor = 'var(--accent)'}
+                  onBlur={(e) => e.target.style.borderColor = 'var(--border2)'}
                 />
               </div>
-              <div>
-                <label className="block text-sm text-gray-400 mb-1">Role</label>
-                <select name="role" className="w-full bg-[#2a2a2a] border border-gray-700 rounded-lg p-2 text-white outline-none focus:border-blue-500 transition-all appearance-none cursor-pointer">
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <label style={{
+                  fontSize: '12px',
+                  color: 'var(--muted)',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.5px',
+                  fontWeight: 600
+                }}>
+                  Role
+                </label>
+                <select
+                  name="role"
+                  style={{
+                    width: '100%',
+                    background: 'var(--surface2)',
+                    border: '1px solid var(--border2)',
+                    borderRadius: 'var(--radius-sm)',
+                    padding: '8px 12px',
+                    color: 'var(--text)',
+                    fontSize: '14px',
+                    outline: 'none',
+                    cursor: 'pointer',
+                    transition: 'border-color 0.15s'
+                  }}
+                  onFocus={(e) => e.target.style.borderColor = 'var(--accent)'}
+                  onBlur={(e) => e.target.style.borderColor = 'var(--border2)'}
+                >
                   <option value="OPERATOR">Operator</option>
                   <option value="MANAGER">Manager</option>
                   <option value="ADMIN">Admin</option>
@@ -100,30 +209,69 @@ export default function InviteUserModal() {
                   <option value="PACKAGING">Packaging</option>
                 </select>
               </div>
-              <div>
-                <label className="block text-sm text-gray-400 mb-1">Assigned Branch</label>
-                <div className="relative">
-                  <select 
-                    name="branchId" 
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <label style={{
+                  fontSize: '12px',
+                  color: 'var(--muted)',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.5px',
+                  fontWeight: 600
+                }}>
+                  Assigned Branch
+                </label>
+                <div style={{ position: 'relative' }}>
+                  <select
+                    name="branchId"
                     required
-                    className="w-full bg-[#2a2a2a] border border-gray-700 rounded-lg p-2 pl-9 text-white outline-none focus:border-blue-500 transition-all appearance-none cursor-pointer"
+                    style={{
+                      width: '100%',
+                      background: 'var(--surface2)',
+                      border: '1px solid var(--border2)',
+                      borderRadius: 'var(--radius-sm)',
+                      padding: '8px 12px 8px 36px',
+                      color: 'var(--text)',
+                      fontSize: '14px',
+                      outline: 'none',
+                      cursor: 'pointer',
+                      transition: 'border-color 0.15s'
+                    }}
+                    onFocus={(e) => e.target.style.borderColor = 'var(--accent)'}
+                    onBlur={(e) => e.target.style.borderColor = 'var(--border2)'}
                   >
                     <option value="">Select a branch...</option>
                     {branches.map(b => (
                       <option key={b.id} value={b.id}>{b.name}</option>
                     ))}
                   </select>
-                  <MapPin size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+                  <MapPin size={14} style={{
+                    position: 'absolute',
+                    left: '12px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    color: 'var(--muted)'
+                  }} />
                 </div>
               </div>
+
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-[#f0c040] hover:bg-[#f5d060] text-black font-medium py-2 rounded-lg mt-4 disabled:opacity-50 flex items-center justify-center gap-2 transition-all shadow-lg hover:shadow-[#f0c040]/20"
+                className="btn-primary"
+                style={{
+                  width: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  marginTop: '8px',
+                  opacity: loading ? 0.6 : 1,
+                  cursor: loading ? 'not-allowed' : 'pointer'
+                }}
               >
                 {loading ? (
                   <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} />
                     Sending Invitation...
                   </>
                 ) : (

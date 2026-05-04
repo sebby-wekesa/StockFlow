@@ -2,10 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { fulfillOrder, getPackagingStats } from '@/app/actions/packaging'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { Alert, AlertDescription } from '@/components/ui/alert'
+
 import { Loader2, Package, Truck, CheckCircle, AlertTriangle } from 'lucide-react'
 
 interface PackagingItem {
@@ -71,102 +68,183 @@ export function PackagingQueue({ orders: initialOrders }: PackagingQueueProps) {
   }, [])
 
   return (
-    <div className="space-y-6">
+    <div>
       {error && (
-        <Alert variant="destructive">
-          <AlertTriangle className="h-4 w-4" />
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
+        <div style={{
+          background: 'rgba(224,85,85,0.1)',
+          border: '1px solid rgba(224,85,85,0.2)',
+          borderRadius: 'var(--radius)',
+          padding: '12px 16px',
+          marginBottom: '16px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px'
+        }}>
+          <AlertTriangle size={16} style={{ color: 'var(--red)' }} />
+          <span style={{ color: 'var(--text)', fontSize: '13px' }}>{error}</span>
+        </div>
       )}
 
       {/* Stats Cards */}
       {stats && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-2">
-                <Package className="h-5 w-5 text-[#4a9eff]" />
-                <div>
-                  <p className="text-sm text-[#7a8090]">Pending Orders</p>
-                  <p className="text-2xl font-bold text-[#e8eaed]">{stats.pendingOrders}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+        <div className="stats-grid">
+          <div className="stat-card blue">
+            <div className="stat-label">Pending Orders</div>
+            <div className="stat-value">{stats.pendingOrders}</div>
+          </div>
 
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-2">
-                <Truck className="h-5 w-5 text-[#2ec4a0]" />
-                <div>
-                  <p className="text-sm text-[#7a8090]">Shipped Today</p>
-                  <p className="text-2xl font-bold text-[#e8eaed]">{stats.shippedToday}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <div className="stat-card teal">
+            <div className="stat-label">Shipped Today</div>
+            <div className="stat-value">{stats.shippedToday}</div>
+          </div>
 
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-2">
-                <CheckCircle className="h-5 w-5 text-[#8b7cf8]" />
-                <div>
-                  <p className="text-sm text-[#7a8090]">Weekly Revenue</p>
-                  <p className="text-2xl font-bold text-[#e8eaed]">${stats.weeklyRevenue.toFixed(2)}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <div className="stat-card purple">
+            <div className="stat-label">Weekly Revenue</div>
+            <div className="stat-value">${stats.weeklyRevenue.toFixed(2)}</div>
+          </div>
         </div>
       )}
 
       {/* Orders Queue */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Package className="h-5 w-5" />
-            Packaging Queue
-          </CardTitle>
-          <CardDescription>
-            Sales orders ready for fulfillment and shipping
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
+      <div className="card">
+        <div className="section-header">
+          <div>
+            <div className="section-title">Packaging Queue</div>
+            <div className="section-sub">Sales orders ready for fulfillment and shipping</div>
+          </div>
+        </div>
+
+        <div>
           {orders.length === 0 ? (
-            <div className="text-center py-8">
-              <Package className="h-12 w-12 text-[#7a8090] mx-auto mb-4" />
-              <p className="text-[#7a8090]">No orders ready for packaging</p>
-              <p className="text-sm text-[#7a8090] mt-1">Orders will appear here when all items are available</p>
+            <div style={{
+              textAlign: 'center',
+              padding: '40px 20px',
+              color: 'var(--muted)'
+            }}>
+              <div style={{
+                display: 'inline-block',
+                marginBottom: '16px'
+              }}>
+                <div style={{
+                  padding: '20px',
+                  background: 'var(--surface2)',
+                  border: '1px solid var(--border2)',
+                  borderRadius: 'var(--radius)',
+                  display: 'inline-block'
+                }}>
+                  <Package size={36} style={{ color: 'var(--muted)' }} />
+                </div>
+              </div>
+              <p style={{
+                fontSize: '16px',
+                color: 'var(--muted)',
+                marginBottom: '4px'
+              }}>
+                No orders ready for packaging
+              </p>
+              <p style={{
+                fontSize: '12px',
+                color: 'var(--muted)'
+              }}>
+                Orders will appear here when all items are available
+              </p>
             </div>
           ) : (
-            <div className="space-y-4">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               {orders.map((order) => (
-                <div key={order.id} className="border border-[#2a2d32] rounded-lg p-4 bg-[#1e2023]">
-                  <div className="flex justify-between items-start mb-4">
+                <div key={order.id} style={{
+                  background: 'var(--surface2)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 'var(--radius)',
+                  padding: '20px'
+                }}>
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'flex-start',
+                    marginBottom: '16px'
+                  }}>
                     <div>
-                      <h3 className="font-semibold text-lg text-[#e8eaed]">{order.orderNumber}</h3>
-                      <p className="text-sm text-[#7a8090]">{order.customerName}</p>
-                      <p className="text-xs text-[#7a8090]">
+                      <h3 style={{
+                        fontSize: '18px',
+                        fontWeight: 600,
+                        color: 'var(--text)',
+                        marginBottom: '4px'
+                      }}>
+                        {order.orderNumber}
+                      </h3>
+                      <p style={{
+                        fontSize: '14px',
+                        color: 'var(--muted)',
+                        marginBottom: '2px'
+                      }}>
+                        {order.customerName}
+                      </p>
+                      <p style={{
+                        fontSize: '11px',
+                        color: 'var(--muted)'
+                      }}>
                         Ordered {new Date(order.createdAt).toLocaleDateString()}
                       </p>
                     </div>
-                    <div className="text-right">
-                      <Badge variant="outline">{order.totalItems} items</Badge>
-                      <p className="text-sm text-[#7a8090] mt-1">
+                    <div style={{ textAlign: 'right' }}>
+                      <span style={{
+                        background: 'var(--surface)',
+                        border: '1px solid var(--border2)',
+                        borderRadius: 'var(--radius-sm)',
+                        padding: '4px 8px',
+                        fontSize: '11px',
+                        color: 'var(--muted)',
+                        display: 'inline-block',
+                        marginBottom: '6px'
+                      }}>
+                        {order.totalItems} items
+                      </span>
+                      <p style={{
+                        fontSize: '12px',
+                        color: 'var(--muted)'
+                      }}>
                         {order.totalQuantity} units • {order.totalKg.toFixed(1)} kg
                       </p>
                     </div>
                   </div>
 
                   {/* Order Items */}
-                  <div className="space-y-2 mb-4">
+                  <div style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '8px',
+                    marginBottom: '16px'
+                  }}>
                     {order.items.map((item) => (
-                      <div key={item.id} className="flex justify-between items-center bg-[#161719] p-2 rounded border border-[#2a2d32]">
+                      <div key={item.id} style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        background: 'var(--surface)',
+                        padding: '10px 12px',
+                        borderRadius: 'var(--radius-sm)',
+                        border: '1px solid var(--border2)'
+                      }}>
                         <div>
-                          <span className="font-medium text-[#e8eaed]">{item.designName}</span>
-                          <span className="text-sm text-[#7a8090] ml-2">({item.designCode})</span>
+                          <span style={{
+                            fontWeight: 500,
+                            color: 'var(--text)'
+                          }}>
+                            {item.designName}
+                          </span>
+                          <span style={{
+                            fontSize: '12px',
+                            color: 'var(--muted)',
+                            marginLeft: '8px'
+                          }}>
+                            ({item.designCode})
+                          </span>
                         </div>
-                        <div className="text-sm text-[#e8eaed]">
+                        <div style={{
+                          fontSize: '13px',
+                          color: 'var(--text)'
+                        }}>
                           {item.quantity} × ${item.unitPrice.toFixed(2)} = ${item.totalPrice.toFixed(2)}
                         </div>
                       </div>
@@ -174,31 +252,38 @@ export function PackagingQueue({ orders: initialOrders }: PackagingQueueProps) {
                   </div>
 
                   {/* Action Button */}
-                  <div className="flex justify-end">
-                    <Button
+                  <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                    <button
                       onClick={() => handleFulfillOrder(order.id)}
                       disabled={fulfilling === order.id}
-                      className="min-w-32 bg-[#f0c040] hover:bg-[#f5d060] text-black border-0"
+                      className="btn-primary"
+                      style={{
+                        minWidth: '120px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '8px'
+                      }}
                     >
                       {fulfilling === order.id ? (
                         <>
-                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                          <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} />
                           Fulfilling...
                         </>
                       ) : (
                         <>
-                          <Truck className="h-4 w-4 mr-2" />
+                          <Truck size={14} />
                           Ship Order
                         </>
                       )}
-                    </Button>
+                    </button>
                   </div>
                 </div>
               ))}
             </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   )
 }

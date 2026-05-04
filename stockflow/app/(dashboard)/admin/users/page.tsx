@@ -76,16 +76,18 @@ export default async function AdminUsersPage() {
   const users = await getUsers();
 
   return (
-    <div>
-      <div className="section-header mb-16">
+    <div className="dashboard-content">
+      <div className="section-header">
         <div>
-          <div className="section-title">Users & roles</div>
+          <h1>Users & Roles</h1>
           <div className="section-sub">Manage team access and department assignments</div>
         </div>
         <InviteUserModal />
       </div>
+
       <div className="card">
-        <table>
+        <div className="table-wrap">
+          <table>
           <thead>
             <tr>
               <th>Name</th>
@@ -120,13 +122,44 @@ export default async function AdminUsersPage() {
             ))}
             {users.length === 0 && (
               <tr>
-                <td colSpan={6} style={{textAlign: 'center', padding: '20px', color: 'var(--muted)'}}>
-                  No users found
+                <td colSpan={6} style={{textAlign: 'center', padding: '40px 20px', color: 'var(--muted)'}}>
+                  <div style={{
+                    display: 'inline-block',
+                    marginBottom: '12px'
+                  }}>
+                    <div style={{
+                      padding: '16px',
+                      background: 'var(--surface2)',
+                      border: '1px solid var(--border2)',
+                      borderRadius: 'var(--radius)',
+                      display: 'inline-block'
+                    }}>
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                        <circle cx="12" cy="7" r="4"/>
+                      </svg>
+                    </div>
+                  </div>
+                  <p style={{
+                    fontSize: '14px',
+                    color: 'var(--muted)',
+                    margin: '0'
+                  }}>
+                    No users found
+                  </p>
+                  <p style={{
+                    fontSize: '12px',
+                    color: 'var(--muted)',
+                    marginTop: '4px'
+                  }}>
+                    Invite your first team member to get started
+                  </p>
                 </td>
               </tr>
             )}
           </tbody>
         </table>
+        </div>
       </div>
     </div>
   );

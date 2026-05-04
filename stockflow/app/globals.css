@@ -64,6 +64,9 @@ body { background: var(--bg); color: var(--text); font-family: var(--font-body);
 .screen { display: none; }
 .screen.active { display: block; }
 
+/* DASHBOARD CONTENT */
+.dashboard-content { background: var(--bg); color: var(--text); font-family: var(--font-body); min-height: 100vh; padding: 28px; }
+
 /* CARDS */
 .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; }
 .card-sm { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; }
@@ -76,6 +79,8 @@ body { background: var(--bg); color: var(--text); font-family: var(--font-body);
 .stat-card.teal::before { background: var(--teal); }
 .stat-card.purple::before { background: var(--purple); }
 .stat-card.red::before { background: var(--red); }
+.stat-card.blue::before { background: var(--blue); }
+.stat-card.green::before { background: var(--green); }
 .stat-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.8px; }
 .stat-value { font-family: var(--font-head); font-size: 28px; font-weight: 700; margin: 6px 0 2px; }
 .stat-sub { font-size: 11px; color: var(--muted); }
@@ -217,9 +222,16 @@ select.form-input option { background: var(--surface2); }
 
 /* ANIMATIONS */
 @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
-.screen.active { animation: fadeIn 0.2s ease; }
-.pulse { animation: pulse 2s infinite; }
+
 @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+/* UTILITY CLASSES */
+.hover-accent:hover {
+  background: rgba(240,192,64,0.2) !important;
+  border-color: var(--accent) !important;
+}
 
 /* OPERATOR LOG FORM */
 .log-form { background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; margin-top: 14px; }
