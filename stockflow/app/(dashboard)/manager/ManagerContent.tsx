@@ -4,10 +4,10 @@ export default async function ManagerContent() {
   const { pendingApprovals, activeProduction, scrapAlerts, totalActiveOrders, totalTonnage, pendingCount } = await getManagerData()
 
   return (
-    <div>
-      <div className="section-header mb-16">
+    <div className="dashboard-content">
+      <div className="section-header">
         <div>
-          <div className="section-title">Production Manager Dashboard</div>
+          <h1>Production Manager Dashboard</h1>
           <div className="section-sub">Oversee production approvals and department queues</div>
         </div>
       </div>
