@@ -129,50 +129,77 @@ export function CreateProductionOrderForm({
   } as const
 
   return (
-    <div className="w-full max-w-2xl">
-      <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-6 shadow-xl backdrop-blur">
-        {/* Header */}
-        <div className="mb-6 flex items-center gap-3">
-          <Package className="h-6 w-6 text-blue-400" />
-          <div>
-            <h2 className="text-xl font-semibold text-zinc-100">
-              Create Production Order
-            </h2>
-            <p className="text-sm text-zinc-400">
-              Initialize a new manufacturing order in the system
-            </p>
-          </div>
+    <div className="card">
+      <div className="section-header">
+        <div>
+          <div className="section-title">Create Production Order</div>
+          <div className="section-sub">Initialize a new manufacturing order in the system</div>
         </div>
+      </div>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+        <form onSubmit={handleSubmit(onSubmit)} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           {/* Order Number (Read-only) */}
-          <div>
-            <label className="block text-sm font-medium text-zinc-300 mb-2">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <label style={{
+              fontSize: '12px',
+              color: 'var(--muted)',
+              textTransform: 'uppercase',
+              letterSpacing: '0.5px',
+              fontWeight: 600
+            }}>
               Order Number
             </label>
             <input
               type="text"
               value={orderNumber}
               disabled
-              className="w-full rounded-lg border border-zinc-700 bg-zinc-800/50 px-4 py-2.5 text-zinc-400 cursor-not-allowed"
+              style={{
+                width: '100%',
+                background: 'var(--surface2)',
+                border: '1px solid var(--border2)',
+                borderRadius: 'var(--radius-sm)',
+                padding: '8px 12px',
+                color: 'var(--muted)',
+                fontSize: '14px',
+                cursor: 'not-allowed',
+                opacity: 0.6
+              }}
             />
-            <p className="mt-1 text-xs text-zinc-500">
+            <p style={{
+              fontSize: '11px',
+              color: 'var(--muted)',
+              marginTop: '4px'
+            }}>
               Auto-generated • Read-only
             </p>
           </div>
 
           {/* Design Selection */}
-          <div>
-            <label className="block text-sm font-medium text-zinc-300 mb-2">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <label style={{
+              fontSize: '12px',
+              color: 'var(--muted)',
+              textTransform: 'uppercase',
+              letterSpacing: '0.5px',
+              fontWeight: 600
+            }}>
               Design Selection *
             </label>
             <select
               {...register('designId')}
-              className={`w-full rounded-lg border bg-zinc-800/50 px-4 py-2.5 text-zinc-200 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                errors.designId
-                  ? 'border-red-500/50'
-                  : 'border-zinc-700 focus:border-blue-500'
-              }`}
+              style={{
+                width: '100%',
+                background: 'var(--surface2)',
+                border: '1px solid var(--border2)',
+                borderRadius: 'var(--radius-sm)',
+                padding: '8px 12px',
+                color: 'var(--text)',
+                fontSize: '14px',
+                outline: 'none',
+                cursor: 'pointer'
+              }}
+              onFocus={(e) => e.target.style.borderColor = 'var(--accent)'}
+              onBlur={(e) => e.target.style.borderColor = errors.designId ? 'var(--red)' : 'var(--border2)'}
             >
               <option value="">Select a design...</option>
               {designs.map((design) => (
@@ -183,77 +210,133 @@ export function CreateProductionOrderForm({
               ))}
             </select>
             {errors.designId && (
-              <p className="mt-1 text-sm text-red-400 flex items-center gap-1">
-                <AlertCircle className="h-4 w-4" />
+              <p style={{
+                fontSize: '12px',
+                color: 'var(--red)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                marginTop: '4px'
+              }}>
+                <AlertCircle size={14} />
                 {errors.designId.message}
               </p>
             )}
             {selectedDesign?.description && (
-              <p className="mt-2 text-xs text-zinc-400 italic">
+              <p style={{
+                fontSize: '11px',
+                color: 'var(--muted)',
+                fontStyle: 'italic',
+                marginTop: '6px'
+              }}>
                 {selectedDesign.description}
               </p>
             )}
           </div>
 
           {/* Initial Weight */}
-          <div>
-            <label className="block text-sm font-medium text-zinc-300 mb-2">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <label style={{
+              fontSize: '12px',
+              color: 'var(--muted)',
+              textTransform: 'uppercase',
+              letterSpacing: '0.5px',
+              fontWeight: 600
+            }}>
               Initial Weight (kg) *
             </label>
-            <div className="relative">
-              <input
-                type="number"
-                step="0.01"
-                min="0"
-                placeholder="Enter weight in kilograms"
-                {...register('initialWeight', { valueAsNumber: true })}
-                className={`w-full rounded-lg border bg-zinc-800/50 px-4 py-2.5 text-zinc-200 placeholder:text-zinc-600 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                  errors.initialWeight
-                    ? 'border-red-500/50'
-                    : 'border-zinc-700 focus:border-blue-500'
-                }`}
-              />
-            </div>
+            <input
+              type="number"
+              step="0.01"
+              min="0"
+              placeholder="Enter weight in kilograms"
+              {...register('initialWeight', { valueAsNumber: true })}
+              style={{
+                width: '100%',
+                background: 'var(--surface2)',
+                border: '1px solid var(--border2)',
+                borderRadius: 'var(--radius-sm)',
+                padding: '8px 12px',
+                color: 'var(--text)',
+                fontSize: '14px',
+                outline: 'none'
+              }}
+              onFocus={(e) => e.target.style.borderColor = 'var(--accent)'}
+              onBlur={(e) => e.target.style.borderColor = errors.initialWeight ? 'var(--red)' : 'var(--border2)'}
+            />
             {errors.initialWeight && (
-              <p className="mt-1 text-sm text-red-400 flex items-center gap-1">
-                <AlertCircle className="h-4 w-4" />
+              <p style={{
+                fontSize: '12px',
+                color: 'var(--red)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                marginTop: '4px'
+              }}>
+                <AlertCircle size={14} />
                 {errors.initialWeight.message}
               </p>
             )}
           </div>
 
           {/* Priority Selection */}
-          <div>
-            <label className="block text-sm font-medium text-zinc-300 mb-3">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <label style={{
+              fontSize: '12px',
+              color: 'var(--muted)',
+              textTransform: 'uppercase',
+              letterSpacing: '0.5px',
+              fontWeight: 600,
+              marginBottom: '8px'
+            }}>
               Priority Level *
             </label>
-            <div className="grid grid-cols-3 gap-3">
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(3, 1fr)',
+              gap: '8px'
+            }}>
               {(Object.keys(priorityConfig) as (keyof typeof priorityConfig)[]).map((level) => {
                 const config = priorityConfig[level]
                 const isSelected = priority === level
                 return (
                   <label
                     key={level}
-                    className={`relative flex cursor-pointer items-center gap-2 rounded-lg border-2 p-3 transition-all ${
-                      isSelected
-                        ? 'border-blue-500 bg-blue-900/20'
-                        : 'border-zinc-700 bg-zinc-800/30 hover:border-zinc-600'
-                    }`}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      padding: '10px 12px',
+                      borderRadius: 'var(--radius-sm)',
+                      border: `2px solid ${isSelected ? 'var(--accent)' : 'var(--border2)'}`,
+                      background: isSelected ? 'rgba(240,192,64,0.1)' : 'var(--surface2)',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s'
+                    }}
                   >
                     <input
                       type="radio"
                       value={level}
                       {...register('priority')}
-                      className="sr-only"
+                      style={{ position: 'absolute', opacity: 0, pointerEvents: 'none' }}
                     />
                     <span
-                      className={`inline-block h-3 w-3 rounded-full border-2 transition-colors ${
-                        isSelected
-                          ? 'border-blue-400 bg-blue-400'
-                          : `border-zinc-600 ${config.color}`
-                      }`}
+                      style={{
+                        width: '12px',
+                        height: '12px',
+                        borderRadius: '50%',
+                        border: `2px solid ${isSelected ? 'var(--accent)' : 'var(--muted)'}`,
+                        background: isSelected ? 'var(--accent)' : 'transparent',
+                        transition: 'all 0.15s'
+                      }}
                     />
-                    <span className={`text-sm font-medium ${config.color}`}>
+                    <span style={{
+                      fontSize: '13px',
+                      fontWeight: 500,
+                      color: config.color === 'text-emerald-400' ? 'var(--green)' :
+                             config.color === 'text-amber-400' ? 'var(--accent)' :
+                             'var(--red)'
+                    }}>
                       {config.label}
                     </span>
                   </label>
@@ -261,8 +344,15 @@ export function CreateProductionOrderForm({
               })}
             </div>
             {errors.priority && (
-              <p className="mt-1 text-sm text-red-400 flex items-center gap-1">
-                <AlertCircle className="h-4 w-4" />
+              <p style={{
+                fontSize: '12px',
+                color: 'var(--red)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                marginTop: '4px'
+              }}>
+                <AlertCircle size={14} />
                 {errors.priority.message}
               </p>
             )}
@@ -270,47 +360,73 @@ export function CreateProductionOrderForm({
 
           {/* Summary Section */}
           {(designId || initialWeight) && (
-            <div className="rounded-lg border border-blue-500/30 bg-blue-900/10 p-4">
-              <div className="mb-2 flex items-center gap-2">
-                <Zap className="h-5 w-5 text-blue-400" />
-                <h3 className="font-semibold text-blue-200">Order Summary</h3>
+            <div style={{
+              background: 'rgba(74,158,255,0.1)',
+              border: '1px solid rgba(74,158,255,0.2)',
+              borderRadius: 'var(--radius)',
+              padding: '16px'
+            }}>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                marginBottom: '12px'
+              }}>
+                <Zap size={18} style={{ color: 'var(--blue)' }} />
+                <h3 style={{
+                  fontSize: '14px',
+                  fontWeight: 600,
+                  color: 'var(--blue)',
+                  fontFamily: 'var(--font-head)'
+                }}>
+                  Order Summary
+                </h3>
               </div>
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-zinc-400">Order Number:</span>
-                  <span className="font-medium text-zinc-100">{orderNumber}</span>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '13px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'var(--muted)' }}>Order Number:</span>
+                  <span style={{ fontWeight: 500, color: 'var(--text)' }}>{orderNumber}</span>
                 </div>
                 {selectedDesign && (
-                  <div className="flex justify-between">
-                    <span className="text-zinc-400">Design:</span>
-                    <span className="font-medium text-zinc-100">
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: 'var(--muted)' }}>Design:</span>
+                    <span style={{ fontWeight: 500, color: 'var(--text)' }}>
                       {selectedDesign.name}
                     </span>
                   </div>
                 )}
                 {initialWeight && (
-                  <div className="flex justify-between">
-                    <span className="text-zinc-400">Initial Weight:</span>
-                    <span className="font-medium text-emerald-400">
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: 'var(--muted)' }}>Initial Weight:</span>
+                    <span style={{ fontWeight: 500, color: 'var(--green)' }}>
                       {initialWeight} kg
                     </span>
                   </div>
                 )}
                 {priority && (
-                  <div className="flex justify-between">
-                    <span className="text-zinc-400">Priority:</span>
-                    <span
-                      className={`font-medium ${priorityConfig[priority].color}`}
-                    >
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: 'var(--muted)' }}>Priority:</span>
+                    <span style={{
+                      fontWeight: 500,
+                      color: priorityConfig[priority].color === 'text-emerald-400' ? 'var(--green)' :
+                             priorityConfig[priority].color === 'text-amber-400' ? 'var(--accent)' :
+                             'var(--red)'
+                    }}>
                       {priorityConfig[priority].label}
                     </span>
                   </div>
                 )}
-                <div className="border-t border-blue-500/20 pt-2 mt-2 flex justify-between">
-                  <span className="text-zinc-300 font-semibold">
+                <div style={{
+                  borderTop: '1px solid rgba(74,158,255,0.2)',
+                  paddingTop: '8px',
+                  marginTop: '8px',
+                  display: 'flex',
+                  justifyContent: 'space-between'
+                }}>
+                  <span style={{ color: 'var(--text)', fontWeight: 600 }}>
                     Total Weight Introduced:
                   </span>
-                  <span className="font-semibold text-blue-400">
+                  <span style={{ fontWeight: 600, color: 'var(--blue)' }}>
                     {initialWeight || 0} kg
                   </span>
                 </div>
@@ -322,23 +438,38 @@ export function CreateProductionOrderForm({
           <button
             type="submit"
             disabled={isLoading || !isValid}
-            className="w-full rounded-lg bg-gradient-to-r from-blue-600 to-blue-500 px-4 py-3 font-semibold text-white transition-all hover:from-blue-500 hover:to-blue-400 disabled:from-zinc-700 disabled:to-zinc-700 disabled:text-zinc-500 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            className="btn-primary"
+            style={{
+              width: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+              padding: '12px',
+              opacity: (isLoading || !isValid) ? 0.6 : 1,
+              cursor: (isLoading || !isValid) ? 'not-allowed' : 'pointer'
+            }}
           >
             {isLoading ? (
               <>
-                <Loader2 className="h-5 w-5 animate-spin" />
+                <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} />
                 Creating Order...
               </>
             ) : (
               <>
-                <Package className="h-5 w-5" />
+                <Package size={16} />
                 Create Production Order
               </>
             )}
           </button>
 
           {/* Form Info */}
-          <p className="text-xs text-zinc-500 text-center">
+          <p style={{
+            fontSize: '11px',
+            color: 'var(--muted)',
+            textAlign: 'center',
+            marginTop: '12px'
+          }}>
             * Required fields • All data is validated before submission
           </p>
         </form>
