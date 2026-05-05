@@ -77,7 +77,7 @@ export default async function ManagerContent() {
           activeProduction.map((dept: any) => (
             <div key={dept.currentDept} className="queue-item">
               <div className="queue-label">{dept.currentDept || 'Unassigned'}</div>
-              <div className="queue-count">{dept._count} jobs</div>
+              <div className="queue-count">{dept._count._all} jobs</div>
             </div>
           ))
         ) : (

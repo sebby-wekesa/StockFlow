@@ -1,10 +1,11 @@
-import { requireAuth } from '@/lib/auth'
-import { Role } from '@/lib/auth'
+import { getUser } from '@/lib/auth'
+import { redirect } from 'next/navigation'
 
 export const dynamic = 'force-dynamic'
 
 export default async function AdminDashboardPage() {
-  const user = await requireAuth()
+  const user = await getUser()
+  if (!user) redirect('/login')
 
   // Ensure only admin can access
   if (user.role !== 'ADMIN') {
