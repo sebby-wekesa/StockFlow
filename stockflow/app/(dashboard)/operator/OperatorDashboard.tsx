@@ -27,7 +27,7 @@ export default function OperatorDashboard() {
         <div>
           <h1>Station Terminal: {userDept}</h1>
           <div className="section-sub">
-            Process active jobs • {designs.length} products in registry
+            Process active jobs - {designs.length} products in registry
           </div>
         </div>
         <div style={{
@@ -124,7 +124,6 @@ export default function OperatorDashboard() {
             Ensure all material weights are logged before completing a stage. Accurate "Kg Out" values
             automatically update the target weight for the next department in the sequence.
           </p>
-        </div>
         </div>
       </div>
     </div>
