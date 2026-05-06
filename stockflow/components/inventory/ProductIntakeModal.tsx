@@ -27,13 +27,6 @@ export function ProductIntakeModal({ open, onClose, onSuccess }: ProductIntakeMo
   const [toast, setToast] = useState<{ type: "success" | "error"; msg: string } | null>(null);
 
   // Auto-compute landing cost for imported
-  useEffect(() => {
-    if (origin === "IMPORTED" && unitCost) {
-      const computed = (parseFloat(unitCost) * MULTIPLIER).toFixed(2);
-      setLandingCost(computed);
-    }
-  }, [unitCost, origin]);
-
   // Reset when origin changes
   useEffect(() => {
     if (origin === "LOCAL_PURCHASE") setLandingCost("");

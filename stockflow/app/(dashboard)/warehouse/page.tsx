@@ -1,83 +1,100 @@
-import { prisma } from "@/lib/prisma";
-import { Package, Truck, AlertTriangle, CheckCircle, Clock } from "lucide-react";
+"use client";
 
-const LOW_STOCK_THRESHOLD = 50;
+import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
+import { Package, Truck, AlertTriangle, CheckCircle } from "lucide-react";
 
-type RecentDelivery = Awaited<ReturnType<typeof getRecentDeliveries>>[number];
-type LowStockItem = Awaited<ReturnType<typeof getLowStockAlerts>>[number];
+interface WarehouseStats {
+  totalRawMaterials: number;
+  lowStockItems: number;
+  recentDeliveries: number;
+  pendingOrders: number;
+}
 
-async function getWarehouseStats() {
-  const totalRawMaterials = await prisma.rawMaterial.count();
-  const lowStockItems = await prisma.rawMaterial.count({
-    where: { availableKg: { lt: LOW_STOCK_THRESHOLD } }
-  });
-
-  const recentDeliveries = await prisma.materialReceipt.count({
-    where: {
-      createdAt: {
-        gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) // Last 7 days
-      }
-    }
-  });
-
-  const pendingOrders = await prisma.productionOrder.count({
-    where: { status: "PENDING" }
-  });
-
-  return {
-    totalRawMaterials,
-    lowStockItems,
-    recentDeliveries,
-    pendingOrders
+interface RecentDelivery {
+  id: string;
+  material: {
+    materialName: string;
+    diameter: string;
   };
+  kgReceived: number;
+  createdAt: string;
 }
 
-async function getRecentDeliveries() {
-  return await prisma.materialReceipt.findMany({
-    take: 5,
-    orderBy: { createdAt: "desc" },
-    include: {
-      material: {
-        select: { materialName: true, diameter: true }
+interface LowStockItem {
+  id: string;
+  materialName: string;
+  diameter: string;
+  availableKg: number;
+}
+
+export default function WarehousePage() {
+  const router = useRouter();
+  const [stats, setStats] = useState<WarehouseStats>({
+    totalRawMaterials: 0,
+    lowStockItems: 0,
+    recentDeliveries: 0,
+    pendingOrders: 0
+  });
+  const [recentDeliveries, setRecentDeliveries] = useState<RecentDelivery[]>([]);
+  const [lowStockAlerts, setLowStockAlerts] = useState<LowStockItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchWarehouseData = async () => {
+      try {
+        // Fetch stats
+        const statsResponse = await fetch('/api/warehouse/stats');
+        if (statsResponse.ok) {
+          const statsData = await statsResponse.json();
+          setStats(statsData);
+        }
+
+        // Fetch recent deliveries
+        const deliveriesResponse = await fetch('/api/warehouse/recent-deliveries');
+        if (deliveriesResponse.ok) {
+          const deliveriesData = await deliveriesResponse.json();
+          setRecentDeliveries(deliveriesData);
+        }
+
+        // Fetch low stock alerts
+        const lowStockResponse = await fetch('/api/warehouse/low-stock');
+        if (lowStockResponse.ok) {
+          const lowStockData = await lowStockResponse.json();
+          setLowStockAlerts(lowStockData);
+        }
+      } catch (error) {
+        console.error('Error fetching warehouse data:', error);
+      } finally {
+        setIsLoading(false);
       }
-    }
-  });
-}
+    };
 
-async function getLowStockAlerts() {
-  return await prisma.rawMaterial.findMany({
-    where: { availableKg: { lt: LOW_STOCK_THRESHOLD } },
-    select: {
-      id: true,
-      materialName: true,
-      diameter: true,
-      availableKg: true,
-    },
-    orderBy: { availableKg: "asc" }
-  });
-}
+    fetchWarehouseData();
+  }, []);
 
-export default async function WarehousePage() {
-  const [stats, recentDeliveries, lowStockAlerts] = await Promise.all([
-    getWarehouseStats(),
-    getRecentDeliveries(),
-    getLowStockAlerts()
-  ]);
+  const handleReceiveStock = () => {
+    router.push('/receive');
+  };
+
+  const handleViewInventory = () => {
+    router.push('/rawmaterials');
+  };
 
   return (
-    <div>
+    <div className="dashboard-content">
       {/* Header */}
-      <div className="section-header mb-16">
+      <div className="section-header">
         <div>
-          <div className="section-title">Warehouse Dashboard</div>
+          <h1>Warehouse Dashboard</h1>
           <div className="section-sub">Manage inventory, track deliveries, and monitor stock levels</div>
         </div>
         <div className="flex gap-3">
-          <button className="btn btn-primary">
+          <button className="btn btn-primary" onClick={handleReceiveStock}>
             <Truck className="h-4 w-4 mr-2" />
             Receive Stock
           </button>
-          <button className="btn btn-ghost">
+          <button className="btn btn-ghost" onClick={handleViewInventory}>
             <Package className="h-4 w-4 mr-2" />
             View Inventory
           </button>
@@ -88,30 +105,30 @@ export default async function WarehousePage() {
       <div className="stats-grid">
         <div className="stat-card blue">
           <div className="stat-label">Total Materials</div>
-          <div className="stat-value">{stats.totalRawMaterials}</div>
+          <div className="stat-value">{isLoading ? '...' : stats.totalRawMaterials}</div>
           <div className="stat-sub">Active inventory</div>
         </div>
 
         <div className="stat-card red">
           <div className="stat-label">Low Stock Alerts</div>
-          <div className="stat-value">{stats.lowStockItems}</div>
+          <div className="stat-value">{isLoading ? '...' : stats.lowStockItems}</div>
           <div className="stat-sub">Need attention</div>
         </div>
 
         <div className="stat-card teal">
           <div className="stat-label">Recent Deliveries</div>
-          <div className="stat-value">{stats.recentDeliveries}</div>
+          <div className="stat-value">{isLoading ? '...' : stats.recentDeliveries}</div>
           <div className="stat-sub">This week</div>
         </div>
 
         <div className="stat-card amber">
           <div className="stat-label">Pending Orders</div>
-          <div className="stat-value">{stats.pendingOrders}</div>
+          <div className="stat-value">{isLoading ? '...' : stats.pendingOrders}</div>
           <div className="stat-sub">Awaiting stock</div>
         </div>
       </div>
 
-      <div className="grid-2 mb-16">
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
         {/* Low Stock Alerts */}
         <div className="card">
           <div className="section-header mb-16">
@@ -128,7 +145,7 @@ export default async function WarehousePage() {
             </div>
           ) : (
             <div className="space-y-3">
-              {lowStockAlerts.map((item: LowStockItem) => (
+              {lowStockAlerts.map((item) => (
                 <div key={item.id} className="flex items-center justify-between p-3" style={{background: 'var(--surface2)', borderRadius: 'var(--radius)', border: '1px solid var(--border)'}}>
                   <div>
                     <p className="font-medium" style={{color: 'var(--text)'}}>{item.materialName}</p>
@@ -137,7 +154,7 @@ export default async function WarehousePage() {
                     </p>
                   </div>
                   <span className="badge badge-red">
-                    {item.availableKg.toString()} kg
+                    {item.availableKg} kg
                   </span>
                 </div>
               ))}
@@ -161,7 +178,7 @@ export default async function WarehousePage() {
             </div>
           ) : (
             <div className="space-y-3">
-              {recentDeliveries.map((delivery: RecentDelivery) => (
+              {recentDeliveries.map((delivery) => (
                 <div key={delivery.id} className="flex items-center justify-between p-3" style={{background: 'var(--surface2)', borderRadius: 'var(--radius)', border: '1px solid var(--border)'}}>
                   <div>
                     <p className="font-medium" style={{color: 'var(--text)'}}>{delivery.material.materialName}</p>
@@ -170,7 +187,7 @@ export default async function WarehousePage() {
                     </p>
                   </div>
                   <span className="badge badge-muted">
-                    {delivery.kgReceived.toString()} kg
+                    {delivery.kgReceived} kg
                   </span>
                 </div>
               ))}

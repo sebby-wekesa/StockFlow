@@ -1,7 +1,7 @@
 "use client";
 
 import { Clock, Box, Scale, ChevronRight, Hash } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { StageLogForm } from './operator/StageLogForm';
 
 // Define proper TypeScript interfaces
@@ -26,7 +26,7 @@ export function DepartmentQueue({ userDept }: DepartmentQueueProps) {
   const [activeJob, setActiveJob] = useState<ProductionOrder | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchJobs = async () => {
+  const fetchJobs = useCallback(async () => {
     try {
       const response = await fetch(`/api/production-orders?dept=${userDept}&status=IN_PRODUCTION`);
       if (response.ok) {
@@ -35,9 +35,9 @@ export function DepartmentQueue({ userDept }: DepartmentQueueProps) {
         const transformedJobs = result.data.map((order: any) => ({
           id: order.id,
           orderNumber: order.code,
-          design: { 
-            name: order.designName, 
-            targetDim: order.targetDimensions || "Standard" 
+          design: {
+            name: order.designName,
+            targetDim: order.targetDimensions || "Standard"
           },
           inheritedKg: order.targetKg,
           targetKg: order.targetKg,
@@ -53,13 +53,13 @@ export function DepartmentQueue({ userDept }: DepartmentQueueProps) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [userDept]);
 
   useEffect(() => {
     if (userDept) {
       fetchJobs();
     }
-  }, [userDept]);
+  }, [userDept, fetchJobs]);
 
   if (loading) {
     return (

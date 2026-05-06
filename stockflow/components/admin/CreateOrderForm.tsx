@@ -20,7 +20,7 @@ export function CreateOrderForm({ designs }: { designs: Design[] }) {
   const [quantity, setQuantity] = useState(0);
   const [customerRef, setCustomerRef] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [stockValidationError, setStockValidationError] = useState<string | null>(null);
+
 
   useEffect(() => {
     async function fetchMaterials() {
@@ -44,18 +44,9 @@ export function CreateOrderForm({ designs }: { designs: Design[] }) {
   const remainingKg = selectedMaterial && requiredKg > 0 ? ((selectedMaterial.availableKg ?? 0) - requiredKg).toFixed(2) : null;
   const hasInsufficientStock: boolean = !!(selectedMaterial && requiredKg > 0 && requiredKg > (selectedMaterial.availableKg ?? 0));
 
-  // Update validation error when dependencies change
-  useEffect(() => {
-    if (selectedMaterial && requiredKg > 0) {
-      if (hasInsufficientStock) {
-        setStockValidationError(`Insufficient stock: Need ${requiredKg.toFixed(2)}kg, only ${(selectedMaterial.availableKg ?? 0)}kg available`);
-      } else {
-        setStockValidationError(null);
-      }
-    } else {
-      setStockValidationError(null);
-    }
-  }, [selectedMaterial, requiredKg, hasInsufficientStock]);
+  const stockValidationError = selectedMaterial && requiredKg > 0 && hasInsufficientStock
+    ? `Insufficient stock: Need ${requiredKg.toFixed(2)}kg, only ${(selectedMaterial.availableKg ?? 0)}kg available`
+    : null;
 
   const handleSubmit = async () => {
     if (!selectedDesign || !selectedMaterial || quantity <= 0) {

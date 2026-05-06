@@ -129,7 +129,7 @@ export function SalesCatalogue({ products }: { products: any[] }) {
                 borderRadius: 'var(--radius-sm)',
                 fontWeight: 500
               }}>
-                "{searchTerm}"
+                &quot;{searchTerm}&quot;
               </span>
             </div>
           )}

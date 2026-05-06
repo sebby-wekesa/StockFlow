@@ -67,10 +67,6 @@ export function DesignTemplateBuilder({ onComplete, initialData }: DesignTemplat
     stages: initialData?.stages || [] as Stage[]
   });
 
-  useEffect(() => {
-    loadRawMaterials();
-  }, []);
-
   const loadRawMaterials = async () => {
     try {
       setLoading(true);
@@ -83,9 +79,13 @@ export function DesignTemplateBuilder({ onComplete, initialData }: DesignTemplat
     }
   };
 
+  useEffect(() => {
+    loadRawMaterials();
+  }, []);
+
   const addStage = (stageTemplate: { name: string; department: string }) => {
     const newStage: Stage = {
-      id: `stage-${Date.now()}`,
+      id: crypto.randomUUID(),
       name: stageTemplate.name,
       department: stageTemplate.department,
       sequence: formData.stages.length + 1

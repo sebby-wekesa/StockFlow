@@ -28,7 +28,7 @@ export function LowStockAlerts() {
 
   useEffect(() => {
     void loadAlerts()
-  }, [loadAlerts])
+  }, [])
 
   const getAlertIcon = (level: string) => {
     switch (level) {

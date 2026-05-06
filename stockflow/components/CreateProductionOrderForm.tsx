@@ -38,7 +38,7 @@ export function CreateProductionOrderForm({
   const {
     register,
     handleSubmit,
-    formState: { errors, isValid },
+    formState: { isValid },
     watch,
     reset,
   } = useForm<ProductionOrderFormData>({
@@ -47,7 +47,6 @@ export function CreateProductionOrderForm({
   })
 
   const designId = watch('designId')
-  const initialWeight = watch('initialWeight')
   const priority = watch('priority')
 
   useEffect(() => {
@@ -85,8 +84,6 @@ export function CreateProductionOrderForm({
       if (!response.ok) {
         throw new Error('Failed to create production order')
       }
-
-      const result = await response.json()
 
       showToast(
         `Production order ${orderNumber} created successfully!`,

@@ -17,12 +17,7 @@ export function DashboardShell({
 }) {
   const searchParams = useSearchParams();
   const previewRoleParam = searchParams.get('previewRole') as Role;
-  const [previewRole, setPreviewRole] = useState<Role>(previewRoleParam || role);
-
-  // Handle role switching (for preview purposes)
-  useEffect(() => {
-    setPreviewRole(previewRoleParam || role);
-  }, [role, previewRoleParam]);
+  const previewRole = previewRoleParam || role;
 
   const handleRoleSwitch = (newRole: Role) => {
     // Update URL with preview role

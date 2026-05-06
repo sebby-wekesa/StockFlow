@@ -178,7 +178,11 @@ select.form-input option { background: var(--surface2); }
 .queue-count { background: var(--accent); color: #000; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; }
 
 /* SALES CATALOGUE */
-.product-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.product-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 14px;
+}
 .product-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; cursor: pointer; transition: all 0.15s; }
 .product-card:hover { border-color: var(--teal); }
 .product-name { font-family: var(--font-head); font-size: 15px; font-weight: 700; margin-bottom: 6px; }
@@ -188,6 +192,31 @@ select.form-input option { background: var(--surface2); }
 .product-unit { font-size: 11px; color: var(--muted); }
 .product-avail { font-size: 11px; color: var(--muted); }
 .product-avail span { color: var(--green); font-weight: 600; }
+
+/* Empty State */
+.empty-state {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 60px 20px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.empty-state-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+}
+.empty-state-title {
+  font-family: var(--font-head);
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+.empty-state-description {
+  color: var(--muted);
+  font-size: 14px;
+}
 
 /* SCRAP METER */
 .scrap-bar-wrap { margin: 8px 0; }
