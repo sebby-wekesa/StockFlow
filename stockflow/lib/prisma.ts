@@ -21,9 +21,23 @@ const prismaClientSingleton = () => {
     throw new Error('DATABASE_URL is not configured')
   }
 
-  const adapter = new PrismaPg({ connectionString: getConnectionString(databaseUrl) })
-
-  return new PrismaClient({ adapter })
+  try {
+    const adapter = new PrismaPg({ connectionString: getConnectionString(databaseUrl) })
+    return new PrismaClient({ adapter })
+  } catch (error) {
+    console.error('Failed to create Prisma client:', error)
+    // Return a mock client that throws on usage
+    const throwFn = () => {
+      throw new Error('Database not available during build')
+    };
+    const createProxy = () => new Proxy(throwFn, {
+      get: (target, prop) => {
+        if (prop === 'then') return undefined; // Prevent async handling
+        return createProxy(); // Recursive proxy for nested properties
+      }
+    });
+    return createProxy() as any;
+  }
 }
 
 // 2. Setup the global type for development hot-reloading
