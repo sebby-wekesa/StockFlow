@@ -29,31 +29,34 @@ function getRoleNavItems(role: UserRole): any[] {
         { section: "Overview" },
         { label: "Dashboard", href: "/dashboard" },
         { section: "Production" },
-        { label: "Design templates", href: "/designs" },
-        { label: "Production orders", href: "/orders", badge: "4" },
-        { label: "Departments", href: "/departments" },
-        { section: "Inventory" },
+        { label: "Job cards", href: "/jobs" },
         { label: "Raw materials", href: "/rawmaterials" },
-        { label: "Finished goods", href: "/finishedgoods" },
+        { section: "Inventory" },
+        { label: "Stock overview", href: "/stock" },
+        { label: "Products", href: "/products" },
         { section: "Sales" },
-        { label: "Sales orders", href: "/sales", badge: "2" },
-        { label: "Packaging queue", href: "/packaging" },
+        { label: "Sales orders", href: "/sales" },
+        { label: "Customers", href: "/customers" },
+        { section: "Data" },
+        { label: "Import centre", href: "/import" },
+        { label: "Reports", href: "/reports" },
         { section: "Settings" },
-        { label: "Users & roles", href: "/admin/users" },
+        { label: "Users", href: "/users" },
       ];
 
     case 'MANAGER':
       return [
         { section: "Overview" },
         { label: "Dashboard", href: "/dashboard" },
-        { section: "Approvals" },
-        { label: "Order approvals", href: "/approvals", badge: "3", badgeColor: "red" },
         { section: "Production" },
-        { label: "All orders", href: "/orders" },
-        { label: "Dept queues", href: "/departments" },
-        { section: "Reports" },
-        { label: "Scrap report", href: "/scrap" },
+        { label: "Job cards", href: "/jobs" },
         { label: "Raw materials", href: "/rawmaterials" },
+        { section: "Inventory" },
+        { label: "Stock overview", href: "/stock" },
+        { section: "Sales" },
+        { label: "Sales orders", href: "/sales" },
+        { section: "Reports" },
+        { label: "Reports", href: "/reports" },
       ];
 
     case 'OPERATOR':
@@ -67,11 +70,11 @@ function getRoleNavItems(role: UserRole): any[] {
 
     case 'SALES':
       return [
+        { section: "Sales" },
+        { label: "New order", href: "/sales/new" },
+        { label: "Order history", href: "/sales" },
         { section: "Catalogue" },
         { label: "Available stock", href: "/catalogue" },
-        { label: "Place order", href: "/place_order" },
-        { section: "My Orders" },
-        { label: "Order history", href: "/my_orders" },
       ];
 
     case 'PACKAGING':
@@ -85,9 +88,13 @@ function getRoleNavItems(role: UserRole): any[] {
       return [
         { section: "Overview" },
         { label: "Dashboard", href: "/dashboard" },
-        { section: "Receiving" },
+        { section: "Production" },
+        { label: "Job cards", href: "/jobs" },
+        { section: "Raw Materials" },
+        { label: "Raw materials", href: "/rawmaterials" },
         { label: "Receive stock", href: "/receive" },
-        { label: "Stock levels", href: "/rawmaterials" },
+        { section: "Inventory" },
+        { label: "Stock overview", href: "/stock" },
       ];
 
     default:

@@ -55,6 +55,7 @@ model User {
   stageLogs           StageLog[]
   notificationSettings NotificationSettings?
   auditLogs      AuditLog[]
+  importBatches  ImportBatch[]
 }
 
 model Design {
@@ -201,6 +202,7 @@ model Product {
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
   receipts       ProductReceipt[]
+  aliases        ProductAlias[]
 }
 
 model ProductReceipt {
@@ -468,4 +470,70 @@ model AuditLog {
   ipAddress  String?
   userAgent  String?
   createdAt  DateTime @default(now())
+}
+
+// Import System
+enum ImportStatus {
+  uploaded      // File uploaded, ready for column mapping
+  mapping       // User configuring column mappings
+  validating    // Running validation and matching
+  preview       // Showing match results and conflicts
+  committing    // Writing data to database
+  imported      // Successfully completed
+  failed        // Import failed with errors
+}
+
+enum ImportMode {
+  update    // Update existing records
+  ignore    // Skip existing records
+  replace   // Replace existing records
+}
+
+model ImportBatch {
+  id               String        @id @default(cuid())
+  file_name        String
+  sheet_type       String        // e.g., 'sales_quickbooks'
+  import_mode      ImportMode    @default(update)
+  target_branch    String?       // Branch code if applicable
+  status           ImportStatus  @default(uploaded)
+  row_count        Int
+  created_by       String
+  created_by_user  User          @relation(fields: [created_by], references: [id])
+  created_at       DateTime      @default(now())
+  updated_at       DateTime      @updatedAt
+  rows             ImportRow[]
+}
+
+model ImportRow {
+  id              String      @id @default(cuid())
+  batch_id        String
+  batch           ImportBatch @relation(fields: [batch_id], references: [id], onDelete: Cascade)
+  row_number      Int         // Original row number in Excel
+  raw_data        Json        // Original parsed row data
+  mapped_data     Json?       // Data after column mapping
+  matched_product String?     // Product ID if matched
+  match_confidence Float?     // 0-1 confidence score
+  resolution      String?     // 'auto', 'confirmed', 'manual', 'skipped'
+  resolved_product String?    // Final product ID after resolution
+  order_number    String?     // Invoice/order number for grouping
+  customer_name   String?     // Customer name from import
+  qty             Float?
+  unit_price      Float?
+  notes           String?
+  errors          String?     // Validation errors
+  created_at      DateTime    @default(now())
+  updated_at      DateTime    @updatedAt
+
+  @@index([batch_id])
+}
+
+model ProductAlias {
+  id         String   @id @default(cuid())
+  product_id String
+  product    Product  @relation(fields: [product_id], references: [id], onDelete: Cascade)
+  alias      String   // Alternative name for matching
+  created_at DateTime @default(now())
+
+  @@unique([product_id, alias])
+  @@index([alias])
 }

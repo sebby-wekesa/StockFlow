@@ -1,6 +1,9 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import { uploadImport } from '@/app/(dashboard)/import/actions'
+import { SHEET_TYPE_LABELS, type SheetType } from '@/lib/import/parsers'
+import { ALL_BRANCHES } from '@/lib/branches'
 
 export function UploadForm() {
   const [isPending, startTransition] = useTransition()
@@ -15,8 +18,15 @@ export function UploadForm() {
       return
     }
 
-    // For now, just show a message that this feature is coming soon
-    alert('Excel import functionality is coming soon! This would allow bulk upload of products, sales orders, and other data.')
+    startTransition(async () => {
+      try {
+        const formData = new FormData(e.target as HTMLFormElement)
+        formData.set('file', file)
+        await uploadImport(formData)
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Upload failed')
+      }
+    })
   }
 
   return (
@@ -37,6 +47,7 @@ export function UploadForm() {
           onChange={(e) => setFile(e.target.files?.[0] || null)}
           className="input"
           disabled={isPending}
+          required
         />
         <p className="text-xs text-muted mt-1">
           Upload Excel files (.xlsx, .xls) for bulk data import
@@ -45,12 +56,39 @@ export function UploadForm() {
 
       <div className="mb-4">
         <label className="block text-xs uppercase tracking-wider text-muted mb-2">
-          Import Type
+          File Type
         </label>
-        <select name="import_type" className="input" disabled>
-          <option value="products">Products</option>
-          <option value="sales">Sales Orders</option>
-          <option value="inventory">Inventory Adjustments</option>
+        <select name="sheet_type" className="input" defaultValue="auto" disabled={isPending}>
+          <option value="auto">Auto-detect</option>
+          {(Object.entries(SHEET_TYPE_LABELS) as [SheetType, string][]).map(([value, label]) => (
+            <option key={value} value={value}>
+              {label}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div className="mb-4">
+        <label className="block text-xs uppercase tracking-wider text-muted mb-2">
+          Import Mode
+        </label>
+        <select name="import_mode" defaultValue="update" className="input" disabled={isPending}>
+          <option value="update">Update — update existing records</option>
+          <option value="ignore">Ignore — only import new products</option>
+        </select>
+      </div>
+
+      <div className="mb-4">
+        <label className="block text-xs uppercase tracking-wider text-muted mb-2">
+          Target Branch
+        </label>
+        <select name="target_branch" className="input" disabled={isPending}>
+          <option value="">All branches</option>
+          {ALL_BRANCHES.map((branch) => (
+            <option key={branch} value={branch}>
+              {branch.charAt(0).toUpperCase() + branch.slice(1)}
+            </option>
+          ))}
         </select>
       </div>
 
@@ -60,13 +98,8 @@ export function UploadForm() {
           disabled={isPending || !file}
           className="btn btn-primary"
         >
-          {isPending ? 'Uploading...' : 'Upload & Import'}
+          {isPending ? 'Uploading...' : 'Upload & Parse'}
         </button>
-      </div>
-
-      <div className="mt-4 p-3 bg-blue/10 border border-blue/30 text-blue text-sm rounded">
-        <strong>Note:</strong> Excel import functionality is planned for a future update.
-        This would include column mapping, data validation, conflict resolution, and batch processing.
       </div>
     </form>
   )

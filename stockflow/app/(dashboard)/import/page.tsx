@@ -31,7 +31,7 @@ export default async function ImportPage() {
             In-progress imports
           </div>
           <div className="space-y-2">
-            {recentBatches.map((batch: any) => (
+            {recentBatches.map((batch) => (
               <Link
                 key={batch.id}
                 href={`/import/${batch.id}`}

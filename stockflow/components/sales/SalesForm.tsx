@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import { createSalesOrder, searchProductsForSale } from '@/actions/sales'
-import { searchCustomers } from '@/customers/actions'
+import { searchCustomers } from '@/actions/customers'
 import { BRANCH_LABELS } from '@/lib/branches'
 import { formatKES } from '@/lib/sales-utils'
 import type { Branch } from '@prisma/client'
