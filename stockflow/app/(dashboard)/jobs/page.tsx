@@ -1,53 +1,152 @@
-import { prisma } from "@/lib/prisma";
-import { redirect } from "next/navigation";
-import { getUser } from "@/lib/auth";
-import Link from "next/link";
+import Link from 'next/link'
+import { prisma } from '@/lib/prisma'
+import { getUser } from '@/lib/auth'
+import { JOB_STATUS_LABELS, JOB_STATUS_BADGE_CLASS } from '@/lib/production'
 
-export default function JobsPage() {
+const PAGE_SIZE = 20
+
+export default async function JobsPage({
+  searchParams,
+}: {
+  searchParams: { status?: string; page?: string }
+}) {
+  const user = await getUser()
+  if (!user) return null
+
+  const status = searchParams.status as 'open' | 'in_progress' | 'complete' | 'cancelled' | undefined
+  const page = Math.max(1, Number(searchParams.page ?? 1))
+
+  const where: any = {}
+  if (status) where.status = status
+
+  const [jobs, total] = await Promise.all([
+    prisma.jobCard.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      take: PAGE_SIZE,
+      skip: (page - 1) * PAGE_SIZE,
+      include: {
+        product: { select: { product_code: true, canonical_name: true } },
+        stages: {
+          select: { stage_number: true, completed_at: true, qty_in: true, qty_out: true }
+        }
+      }
+    }),
+    prisma.jobCard.count({ where }),
+  ])
+
+  const totalPages = Math.ceil(total / PAGE_SIZE)
+
   return (
     <div>
-      <div className="section-header mb-16">
+      <div className="flex items-start justify-between mb-6">
         <div>
-          <div className="section-title">Cutting dept — job queue</div>
-          <div className="section-sub">Jobs ready for your department</div>
+          <h1 className="font-head text-2xl font-bold">Job cards</h1>
+          <p className="text-muted text-sm mt-1">
+            Production orders and manufacturing workflow
+          </p>
         </div>
+        <Link href="/jobs/new" className="btn btn-primary">
+          + New job card
+        </Link>
       </div>
-      <div className="job-card urgent" style={{cursor:'pointer'}} onClick={() => alert('Navigate to log form')}>
-        <div className="job-header">
-          <span className="job-id">PO-0040 · Stage 1/3</span>
-          <span className="badge badge-red">Urgent</span>
-        </div>
-        <div className="job-design">Stud rod 8mm — Cut to 120mm</div>
-        <div className="job-meta" style={{marginTop:'8px'}}>
-          <span>Received: <span className="job-kg">85 kg</span></span>
-          <span>Target dims: 8mm × 120mm</span>
-          <span>Client: BuildPro Ltd</span>
-        </div>
+
+      {/* STATUS FILTERS */}
+      <div className="flex gap-2 mb-6">
+        {(['open', 'in_progress', 'complete', 'cancelled'] as const).map((statusKey) => (
+          <Link
+            key={statusKey}
+            href={status === statusKey ? '/jobs' : `/jobs?status=${statusKey}`}
+            className={`btn btn-sm ${
+              status === statusKey ? 'btn-primary' : 'btn-outline'
+            }`}
+          >
+            {JOB_STATUS_LABELS[statusKey]}
+          </Link>
+        ))}
       </div>
-      <div className="job-card inprog" style={{cursor:'pointer'}} onClick={() => alert('Navigate to log form')}>
-        <div className="job-header">
-          <span className="job-id">PO-0039 · Stage 1/6</span>
-          <span className="badge badge-amber">In progress</span>
-        </div>
-        <div className="job-design">Anchor bolt — Cut to 170mm</div>
-        <div className="job-meta" style={{marginTop:'8px'}}>
-          <span>Received: <span className="job-kg">200 kg</span></span>
-          <span>Target dims: 16mm × 170mm</span>
-          <span>Client: Apex Hardware</span>
-        </div>
+
+      {/* JOBS LIST */}
+      <div className="space-y-4">
+        {jobs.length === 0 ? (
+          <div className="text-center py-12 text-muted">
+            <p className="mb-4">No job cards found.</p>
+            <Link href="/jobs/new" className="btn btn-primary">
+              Create your first job card
+            </Link>
+          </div>
+        ) : (
+          jobs.map((job) => {
+            const completedStages = job.stages.filter(s => s.completed_at).length
+            const totalStages = job.stages.length
+            const currentStage = job.stages.find(s => !s.completed_at)
+
+            return (
+              <Link
+                key={job.id}
+                href={`/jobs/${job.id}`}
+                className="card p-6 hover:bg-surface2 transition-colors"
+              >
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-3 mb-2">
+                      <h3 className="font-medium">Job {job.id.slice(-6)}</h3>
+                      <span className={`text-xs px-2 py-1 rounded-full ${JOB_STATUS_BADGE_CLASS[job.status]}`}>
+                        {JOB_STATUS_LABELS[job.status]}
+                      </span>
+                    </div>
+
+                    <div className="text-sm text-muted mb-3">
+                      {job.product.product_code} - {job.product.canonical_name}
+                    </div>
+
+                    <div className="flex items-center gap-4 text-sm">
+                      <span>Ordered: <strong>{job.qty_ordered}</strong> units</span>
+                      <span>Progress: <strong>{completedStages}/{totalStages}</strong> stages</span>
+                      {currentStage && (
+                        <span>Current: Stage {currentStage.stage_number} ({currentStage.qty_in} units)</span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="text-right">
+                    <div className="text-sm text-muted">
+                      {new Date(job.createdAt).toLocaleDateString()}
+                    </div>
+                  </div>
+                </div>
+              </Link>
+            )
+          })
+        )}
       </div>
-      <div className="job-card">
-        <div className="job-header">
-          <span className="job-id">PO-0045 · Stage 1/4</span>
-          <span className="badge badge-muted">Queued</span>
+
+      {/* PAGINATION */}
+      {totalPages > 1 && (
+        <div className="flex justify-center mt-8 gap-2">
+          {page > 1 && (
+            <Link
+              href={`/jobs?${new URLSearchParams({ status: status || '', page: String(page - 1) })}`}
+              className="btn btn-sm btn-outline"
+            >
+              Previous
+            </Link>
+          )}
+
+          <span className="btn btn-sm btn-disabled">
+            Page {page} of {totalPages}
+          </span>
+
+          {page < totalPages && (
+            <Link
+              href={`/jobs?${new URLSearchParams({ status: status || '', page: String(page + 1) })}`}
+              className="btn btn-sm btn-outline"
+            >
+              Next
+            </Link>
+          )}
         </div>
-        <div className="job-design">Hex bolt M12 — Cut to 70mm</div>
-        <div className="job-meta" style={{marginTop:'8px'}}>
-          <span>Received: <span className="job-kg">120 kg</span></span>
-          <span>Target dims: 12mm × 70mm</span>
-          <span>Client: Mech Supplies</span>
-        </div>
-      </div>
+      )}
     </div>
-  );
+  )
 }

@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { supabaseServer } from "./supabase-admin";
 import { normalizeUserRole, type UserRole } from "./types";
+import { prisma } from "./prisma";
 
 export type Role = UserRole;
 
@@ -52,18 +53,41 @@ export async function getUser() {
     const metadataName =
       typeof user.user_metadata?.name === "string" ? user.user_metadata.name : null;
 
-    // Get profile from profiles table
-    const { data, error: profileError } = await supabase
-      .from('profiles')
-      .select('email, role, department, branch_id')
-      .eq('id', user.id)
-      .maybeSingle();
+    // Get user from Prisma database instead of Supabase profiles table
+    const dbUser = await prisma.user.findUnique({
+      where: { id: user.id },
+      select: {
+        email: true,
+        full_name: true,
+        role: true,
+        department: true,
+        branches: true,
+        is_active: true
+      }
+    });
 
-    const profile = (data ?? null) as ProfileRow | null;
-
-    if (profileError) {
-      console.error("Profile lookup failed:", profileError.message);
+    if (!dbUser) {
+      console.log("User not found in database");
+      return null;
     }
+
+    if (!dbUser.is_active) {
+      console.log("User account is inactive");
+      return null;
+    }
+
+    return {
+      id: user.id,
+      email: dbUser.email ?? user.email ?? "",
+      name: dbUser.full_name ?? metadataName ?? "",
+      role: dbUser.role,
+      department: dbUser.department ?? null,
+      branchId: dbUser.branches?.[0] ?? null, // Use first branch as primary
+    };
+  } catch (err) {
+    console.error("Error getting user profile:", err);
+    return null;
+  }
 
     return {
       id: user.id,
