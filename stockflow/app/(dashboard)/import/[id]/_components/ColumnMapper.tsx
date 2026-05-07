@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { saveColumnMapping } from '../actions'
+import { saveColumnMapping } from '../../actions'
 import { FIELD_LABELS, suggestMapping, type ImportField, type SheetType } from '@/lib/import/parsers'
 import type { ImportBatch } from '@prisma/client'
 

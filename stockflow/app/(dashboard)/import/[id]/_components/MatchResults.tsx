@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { resolveConflict, commitImport } from '../actions'
+import { resolveConflict, commitImport } from '../../actions'
 import type { ImportBatch, ImportRow } from '@prisma/client'
 
 interface MatchResultsProps {
