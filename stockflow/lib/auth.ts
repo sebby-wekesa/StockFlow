@@ -88,20 +88,6 @@ export async function getUser() {
     console.error("Error getting user profile:", err);
     return null;
   }
-
-    return {
-      id: user.id,
-      email: profile?.email ?? user.email ?? "",
-      name: metadataName,
-      role: normalizeUserRole(profile?.role ?? user.user_metadata?.role),
-      department: profile?.department ?? null,
-      branchId: profile?.branch_id ?? null,
-    };
-
-  } catch (error) {
-    console.error("Error getting user profile:", error);
-    return null;
-  }
 }
 
 export async function requireAuth(): Promise<AuthUser> {
