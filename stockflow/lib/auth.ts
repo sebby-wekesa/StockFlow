@@ -51,11 +51,15 @@ export async function getUser() {
       where: { id: user.id },
       select: {
         email: true,
-        full_name: true,
+        name: true,
         role: true,
         department: true,
-        branches: true,
-        is_active: true
+        branchId: true,
+        branches: {
+          select: {
+            id: true
+          }
+        }
       }
     });
 
@@ -64,18 +68,13 @@ export async function getUser() {
       return null;
     }
 
-    if (!dbUser.is_active) {
-      console.log("User account is inactive");
-      return null;
-    }
-
     return {
       id: user.id,
       email: dbUser.email ?? user.email ?? "",
-      name: dbUser.full_name ?? metadataName ?? "",
+      name: dbUser.name ?? metadataName ?? "",
       role: dbUser.role,
       department: dbUser.department ?? null,
-      branchId: dbUser.branches?.[0] ?? null, // Use first branch as primary
+      branchId: dbUser.branchId ?? dbUser.branches?.[0]?.id ?? null,
     };
   } catch (err) {
     console.error("Error getting user profile:", err);
