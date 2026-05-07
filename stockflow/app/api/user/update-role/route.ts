@@ -2,8 +2,8 @@ export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getUser } from '@/lib/auth';
-import { supabaseServer } from '@/lib/supabase-admin';
-import { USER_ROLES, normalizeUserRole } from '@/lib/types';
+import { prisma } from '@/lib/prisma';
+import type { UserRole } from '@/lib/types';
 
 export async function POST(request: NextRequest) {
   try {
@@ -17,31 +17,26 @@ export async function POST(request: NextRequest) {
     }
 
     const { userId, role } = await request.json();
-    const normalizedRole = normalizeUserRole(role);
 
     if (!userId) {
       return NextResponse.json({ error: 'User ID is required' }, { status: 400 });
     }
 
-    if (typeof role !== "string" || !USER_ROLES.includes(role.toUpperCase() as typeof USER_ROLES[number])) {
+    if (typeof role !== "string") {
       return NextResponse.json({ error: 'Invalid role' }, { status: 400 });
     }
 
-    const supabase = supabaseServer() as any;
-    if (!supabase) {
-      return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
+    // Validate role is a valid UserRole
+    const validRoles: UserRole[] = ['ADMIN', 'MANAGER', 'WAREHOUSE', 'SALES', 'ACCOUNTANT', 'OPERATOR', 'PACKAGING', 'PENDING'];
+    if (!validRoles.includes(role as UserRole)) {
+      return NextResponse.json({ error: 'Invalid role' }, { status: 400 });
     }
 
-    // Update role in profiles table
-    const { error } = await supabase
-      .from('profiles')
-      .update({ role: normalizedRole })
-      .eq('id', userId);
-
-    if (error) {
-      console.error('Role update error:', error);
-      return NextResponse.json({ error: 'Failed to update role' }, { status: 500 });
-    }
+    // Update role in Prisma User table
+    await prisma.user.update({
+      where: { id: userId },
+      data: { role: role as UserRole },
+    });
 
     return NextResponse.json({ success: true });
   } catch (error) {

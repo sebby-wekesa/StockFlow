@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic';
 
 import { redirect } from "next/navigation";
 import { getUser } from "@/lib/auth";
-import { supabaseServer } from "@/lib/supabase-admin";
+import { prisma } from "@/lib/prisma";
 import type { UserRole } from "@/lib/types";
 import { UserRow } from "@/components/admin/UserRow";
 import InviteUserModal from "@/components/admin/InviteUserModal";
@@ -15,47 +15,29 @@ type AdminUserRow = {
   department: string | null;
 };
 
-function getAuthMetadataName(user: { user_metadata?: Record<string, unknown> } | undefined) {
-  return typeof user?.user_metadata?.name === "string" ? user.user_metadata.name : null;
-}
-
 async function getUsers() {
   try {
-    const supabase = supabaseServer() as any;
-    if (!supabase) {
-      return [] as AdminUserRow[];
-    }
-
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('id, email, role, department')
-      .order('updated_at', { ascending: false });
-
-    if (error) {
-      console.error('Failed to fetch users:', error);
-      return [] as AdminUserRow[];
-    }
-
-    const { data: authData, error: authError } = await supabase.auth.admin.listUsers({
-      page: 1,
-      perPage: 1000,
+    // Get users from Prisma User table
+    const users = await prisma.user.findMany({
+      select: {
+        id: true,
+        email: true,
+        full_name: true,
+        role: true,
+        department: true,
+        is_active: true,
+        createdAt: true,
+      },
+      orderBy: { createdAt: 'desc' },
     });
 
-    if (authError) {
-      console.error('Failed to fetch auth users:', authError);
-    }
-
-    const authUsersById = new Map(
-      (authData?.users ?? []).map((authUser: { id: string; user_metadata?: Record<string, unknown> }) => [
-        authUser.id,
-        authUser,
-      ]),
-    );
-
-    return ((data ?? []) as Omit<AdminUserRow, "name">[]).map((profile) => ({
-      ...profile,
-      name: getAuthMetadataName(authUsersById.get(profile.id)),
-    }));
+    return users.map(user => ({
+      id: user.id,
+      email: user.email,
+      name: user.full_name,
+      role: user.role,
+      department: user.department,
+    })) as AdminUserRow[];
   } catch (error) {
     console.error('Failed to fetch users:', error);
     return [] as AdminUserRow[];

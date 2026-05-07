@@ -2,7 +2,6 @@ export const dynamic = 'force-dynamic';
 
 import { getUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { supabaseServer } from "@/lib/supabase-admin";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 
@@ -14,11 +13,8 @@ async function getAdminStats() {
   const completed = await prisma.productionOrder.count({ where: { status: "COMPLETED" } });
   const designs = await prisma.design.count();
 
-  // Count users from Supabase profiles instead of Prisma
-  const supabase = supabaseServer();
-  const { count: users } = await supabase
-    .from('profiles')
-    .select('*', { count: 'exact', head: true });
+  // Count users from Prisma User table
+  const users = await prisma.user.count();
 
   const inventory = await prisma.rawMaterial.findMany();
 
