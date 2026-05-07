@@ -1,6 +1,8 @@
 import { getPackagingQueue } from "@/app/actions/packaging";
 import { PackagingQueue } from "@/components/PackagingQueue";
 
+export const dynamic = 'force-dynamic';
+
 export default async function PackagingPage() {
   const orders = await getPackagingQueue();
 

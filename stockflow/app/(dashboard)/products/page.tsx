@@ -3,6 +3,8 @@ import { prisma } from '@/lib/prisma'
 import { CATEGORY_SHORT, CATEGORY_BADGE_CLASS } from '@/lib/products'
 import type { ProductCategory } from '@prisma/client'
 
+export const dynamic = 'force-dynamic';
+
 const PAGE_SIZE = 50
 
 export default async function ProductsPage({
