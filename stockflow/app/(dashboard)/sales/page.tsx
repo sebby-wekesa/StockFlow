@@ -4,6 +4,8 @@ import { BRANCH_LABELS } from '@/lib/branches'
 import { STATUS_BADGE_CLASS, STATUS_LABELS, formatKES } from '@/lib/sales-utils'
 import type { Branch, SalesOrderStatus } from '@prisma/client'
 
+export const dynamic = 'force-dynamic';
+
 const PAGE_SIZE = 50
 
 export default async function SalesPage({

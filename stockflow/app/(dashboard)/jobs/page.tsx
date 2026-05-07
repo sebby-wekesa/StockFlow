@@ -3,6 +3,8 @@ import { prisma } from '@/lib/prisma'
 import { getUser } from '@/lib/auth'
 import { JOB_STATUS_LABELS, JOB_STATUS_BADGE_CLASS } from '@/lib/production'
 
+export const dynamic = 'force-dynamic';
+
 const PAGE_SIZE = 20
 
 export default async function JobsPage({

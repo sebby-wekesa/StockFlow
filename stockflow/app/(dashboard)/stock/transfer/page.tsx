@@ -5,6 +5,8 @@ import { ALL_BRANCHES, BRANCH_LABELS } from '@/lib/branches'
 import { TransferForm } from '@/components/stock/TransferForm'
 import type { Branch } from '@prisma/client'
 
+export const dynamic = 'force-dynamic';
+
 export default async function TransferPage() {
   const user = await getUser()
   if (!user) throw new Error('Unauthorized')

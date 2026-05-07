@@ -4,6 +4,8 @@ import { getUser } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { Check } from "lucide-react";
 
+export const dynamic = 'force-dynamic';
+
 export default async function OrderApprovalPage() {
   const user = await getUser();
 

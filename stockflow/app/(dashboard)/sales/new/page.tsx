@@ -4,6 +4,8 @@ import { prisma } from '@/lib/prisma'
 import { SalesForm } from '@/components/sales/SalesForm'
 import type { Branch } from '@prisma/client'
 
+export const dynamic = 'force-dynamic';
+
 export default async function NewSalesPage() {
   const user = await getUser()
   if (!user) redirect('/login')
