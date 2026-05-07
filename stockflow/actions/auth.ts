@@ -4,8 +4,19 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { supabaseAdmin } from "@/lib/supabase-admin";
-import { clearAuthCookies, getRoleHomePage, resolveUserRole, setAuthCookies } from "@/lib/auth-session";
+import { prisma } from "@/lib/prisma";
 import { loginSchema } from "@/lib/validations";
+
+const ROLE_PATHS = {
+  ADMIN: "/admin/dashboard",
+  MANAGER: "/dashboard",
+  WAREHOUSE: "/dashboard",
+  SALES: "/dashboard",
+  ACCOUNTANT: "/reports",
+  OPERATOR: "/dashboard",
+  PACKAGING: "/dashboard",
+  PENDING: "/dashboard/setup",
+};
 
 function readErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : "";
@@ -54,14 +65,33 @@ export async function signIn(formData: FormData) {
     return { error: "Authentication failed. Please try again." };
   }
 
-  const role = await resolveUserRole(data.user.id, data.user.user_metadata?.role);
+  // FETCH THE ACTUAL ROLE FROM YOUR DATABASE TABLE
+  const dbUser = await prisma.user.findUnique({
+    where: { id: data.user.id },
+    select: { role: true },
+  });
 
-  // Success - set cookies and redirect
+  const role = dbUser?.role || 'PENDING';
+
   const cookieStore = await cookies();
-  setAuthCookies(cookieStore, data.session, role);
 
-  const redirectTo = getRoleHomePage(role);
-  return { redirectTo };
+  // Set the cookie with a 'Path=/' to ensure all routes can see it
+  cookieStore.set('user-role', role, {
+    path: '/',
+    httpOnly: true,
+    sameSite: 'lax',
+  });
+
+  // Set the auth token cookie as well
+  cookieStore.set('auth-token', data.session.access_token, {
+    path: '/',
+    httpOnly: true,
+    sameSite: 'lax',
+  });
+
+  // IMPORTANT: Redirect to the specific role path
+  const targetPath = ROLE_PATHS[role as keyof typeof ROLE_PATHS] || '/dashboard';
+  redirect(targetPath);
 }
 
 export async function signOut() {
@@ -120,11 +150,31 @@ export async function signUp(formData: FormData) {
       };
     }
 
-    const role = await resolveUserRole(data.user.id, data.user.user_metadata?.role);
-    const cookieStore = await cookies();
-    setAuthCookies(cookieStore, data.session, role);
+    // FETCH THE ACTUAL ROLE FROM YOUR DATABASE TABLE
+    const dbUser = await prisma.user.findUnique({
+      where: { id: data.user.id },
+      select: { role: true },
+    });
 
-    return { redirectTo: getRoleHomePage(role) };
+    const role = dbUser?.role || 'PENDING';
+
+    const cookieStore = await cookies();
+
+    // Set the cookies with proper path settings
+    cookieStore.set('user-role', role, {
+      path: '/',
+      httpOnly: true,
+      sameSite: 'lax',
+    });
+
+    cookieStore.set('auth-token', data.session.access_token, {
+      path: '/',
+      httpOnly: true,
+      sameSite: 'lax',
+    });
+
+    const targetPath = ROLE_PATHS[role as keyof typeof ROLE_PATHS] || '/dashboard';
+    redirect(targetPath);
 
   } catch (error) {
     if (error instanceof Error && error.message === 'NEXT_REDIRECT') {
