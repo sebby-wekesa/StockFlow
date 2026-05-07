@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { clearAuthCookies, getRoleHomePage, getSessionContext, setUserRoleCookie } from "@/lib/auth-session";
+import { supabaseServer } from "@/lib/supabase-admin";
 import type { UserRole } from "@/lib/types";
 
 const PUBLIC_PATHS = new Set(["/login"]);
@@ -15,6 +15,17 @@ const ROLE_PROTECTIONS: Array<{ prefix: string; roles: UserRole[] }> = [
   { prefix: "/users", roles: ["ADMIN"] },
 ];
 
+const ROLE_PATHS = {
+  ADMIN: "/admin/dashboard",
+  MANAGER: "/dashboard",
+  WAREHOUSE: "/dashboard",
+  SALES: "/dashboard",
+  ACCOUNTANT: "/reports",
+  OPERATOR: "/dashboard",
+  PACKAGING: "/dashboard",
+  PENDING: "/dashboard/setup",
+};
+
 function isPublicPath(pathname: string) {
   return (
     pathname.startsWith("/api/") ||
@@ -25,55 +36,59 @@ function isPublicPath(pathname: string) {
   );
 }
 
-function redirectTo(url: URL, role?: UserRole) {
-  const response = NextResponse.redirect(url);
-
-  if (role) {
-    setUserRoleCookie(response.cookies, role);
-  }
-
-  return response;
-}
-
-function matchProtectedRoute(pathname: string) {
-  return ROLE_PROTECTIONS.find(({ prefix }) => pathname === prefix || pathname.startsWith(`${prefix}/`));
-}
-
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const supabase = supabaseServer();
 
   if (isPublicPath(pathname)) {
     return NextResponse.next();
   }
 
-  const accessToken = request.cookies.get("auth-token")?.value;
+  // Get session from Supabase
+  const { data: { session } } = await supabase.auth.getSession();
+  const user = session?.user;
 
-  if (!accessToken) {
-    return redirectTo(new URL("/login", request.url));
+  // 1. If no user is found and path is protected, go to login
+  if (!user && pathname !== '/login') {
+    return NextResponse.redirect(new URL('/login', request.url));
   }
 
-  const session = await getSessionContext(accessToken);
+  // 2. If user exists, check their role
+  if (user) {
+    const userRole = request.cookies.get('user-role')?.value;
 
-  if (!session) {
-    const response = redirectTo(new URL("/login", request.url));
-    clearAuthCookies(response.cookies);
-    return response;
+    // IF NO ROLE COOKIE YET: Don't bounce to login!
+    // Instead, allow them through to a "loading" or "setup" route
+    if (!userRole && pathname !== '/dashboard/setup') {
+      // Allow the request to continue so the server-side Page
+      // can fetch the role from the DB and set the cookie.
+      return NextResponse.next();
+    }
+
+    // 3. Prevent logged-in users from seeing the login page
+    if (pathname === '/login') {
+      const targetPath = ROLE_PATHS[userRole as keyof typeof ROLE_PATHS] || '/dashboard';
+      return NextResponse.redirect(new URL(targetPath, request.url));
+    }
+
+    // 4. Check role-based access for protected routes
+    const protectedRoute = ROLE_PROTECTIONS.find(({ prefix }) =>
+      pathname === prefix || pathname.startsWith(`${prefix}/`)
+    );
+
+    if (protectedRoute && userRole && !protectedRoute.roles.includes(userRole as UserRole)) {
+      const homePath = ROLE_PATHS[userRole as keyof typeof ROLE_PATHS] || '/dashboard';
+      return NextResponse.redirect(new URL(homePath, request.url));
+    }
+
+    // 5. Redirect root/dashboard paths to role-specific homes
+    if (pathname === "/" || pathname === "/dashboard") {
+      const targetPath = ROLE_PATHS[userRole as keyof typeof ROLE_PATHS] || '/dashboard';
+      return NextResponse.redirect(new URL(targetPath, request.url));
+    }
   }
 
-  const roleHome = getRoleHomePage(session.role);
-
-  if (pathname === "/" || pathname === "/dashboard") {
-    return redirectTo(new URL(roleHome, request.url), session.role);
-  }
-
-  const protectedRoute = matchProtectedRoute(pathname);
-  if (protectedRoute && !protectedRoute.roles.includes(session.role)) {
-    return redirectTo(new URL(roleHome, request.url), session.role);
-  }
-
-  const response = NextResponse.next();
-  setUserRoleCookie(response.cookies, session.role);
-  return response;
+  return NextResponse.next();
 }
 
 export const config = {
