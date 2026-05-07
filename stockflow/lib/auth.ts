@@ -1,16 +1,9 @@
 import { cookies } from "next/headers";
 import { supabaseServer } from "./supabase-admin";
-import { normalizeUserRole, type UserRole } from "./types";
+import { type UserRole } from "./types";
 import { prisma } from "./prisma";
 
 export type Role = UserRole;
-
-type ProfileRow = {
-  email: string | null;
-  role: string | null;
-  department: string | null;
-  branch_id: string | null;
-};
 
 export type AuthUser = {
   id: string;
@@ -40,7 +33,7 @@ export async function getUser() {
     return null;
   }
 
-  const { data: { user }, error } = await supabase.auth.getUser(accessToken)
+  const { data: { user }, error } = await supabase.auth.getUser(accessToken);
 
   if (error || !user) {
     console.log("No user found:", error?.message);
