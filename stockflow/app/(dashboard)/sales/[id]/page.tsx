@@ -14,7 +14,7 @@ export default async function SalesOrderDetailPage({
     where: { id: params.id },
     include: {
       lines: { include: { product: true }, orderBy: { created_at: 'asc' } },
-      created_by_user: { select: { full_name: true } },
+      created_by_user: { select: { name: true } },
       customer: true,
     },
   })
@@ -40,7 +40,7 @@ export default async function SalesOrderDetailPage({
           </div>
           <p className="text-muted text-sm mt-1">
             {BRANCH_LABELS[order.branch]} · {new Date(order.invoice_date).toLocaleDateString()} ·
-            recorded by {order.created_by_user.full_name}
+            recorded by {order.created_by_user.name}
           </p>
         </div>
 

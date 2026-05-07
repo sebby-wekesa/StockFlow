@@ -35,7 +35,7 @@ export function UserTable({ users }: { users: User[] }) {
           <tbody>
             {users.map((user) => (
               <tr key={user.id}>
-                <td className="font-medium">{user.full_name}</td>
+                <td className="font-medium">{user.name}</td>
                 <td>{user.email}</td>
                 <td>
                   <span className={`badge ${ROLE_BADGES[user.role]} badge-sm`}>

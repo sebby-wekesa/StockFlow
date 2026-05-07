@@ -12,7 +12,7 @@ export default async function ImportDetailPage({ params }: PageProps) {
   const batch = await prisma.importBatch.findUnique({
     where: { id },
     include: {
-      created_by_user: { select: { full_name: true } },
+      created_by_user: { select: { name: true } },
       rows: {
         orderBy: { row_number: 'asc' },
         take: 10, // For preview

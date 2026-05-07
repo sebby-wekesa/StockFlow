@@ -27,7 +27,7 @@ export async function GET(request: Request) {
     orderBy: { invoice_date: 'desc' },
     include: {
       lines: { include: { product: { select: { product_code: true } } } },
-      created_by_user: { select: { full_name: true } },
+      created_by_user: { select: { name: true } },
     },
   })
 
@@ -45,7 +45,7 @@ export async function GET(request: Request) {
       unit_price: Number(line.unit_price),
       total: Number(line.total_amount),
       notes: line.notes ?? '',
-      recorded_by: order.created_by_user.full_name,
+      recorded_by: order.created_by_user.name,
     }))
   )
 

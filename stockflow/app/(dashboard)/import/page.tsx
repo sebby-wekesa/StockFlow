@@ -8,7 +8,7 @@ export default async function ImportPage() {
     where: { status: { notIn: ['imported', 'failed'] } },
     orderBy: { created_at: 'desc' },
     take: 5,
-    include: { created_by_user: { select: { full_name: true } } },
+    include: { created_by_user: { select: { name: true } } },
   }) || []
 
   return (
@@ -40,7 +40,7 @@ export default async function ImportPage() {
                 <div>
                   <div className="text-sm font-medium">{batch.file_name}</div>
                   <div className="text-xs text-muted mt-0.5">
-                    {batch.row_count} rows · {batch.sheet_type} · {batch.created_by_user.full_name} ·{' '}
+                    {batch.row_count} rows · {batch.sheet_type} · {batch.created_by_user.name} ·{' '}
                     {new Date(batch.created_at).toLocaleString()}
                   </div>
                 </div>

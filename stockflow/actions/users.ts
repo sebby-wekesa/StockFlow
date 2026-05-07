@@ -50,7 +50,7 @@ function getSupabaseAdmin() {
 
 const inviteSchema = z.object({
   email: z.string().email().toLowerCase(),
-  full_name: z.string().min(1).max(200),
+  name: z.string().min(1).max(200),
   role: z.enum(['admin', 'manager', 'warehouse', 'sales', 'accountant']),
   branches: z.array(z.enum(['mombasa', 'nairobi', 'bonje'])).min(1, 'At least one branch is required'),
 })
@@ -63,14 +63,14 @@ export async function inviteUser(formData: FormData) {
 
   const raw = {
     email: formData.get('email'),
-    full_name: formData.get('full_name'),
+    name: formData.get('name'),
     role: formData.get('role'),
     branches,
   }
   const parsed = inviteSchema.safeParse(raw)
   if (!parsed.success) throw new Error(parsed.error.issues[0].message)
 
-  const { email, full_name, role, branches: branchList } = parsed.data
+  const { email, name, role, branches: branchList } = parsed.data
 
   // Check if user already exists in our DB
   const existing = await prisma.user.findUnique({ where: { email } })
@@ -83,7 +83,7 @@ export async function inviteUser(formData: FormData) {
   // Send invite via Supabase. This creates auth.users with a confirmation token.
   const redirectTo = `${process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'}/auth/callback`
   const { data, error } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
-    data: { full_name },
+    data: { name },
     redirectTo,
   })
 
@@ -100,7 +100,7 @@ export async function inviteUser(formData: FormData) {
       id: data.user.id,
       org_id: adminUser.org_id,
       email,
-      full_name,
+      name,
       role: role as UserRole,
       branches: branchList as Branch[],
       is_active: true,
@@ -116,7 +116,7 @@ export async function inviteUser(formData: FormData) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 const updateSchema = z.object({
-  full_name: z.string().min(1).max(200),
+  name: z.string().min(1).max(200),
   role: z.enum(['admin', 'manager', 'warehouse', 'sales', 'accountant']),
   branches: z.array(z.enum(['mombasa', 'nairobi', 'bonje'])).min(1),
 })
@@ -127,7 +127,7 @@ export async function updateUser(userId: string, formData: FormData) {
   const branches = formData.getAll('branches').filter(Boolean) as string[]
 
   const raw = {
-    full_name: formData.get('full_name'),
+    name: formData.get('name'),
     role: formData.get('role'),
     branches,
   }
@@ -150,7 +150,7 @@ export async function updateUser(userId: string, formData: FormData) {
   await prisma.user.update({
     where: { id: userId },
     data: {
-      full_name: parsed.data.full_name,
+      name: parsed.data.name,
       role: parsed.data.role as UserRole,
       branches: parsed.data.branches as Branch[],
     },
@@ -219,7 +219,7 @@ export async function resendInvite(userId: string) {
   const redirectTo = `${process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'}/auth/callback`
 
   const { error } = await supabaseAdmin.auth.admin.inviteUserByEmail(target.email, {
-    data: { full_name: target.full_name },
+    data: { name: target.name },
     redirectTo,
   })
 

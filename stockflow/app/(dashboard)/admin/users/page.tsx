@@ -22,7 +22,7 @@ async function getUsers() {
       select: {
         id: true,
         email: true,
-        full_name: true,
+        name: true,
         role: true,
         department: true,
         is_active: true,
@@ -34,7 +34,7 @@ async function getUsers() {
     return users.map(user => ({
       id: user.id,
       email: user.email,
-      name: user.full_name,
+      name: user.name,
       role: user.role,
       department: user.department,
     })) as AdminUserRow[];

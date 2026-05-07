@@ -35,7 +35,7 @@ function InviteModal({ onClose }: InviteModalProps) {
             </label>
             <input
               type="text"
-              name="full_name"
+              name="name"
               className="input input-bordered w-full"
               placeholder="John Doe"
               required
@@ -114,7 +114,7 @@ function UserTable({ users }: UserTableProps) {
           <tbody>
             {users.map((user) => (
               <tr key={user.id}>
-                <td className="font-medium">{user.full_name}</td>
+                <td className="font-medium">{user.name}</td>
                 <td>{user.email}</td>
                 <td>
                   <span className={`badge ${

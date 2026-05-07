@@ -34,7 +34,7 @@ export default async function SalesPage({
       skip: (page - 1) * PAGE_SIZE,
       include: {
         lines: { select: { total_amount: true } },
-        created_by_user: { select: { full_name: true } },
+        created_by_user: { select: { name: true } },
       },
     }),
     prisma.salesOrder.count({ where }),
@@ -190,7 +190,7 @@ export default async function SalesPage({
                         </span>
                       </td>
                       <td className="px-4 py-3 text-right font-mono">{formatKES(total)}</td>
-                      <td className="px-4 py-3 text-xs text-muted">{o.created_by_user.full_name}</td>
+                      <td className="px-4 py-3 text-xs text-muted">{o.created_by_user.name}</td>
                     </tr>
                   )
                 })

@@ -35,7 +35,7 @@ const ROLE_OPTIONS: { value: UserRole; label: string; description: string }[] = 
 
 type Initial = {
   email?: string
-  full_name?: string
+  name?: string
   role?: UserRole
   branches?: Branch[]
 }
@@ -80,9 +80,9 @@ export function UserForm({
           </label>
           <input
             type="text"
-            name="full_name"
+            name="name"
             className="input input-bordered w-full"
-            defaultValue={initial?.full_name}
+            defaultValue={initial?.name}
             required
           />
         </div>
