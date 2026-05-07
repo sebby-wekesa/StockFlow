@@ -380,7 +380,8 @@ export async function getOrderForLogging(orderId: string) {
   if (!order) throw new Error('Order not found')
 
   // Check if user can access this order's branch
-  if (!user.branches.includes(order.branch as any)) {
+  const userBranchIds = user.branches.map(b => b.id);
+  if (!userBranchIds.includes(order.branch.id)) {
     throw new Error('Access denied')
   }
 

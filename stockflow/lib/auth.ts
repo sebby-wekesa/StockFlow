@@ -1,7 +1,6 @@
-import { cookies } from "next/headers";
 import { supabaseServer } from "./supabase-admin";
-import { type UserRole } from "./types";
 import { prisma } from "./prisma";
+import { type UserRole } from "./types";
 
 export type Role = UserRole;
 
@@ -11,55 +10,29 @@ export type AuthUser = {
   name: string | null;
   role: UserRole;
   department: string | null;
-  branchId: string | null;
+  branches: { id: string; name: string }[];
 };
 
 export async function getUser() {
-  const cookieStore = await cookies();
-  const accessToken = cookieStore.get("auth-token")?.value;
+  const supabase = supabaseServer();
+  const { data: { user: authUser } } = await supabase.auth.getUser();
 
-  console.log("--- GET USER CHECK ---");
-  console.log("Cookies available:", cookieStore.getAll().length);
-
-  if (!accessToken) {
-    console.log("No auth token found.");
-    return null;
-  }
-
-  const supabase = supabaseServer() as any;
-
-  if (!supabase) {
-    console.error("Missing Supabase server client");
-    return null;
-  }
-
-  const { data: { user }, error } = await supabase.auth.getUser(accessToken);
-
-  if (error || !user) {
-    console.log("No user found:", error?.message);
-    return null;
-  }
-
-  console.log("User found:", user.email);
+  if (!authUser) return null;
 
   try {
-    const metadataName =
-      typeof user.user_metadata?.name === "string" ? user.user_metadata.name : null;
-
-    // Get user from Prisma database instead of Supabase profiles table
     const dbUser = await prisma.user.findUnique({
-      where: { id: user.id },
+      where: { id: authUser.id },
       select: {
         email: true,
         name: true,
         role: true,
         department: true,
-        branchId: true,
-        branch: {
+        branches: {
           select: {
-            id: true
+            id: true,
+            name: true
           }
-        }
+        },
       }
     });
 
@@ -69,15 +42,15 @@ export async function getUser() {
     }
 
     return {
-      id: user.id,
-      email: dbUser.email ?? user.email ?? "",
-      name: dbUser.name ?? metadataName ?? "",
+      id: authUser.id,
+      email: dbUser.email ?? authUser.email ?? "",
+      name: dbUser.name ?? authUser.user_metadata?.name ?? "",
       role: dbUser.role,
       department: dbUser.department ?? null,
-      branchId: dbUser.branchId ?? dbUser.branch?.id ?? null,
+      branches: dbUser.branches,
     };
-  } catch (err) {
-    console.error("Error getting user profile:", err);
+  } catch (error) {
+    console.error("Prisma lookup failed:", error);
     return null;
   }
 }
