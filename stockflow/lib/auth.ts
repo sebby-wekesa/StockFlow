@@ -55,7 +55,7 @@ export async function getUser() {
         role: true,
         department: true,
         branchId: true,
-        branches: {
+        branch: {
           select: {
             id: true
           }
@@ -74,7 +74,7 @@ export async function getUser() {
       name: dbUser.name ?? metadataName ?? "",
       role: dbUser.role,
       department: dbUser.department ?? null,
-      branchId: dbUser.branchId ?? dbUser.branches?.[0]?.id ?? null,
+      branchId: dbUser.branchId ?? dbUser.branch?.id ?? null,
     };
   } catch (err) {
     console.error("Error getting user profile:", err);
