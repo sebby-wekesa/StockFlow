@@ -40,7 +40,7 @@ export default async function SalesPage({
     prisma.salesOrder.count({ where }),
     prisma.salesOrder.groupBy({
       by: ['branch'],
-      where: { status: { in: ['invoiced', 'fulfilled'] } },
+      where: { status: { in: ['INVOICED', 'FULFILLED'] } },
       _count: { _all: true },
     }),
   ])
@@ -117,7 +117,7 @@ export default async function SalesPage({
         >
           All statuses
         </Link>
-        {(['draft', 'invoiced', 'fulfilled', 'cancelled'] as const).map((s) => (
+        {(['PENDING', 'INVOICED', 'FULFILLED', 'CANCELLED'] as const).map((s) => (
           <Link
             key={s}
             href={buildHref({ status: s, page: 1 })}

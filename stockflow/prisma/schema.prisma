@@ -497,7 +497,8 @@ enum PurchaseStatus {
 enum SaleStatus {
   PENDING
   CONFIRMED
-  SHIPPED
+  INVOICED
+  FULFILLED
   CANCELLED
 }
 

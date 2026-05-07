@@ -1,19 +1,19 @@
 import type { Branch, SalesOrderStatus } from '@prisma/client'
 
 export const STATUS_LABELS: Record<SalesOrderStatus, string> = {
-  draft: 'Draft',
-  confirmed: 'Confirmed',
-  invoiced: 'Invoiced',
-  fulfilled: 'Fulfilled',
-  cancelled: 'Cancelled',
+  PENDING: 'Draft',
+  CONFIRMED: 'Confirmed',
+  INVOICED: 'Invoiced',
+  FULFILLED: 'Fulfilled',
+  CANCELLED: 'Cancelled',
 }
 
 export const STATUS_BADGE_CLASS: Record<SalesOrderStatus, string> = {
-  draft: 'bg-surface2 text-muted',
-  confirmed: 'bg-purple/15 text-purple',
-  invoiced: 'bg-accent/15 text-accent',
-  fulfilled: 'bg-teal/15 text-teal',
-  cancelled: 'bg-red/15 text-red',
+  PENDING: 'bg-surface2 text-muted',
+  CONFIRMED: 'bg-purple/15 text-purple',
+  INVOICED: 'bg-accent/15 text-accent',
+  FULFILLED: 'bg-teal/15 text-teal',
+  CANCELLED: 'bg-red/15 text-red',
 }
 
 export function formatKES(amount: number): string {

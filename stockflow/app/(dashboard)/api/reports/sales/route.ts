@@ -21,7 +21,7 @@ export async function GET(request: Request) {
 
   const orders = await prisma.salesOrder.findMany({
     where: {
-      status: { in: ['invoiced', 'fulfilled'] },
+      status: { in: ['INVOICED', 'FULFILLED'] },
       ...(start ? { invoice_date: { gte: start, lte: end } } : {}),
     },
     orderBy: { invoice_date: 'desc' },

@@ -28,9 +28,9 @@ export default async function CustomersPage({
       skip: (page - 1) * PAGE_SIZE,
       include: {
         orders: {
-          where: { status: { in: ['invoiced', 'fulfilled'] } },
+          where: { status: { in: ['INVOICED', 'FULFILLED'] } },
           select: {
-            lines: { select: { total_amount: true } }
+            items: { select: { totalPrice: true } }
           }
         }
       }
@@ -44,7 +44,7 @@ export default async function CustomersPage({
   const customersWithTotals = customers.map(customer => {
     const totalOrders = customer.orders.length
     const totalSpent = customer.orders.reduce((sum, order) => {
-      return sum + order.lines.reduce((lineSum, line) => lineSum + Number(line.total_amount), 0)
+      return sum + order.items.reduce((itemSum, item) => itemSum + Number(item.totalPrice), 0)
     }, 0)
     const lastOrderDate = customer.orders.length > 0
       ? new Date(Math.max(...customer.orders.map(() => Date.now()))) // Simplified - in real app would track order dates

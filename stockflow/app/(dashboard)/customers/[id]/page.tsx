@@ -14,12 +14,12 @@ export default async function CustomerDetailPage({ params }: CustomerPageProps) 
     where: { id },
     include: {
       orders: {
-        where: { status: { in: ['invoiced', 'fulfilled'] } },
+        where: { status: { in: ['INVOICED', 'FULFILLED'] } },
         orderBy: { invoice_date: 'desc' },
         include: {
-          lines: {
+          items: {
             include: {
-              product: { select: { product_code: true, canonical_name: true } }
+              finishedGoods: { select: { sku: true, name: true } }
             }
           }
         }
