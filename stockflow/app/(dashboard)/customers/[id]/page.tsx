@@ -13,11 +13,11 @@ export default async function CustomerDetailPage({ params }: CustomerPageProps) 
   const customer = await prisma.customer.findUnique({
     where: { id },
     include: {
-      orders: {
+      SaleOrder: {
         where: { status: { in: ['INVOICED', 'FULFILLED'] } },
-        orderBy: { invoice_date: 'desc' },
+        orderBy: { createdAt: 'desc' },
         include: {
-          items: {
+          SaleItem: {
             include: {
               finishedGoods: { select: { sku: true, name: true } }
             }
@@ -32,12 +32,12 @@ export default async function CustomerDetailPage({ params }: CustomerPageProps) 
   }
 
   // Calculate customer statistics
-  const totalOrders = customer.orders.length
-  const totalSpent = customer.orders.reduce((sum, order) => {
-    return sum + order.lines.reduce((lineSum, line) => lineSum + Number(line.total_amount), 0)
+  const totalOrders = customer.SaleOrder.length
+  const totalSpent = customer.SaleOrder.reduce((sum, order) => {
+    return sum + order.SaleItem.reduce((itemSum, item) => itemSum + Number(item.totalPrice), 0)
   }, 0)
-  const lastOrderDate = customer.orders.length > 0
-    ? new Date(Math.max(...customer.orders.map(order => new Date(order.invoice_date).getTime())))
+  const lastOrderDate = customer.SaleOrder.length > 0
+    ? new Date(Math.max(...customer.SaleOrder.map(order => new Date(order.createdAt).getTime())))
     : null
 
   return (
@@ -116,15 +116,15 @@ export default async function CustomerDetailPage({ params }: CustomerPageProps) 
               </tr>
             </thead>
             <tbody>
-              {customer.orders.length === 0 ? (
+              {customer.SaleOrder.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="px-6 py-12 text-center text-muted">
                     No orders found for this customer.
                   </td>
                 </tr>
               ) : (
-                customer.orders.map((order) => {
-                  const orderTotal = order.lines.reduce((sum, line) => sum + Number(line.total_amount), 0)
+                customer.SaleOrder.map((order) => {
+                  const orderTotal = order.SaleItem.reduce((sum, item) => sum + Number(item.totalPrice), 0)
                   return (
                     <tr key={order.id} className="border-b border-border last:border-b-0 hover:bg-surface2">
                       <td className="px-6 py-4">
@@ -141,14 +141,14 @@ export default async function CustomerDetailPage({ params }: CustomerPageProps) 
                       <td className="px-6 py-4 capitalize">{order.branch}</td>
                       <td className="px-6 py-4">
                         <div className="max-w-xs">
-                          {order.lines.slice(0, 2).map((line, index) => (
+                          {order.SaleItem.slice(0, 2).map((item, index) => (
                             <div key={index} className="text-sm truncate">
                               {line.qty} × {line.product.product_code}
                             </div>
                           ))}
-                          {order.lines.length > 2 && (
+                          {order.SaleItem.length > 2 && (
                             <div className="text-xs text-muted">
-                              +{order.lines.length - 2} more items
+                              +{order.SaleItem.length - 2} more items
                             </div>
                           )}
                         </div>

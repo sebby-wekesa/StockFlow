@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma'
 
 export default async function ImportHistoryPage() {
   const batches = await prisma.importBatch.findMany({
-    include: { created_by_user: { select: { name: true } } },
+    include: { User: { select: { name: true } } },
     orderBy: { created_at: 'desc' },
   })
 
@@ -59,7 +59,7 @@ export default async function ImportHistoryPage() {
                     <span className="text-sm">{batch.row_count}</span>
                   </td>
                   <td className="p-4">
-                    <span className="text-sm text-muted">{batch.created_by_user.name}</span>
+                    <span className="text-sm text-muted">{batch.User.name}</span>
                   </td>
                   <td className="p-4">
                     <span className="text-sm text-muted">

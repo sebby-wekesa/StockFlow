@@ -1145,7 +1145,8 @@ enum Role {
 enum SaleStatus {
   PENDING
   CONFIRMED
-  SHIPPED
+  INVOICED
+  FULFILLED
   CANCELLED
 
   @@schema("public")

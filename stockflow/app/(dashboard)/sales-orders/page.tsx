@@ -5,7 +5,7 @@ import { SalesOrderList } from "@/components/SalesOrderList";
 async function getSaleOrders() {
   return await prisma.saleOrder.findMany({
     include: {
-      items: {
+      SaleItem: {
         include: {
           finishedGoods: {
             include: {

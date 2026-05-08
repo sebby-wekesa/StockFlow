@@ -54,7 +54,7 @@ async function getAdminStats() {
     take: 4,
     where: {},
     orderBy: { createdAt: "desc" },
-    include: { design: true },
+    include: { Design: true },
   });
 
   // Department scrap (simplified)
@@ -79,7 +79,7 @@ async function getAdminStats() {
     scrapThisWeek,
     recentOrders: recentOrders.map(o => ({
       id: o.orderNumber,
-      design: o.design.name,
+      design: o.Design.name,
       kg: o.targetKg?.toNumber() ?? 0,
       status: o.status === "PENDING" ? "Pending approval" :
               o.status === "APPROVED" || o.status === "IN_PRODUCTION" ? "In production" : "Complete",

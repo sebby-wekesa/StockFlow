@@ -27,10 +27,10 @@ export default async function CustomersPage({
       take: PAGE_SIZE,
       skip: (page - 1) * PAGE_SIZE,
       include: {
-        orders: {
+        SaleOrder: {
           where: { status: { in: ['INVOICED', 'FULFILLED'] } },
           select: {
-            items: { select: { totalPrice: true } }
+            SaleItem: { select: { totalPrice: true } }
           }
         }
       }
@@ -42,12 +42,12 @@ export default async function CustomersPage({
 
   // Calculate totals for each customer
   const customersWithTotals = customers.map(customer => {
-    const totalOrders = customer.orders.length
-    const totalSpent = customer.orders.reduce((sum, order) => {
-      return sum + order.items.reduce((itemSum, item) => itemSum + Number(item.totalPrice), 0)
+    const totalOrders = customer.SaleOrder.length
+    const totalSpent = customer.SaleOrder.reduce((sum, order) => {
+      return sum + order.SaleItem.reduce((itemSum, item) => itemSum + Number(item.totalPrice), 0)
     }, 0)
-    const lastOrderDate = customer.orders.length > 0
-      ? new Date(Math.max(...customer.orders.map(() => Date.now()))) // Simplified - in real app would track order dates
+    const lastOrderDate = customer.SaleOrder.length > 0
+      ? new Date(Math.max(...customer.SaleOrder.map(() => Date.now()))) // Simplified - in real app would track order dates
       : null
 
     return {
