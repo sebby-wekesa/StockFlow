@@ -17,7 +17,7 @@ async function getActiveOrders() {
         },
       },
       include: {
-        design: {
+        Design: {
           select: {
             name: true,
           },
@@ -30,7 +30,7 @@ async function getActiveOrders() {
       id: order.id,
       code: `ORD-${order.id.slice(0, 6).toUpperCase()}`,
       weight: order.targetKg.toNumber(),
-      designName: order.design.name,
+      designName: order.Design.name,
     }))
   } catch (error) {
     console.error('Error fetching orders:', error)

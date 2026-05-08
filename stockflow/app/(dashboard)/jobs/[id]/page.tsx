@@ -14,7 +14,7 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
   const order = await prisma.productionOrder.findUnique({
     where: { id },
     include: {
-      design: { include: { stages: { orderBy: { sequence: "asc" } } } },
+      Design: { include: { stages: { orderBy: { sequence: "asc" } } } },
       logs: { orderBy: { sequence: "desc" } },
     },
   });
@@ -23,7 +23,7 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
     return <div>Order not found</div>;
   }
 
-  const currentStage = order.design.stages.find((s) => s.sequence === order.currentStage);
+  const currentStage = order.Design.stages.find((s) => s.sequence === order.currentStage);
   const lastLog = order.logs[0];
 
   const statusColors: Record<string, string> = {
@@ -38,7 +38,7 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-zinc-900">{order.design.name}</h1>
+          <h1 className="text-2xl font-bold text-zinc-900">{order.Design.name}</h1>
           <p className="text-zinc-500">Order #{order.id.slice(0, 8)}</p>
         </div>
         <span className={`px-3 py-1 text-sm font-medium rounded ${statusColors[order.status]}`}>
@@ -64,7 +64,7 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
         <div className="bg-white p-4 rounded-lg border border-zinc-200">
           <p className="text-xs font-medium text-zinc-500 uppercase">Progress</p>
           <p className="text-xl font-bold text-zinc-900">
-            {order.currentStage}/{order.design.stages.length}
+            {order.currentStage}/{order.Design.stages.length}
           </p>
         </div>
       </div>
@@ -81,7 +81,7 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
             orderId={order.id}
             stageName={currentStage.name}
             sequence={order.currentStage}
-            stageCount={order.design.stages.length}
+            stageCount={order.Design.stages.length}
             operatorId={user.id}
             previousKgOut={lastLog?.kgOut?.toNumber()}
           />

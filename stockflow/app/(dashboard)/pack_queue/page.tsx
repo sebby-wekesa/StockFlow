@@ -9,7 +9,7 @@ export default async function PackQueuePage() {
       items: {
         include: {
           finishedGoods: {
-            include: { design: true }
+            include: { Design: true }
           }
         }
       }
@@ -23,7 +23,7 @@ export default async function PackQueuePage() {
         <div><div className="section-title">Packaging queue</div><div className="section-sub">Sale orders awaiting fulfilment</div></div>
       </div>
       {orders.map(o => {
-        const productSummary = o.items.map(i => i.finishedGoods.design.name).join(", ");
+        const productSummary = o.items.map(i => i.finishedGoods.Design.name).join(", ");
         const totalUnits = o.items.reduce((acc, i) => acc + i.quantity, 0);
         const totalKg = o.items.reduce((acc, i) => {
           const kgPerUnit = i.finishedGoods.quantity > 0 ? (i.finishedGoods.kgProduced.toNumber() / i.finishedGoods.quantity) : 0;

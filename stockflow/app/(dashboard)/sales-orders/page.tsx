@@ -9,8 +9,10 @@ async function getSaleOrders() {
         include: {
           FinishedGoods: {
             include: {
-              design: true
+              Design: true
             }
+          }
+        }
           }
         }
       }
@@ -23,7 +25,7 @@ async function getAvailableStock() {
   return await prisma.finishedGoods.findMany({
     where: { quantity: { gt: 0 } },
     include: {
-      design: {
+      Design: {
         select: {
           name: true,
           code: true,
@@ -53,8 +55,8 @@ export default async function SalesOrdersPage() {
   // Transform the data to satisfy the 'CatalogueItem' type for SalesOrderForm
   const formattedProducts = stock.map(item => ({
     id: item.id,
-    name: item.design.name,
-    code: item.design.code,
+    name: item.Design.name,
+    code: item.Design.code,
     availableQty: item.quantity,
     kgProduced: Number(item.kgProduced),
     createdAt: item.createdAt

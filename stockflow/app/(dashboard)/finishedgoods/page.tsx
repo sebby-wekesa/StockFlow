@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic';
 export default async function FinishedgoodsPage() {
   const goods = await prisma.finishedGoods.findMany({
     include: {
-      design: true,
+      Design: true,
     },
     orderBy: { createdAt: 'desc' }
   });
@@ -24,8 +24,8 @@ export default async function FinishedgoodsPage() {
               const kgUnit = g.quantity > 0 ? (kgProducedNum / g.quantity).toFixed(2) : '0.00';
               return (
                 <tr key={g.id}>
-                  <td>{g.design.name}</td>
-                  <td><span style={{fontFamily:'var(--font-mono)',color:'var(--muted)'}}>{g.design.code}</span></td>
+                  <td>{g.Design.name}</td>
+                  <td><span style={{fontFamily:'var(--font-mono)',color:'var(--muted)'}}>{g.Design.code}</span></td>
                    <td>
                      <span className="badge badge-blue">
                        N/A
