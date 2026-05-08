@@ -57,11 +57,15 @@ export async function proxy(request: NextRequest) {
   if (user) {
     const userRole = request.cookies.get('user-role')?.value;
 
-    // IF NO ROLE COOKIE YET: Don't bounce to login!
-    // Instead, allow them through to a "loading" or "setup" route
-    if (!userRole && pathname !== '/dashboard/setup') {
-      // Allow the request to continue so the server-side Page
-      // can fetch the role from the DB and set the cookie.
+    // If they are logged in but have no role cookie,
+    // they MUST be allowed to reach the page that SETS the cookie.
+    if (!userRole) {
+      // If they are already going to setup, let them.
+      // Otherwise, you might want to redirect them TO the setup/sync page.
+      if (pathname === '/dashboard/setup') return NextResponse.next();
+
+      // Optional: Force redirect to a sync page if you have one
+      // return NextResponse.redirect(new URL('/dashboard/setup', request.url));
       return NextResponse.next();
     }
 
@@ -84,7 +88,11 @@ export async function proxy(request: NextRequest) {
     // 5. Redirect root/dashboard paths to role-specific homes
     if (pathname === "/" || pathname === "/dashboard") {
       const targetPath = ROLE_PATHS[userRole as keyof typeof ROLE_PATHS] || '/dashboard';
-      return NextResponse.redirect(new URL(targetPath, request.url));
+
+      // ONLY redirect if the user isn't already on their target path
+      if (pathname !== targetPath) {
+        return NextResponse.redirect(new URL(targetPath, request.url));
+      }
     }
   }
 
