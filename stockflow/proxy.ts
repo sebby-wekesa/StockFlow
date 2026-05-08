@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { supabaseServer } from "@/lib/supabase-admin";
 import type { UserRole } from "@/lib/types";
+import { ROLE_PATHS, normalizeUserRole } from "@/lib/types";
 
 const PUBLIC_PATHS = new Set(["/login"]);
 
@@ -15,16 +16,7 @@ const ROLE_PROTECTIONS: Array<{ prefix: string; roles: UserRole[] }> = [
   { prefix: "/users", roles: ["ADMIN"] },
 ];
 
-const ROLE_PATHS = {
-  ADMIN: "/admin/dashboard",
-  MANAGER: "/dashboard",
-  WAREHOUSE: "/dashboard",
-  SALES: "/dashboard",
-  ACCOUNTANT: "/reports",
-  OPERATOR: "/dashboard",
-  PACKAGING: "/dashboard",
-  PENDING: "/dashboard/setup",
-};
+
 
 function isPublicPath(pathname: string) {
   return (
@@ -38,7 +30,7 @@ function isPublicPath(pathname: string) {
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  const supabase = supabaseServer();
+  const supabase = supabaseServer(request);
 
   if (isPublicPath(pathname)) {
     return NextResponse.next();
@@ -55,17 +47,31 @@ export async function proxy(request: NextRequest) {
 
   // 2. If user exists, check their role
   if (user) {
-    const userRole = request.cookies.get('user-role')?.value;
+    const rawUserRole = request.cookies.get('user-role')?.value;
+    const userRole = rawUserRole ? normalizeUserRole(rawUserRole) : null;
+    const authPending = request.cookies.get('auth-pending')?.value;
+
+    // Debug logging
+    console.log("Path:", pathname, "User:", !!user, "Session:", !!session, "Raw Role:", rawUserRole, "Normalized Role:", userRole, "Auth Pending:", authPending);
+    console.log("Path:", pathname, "User:", !!user, "Role:", userRole);
 
     // If they are logged in but have no role cookie,
     // they MUST be allowed to reach the page that SETS the cookie.
     if (!userRole) {
+      // If auth is pending (just logged in), allow access temporarily
+      if (authPending === 'true') {
+        return NextResponse.next();
+      }
+
       // If they are already going to setup, let them.
       // Otherwise, you might want to redirect them TO the setup/sync page.
       if (pathname === '/dashboard/setup') return NextResponse.next();
 
-      // Optional: Force redirect to a sync page if you have one
-      // return NextResponse.redirect(new URL('/dashboard/setup', request.url));
+      // Allow access to dashboard while role sync happens
+      if (pathname === '/dashboard') return NextResponse.next();
+
+      // For other pages, allow access temporarily (cookies may be setting)
+      // This prevents the redirect loop during login
       return NextResponse.next();
     }
 

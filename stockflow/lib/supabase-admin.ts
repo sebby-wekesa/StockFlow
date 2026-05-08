@@ -1,4 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
+import { createServerClient } from "@supabase/ssr";
+import { NextRequest, NextResponse } from "next/server";
+import { cookies } from "next/headers";
 
 let adminInstance: ReturnType<typeof createClient> | null = null;
 
@@ -56,7 +59,53 @@ export const supabaseAdmin = new Proxy({} as any, {
   }
 });
 
-// Server-side client for middleware and server components
-export const supabaseServer = () => {
-  return getSupabaseAdmin();
+// Server-side client for middleware - creates a client that can read cookies
+export const supabaseServer = (request: NextRequest) => {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (!supabaseUrl || !supabaseAnonKey) {
+    throw new Error("Missing Supabase environment variables");
+  }
+
+  return createServerClient(supabaseUrl, supabaseAnonKey, {
+    cookies: {
+      get(name: string) {
+        return request.cookies.get(name)?.value;
+      },
+      set(name: string, value: string, options: any) {
+        // Middleware can't set cookies directly, but we can return a response with set cookies
+        // This is handled by the middleware logic
+      },
+      remove(name: string, options: any) {
+        // Middleware can't remove cookies directly
+      },
+    },
+  });
+};
+
+// Server-side client for server components (non-middleware)
+export const supabaseServerComponent = () => {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (!supabaseUrl || !supabaseAnonKey) {
+    throw new Error("Missing Supabase environment variables");
+  }
+
+  const cookieStore = cookies();
+
+  return createServerClient(supabaseUrl, supabaseAnonKey, {
+    cookies: {
+      get(name: string) {
+        return cookieStore.get(name)?.value;
+      },
+      set(name: string, value: string, options: any) {
+        cookieStore.set(name, value, options);
+      },
+      remove(name: string, options: any) {
+        cookieStore.set(name, "", { ...options, maxAge: 0 });
+      },
+    },
+  });
 };

@@ -33,7 +33,19 @@ export async function GET(request: Request) {
       setAuthCookies(cookieStore, data.session, role)
 
       const destination = next === '/dashboard' ? getRoleHomePage(role) : next
-      return NextResponse.redirect(`${origin}${destination}`)
+      const response = NextResponse.redirect(`${origin}${destination}`)
+
+      // Set a temporary cookie to indicate auth is in progress
+      // This helps middleware allow access while cookies propagate
+      response.cookies.set('auth-pending', 'true', {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        path: '/',
+        maxAge: 30, // 30 seconds - enough time for cookie sync
+      })
+
+      return response
     }
   }
 
