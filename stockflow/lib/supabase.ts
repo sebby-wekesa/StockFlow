@@ -3,6 +3,11 @@ import { createClient } from "@supabase/supabase-js";
 let supabaseInstance: ReturnType<typeof createClient> | null = null;
 
 export const getSupabase = () => {
+  // Prevent initialization during build/static generation
+  if (typeof window === 'undefined' && !process.env.NEXT_PUBLIC_SUPABASE_URL) {
+    return null;
+  }
+
   if (supabaseInstance) return supabaseInstance;
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -26,9 +31,9 @@ export const supabase = new Proxy({} as any, {
   get(target, prop) {
     // Avoid triggering initialization for common inspection properties or symbols
     if (
-      prop === 'toJSON' || 
-      prop === 'constructor' || 
-      prop === 'then' || 
+      prop === 'toJSON' ||
+      prop === 'constructor' ||
+      prop === 'then' ||
       typeof prop === 'symbol' ||
       prop.toString().startsWith('$$typeof')
     ) {

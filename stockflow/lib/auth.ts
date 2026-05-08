@@ -20,22 +20,32 @@ export async function getUser() {
   if (!authUser) return null;
 
   try {
-    const profile = await prisma.public.Profile.findUnique({
+    // First check if User model exists and is accessible
+    if (!prisma.User) {
+      console.error("User model not available in Prisma client");
+      return null;
+    }
+
+    const user = await prisma.User.findUnique({
       where: { id: authUser.id },
+      include: {
+        Branch: true,
+        Organization: true,
+      },
     });
 
-    if (!profile) {
-      console.log("User profile not found in database");
+    if (!user) {
+      console.log("User not found in database");
       return null;
     }
 
     return {
-      id: authUser.id,
-      email: profile.email ?? authUser.email ?? "",
-      name: profile.full_name ?? authUser.user_metadata?.name ?? "",
-      role: profile.role as UserRole ?? "OPERATOR",
-      department: null, // Not available in profiles table
-      branches: [], // Not available in profiles table
+      id: user.id,
+      email: user.email,
+      name: user.name ?? "",
+      role: user.role,
+      department: user.department,
+      branches: user.Branch ? [{ id: user.Branch.id, name: user.Branch.name }] : [],
     };
   } catch (error) {
     console.error("Prisma lookup failed:", error);

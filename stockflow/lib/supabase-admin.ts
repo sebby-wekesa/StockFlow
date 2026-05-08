@@ -6,6 +6,11 @@ import { cookies } from "next/headers";
 let adminInstance: ReturnType<typeof createClient> | null = null;
 
 export const getSupabaseAdmin = () => {
+  // Prevent initialization during build/static generation
+  if (typeof window === 'undefined' && !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    return null;
+  }
+
   if (adminInstance) return adminInstance;
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;

@@ -3,7 +3,7 @@ import { InviteButton } from './_components/InviteButton'
 import { UserTable } from './_components/ClientComponents'
 
 export default async function UsersPage() {
-  const users = await prisma.public.User.findMany({
+  const users = await prisma.User.findMany({
     orderBy: { createdAt: 'asc' },
   })
 

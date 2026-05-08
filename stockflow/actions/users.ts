@@ -17,7 +17,7 @@ async function requireAdmin() {
   const { data: { user: authUser } } = await supabase.auth.getUser()
   if (!authUser) throw new Error('Not authenticated')
 
-  const user = await prisma.public.User.findUnique({ where: { id: authUser.id } })
+  const user = await prisma.User.findUnique({ where: { id: authUser.id } })
   if (!user) throw new Error('User not provisioned')
   if (user.role !== 'admin') {
     throw new Error('Only admins can manage users')
@@ -73,7 +73,7 @@ export async function inviteUser(formData: FormData) {
   const { email, name, role, branches: branchList } = parsed.data
 
   // Check if user already exists in our DB
-  const existing = await prisma.public.User.findUnique({ where: { email } })
+  const existing = await prisma.User.findUnique({ where: { email } })
   if (existing) {
     throw new Error('A user with this email already exists')
   }
@@ -95,7 +95,7 @@ export async function inviteUser(formData: FormData) {
   }
 
   // Create the Prisma User record so the new user can log in immediately after confirming
-  await prisma.public.User.create({
+  await prisma.User.create({
     data: {
       id: data.user.id,
       org_id: adminUser.org_id,
@@ -136,9 +136,9 @@ export async function updateUser(userId: string, formData: FormData) {
 
   // Cannot demote the last active admin
   if (parsed.data.role !== 'admin') {
-    const target = await prisma.public.User.findUnique({ where: { id: userId } })
+    const target = await prisma.User.findUnique({ where: { id: userId } })
     if (target?.role === 'admin') {
-      const otherAdmins = await prisma.public.User.count({
+      const otherAdmins = await prisma.User.count({
         where: { role: 'admin', is_active: true, id: { not: userId } },
       })
       if (otherAdmins === 0) {
@@ -147,7 +147,7 @@ export async function updateUser(userId: string, formData: FormData) {
     }
   }
 
-  await prisma.public.User.update({
+  await prisma.User.update({
     where: { id: userId },
     data: {
       name: parsed.data.name,
@@ -169,7 +169,7 @@ export async function updateUser(userId: string, formData: FormData) {
 export async function toggleUserActive(userId: string) {
   const adminUser = await requireAdmin()
 
-  const target = await prisma.public.User.findUnique({ where: { id: userId } })
+  const target = await prisma.User.findUnique({ where: { id: userId } })
   if (!target) throw new Error('User not found')
 
   // Can't deactivate yourself — that locks you out
@@ -179,7 +179,7 @@ export async function toggleUserActive(userId: string) {
 
   // Can't deactivate the last admin
   if (target.role === 'admin' && target.is_active) {
-    const otherActiveAdmins = await prisma.public.User.count({
+    const otherActiveAdmins = await prisma.User.count({
       where: { role: 'admin', is_active: true, id: { not: userId } },
     })
     if (otherActiveAdmins === 0) {
@@ -196,7 +196,7 @@ export async function toggleUserActive(userId: string) {
     })
   }
 
-  await prisma.public.User.update({
+  await prisma.User.update({
     where: { id: userId },
     data: { is_active: !target.is_active },
   })
@@ -212,7 +212,7 @@ export async function toggleUserActive(userId: string) {
 export async function resendInvite(userId: string) {
   await requireAdmin()
 
-  const target = await prisma.public.User.findUnique({ where: { id: userId } })
+  const target = await prisma.User.findUnique({ where: { id: userId } })
   if (!target) throw new Error('User not found')
 
   const supabaseAdmin = getSupabaseAdmin()
@@ -237,7 +237,7 @@ export async function resendInvite(userId: string) {
 export async function sendPasswordReset(userId: string) {
   await requireAdmin()
 
-  const target = await prisma.public.User.findUnique({ where: { id: userId } })
+  const target = await prisma.User.findUnique({ where: { id: userId } })
   if (!target) throw new Error('User not found')
 
   const supabaseAdmin = getSupabaseAdmin()

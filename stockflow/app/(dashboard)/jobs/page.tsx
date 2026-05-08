@@ -22,7 +22,7 @@ export default async function JobsPage({
   if (status) where.status = status
 
   const [jobs, total] = await Promise.all([
-    prisma.public.JobCard.findMany({
+    prisma.JobCard.findMany({
       where,
       orderBy: { createdAt: 'desc' },
       take: PAGE_SIZE,
@@ -34,7 +34,7 @@ export default async function JobsPage({
         }
       }
     }),
-    prisma.public.JobCard.count({ where }),
+    prisma.JobCard.count({ where }),
   ])
 
   const totalPages = Math.ceil(total / PAGE_SIZE)

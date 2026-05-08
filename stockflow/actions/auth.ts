@@ -65,31 +65,9 @@ export async function signIn(formData: FormData) {
     return { error: "Authentication failed. Please try again." };
   }
 
-   // Get role from user metadata (set during signup)
-   const role = data.user.user_metadata?.role || 'PENDING';
-
-  const cookieStore = await cookies();
-
-  // Set Supabase session cookie for SSR
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const projectRef = supabaseUrl.split('.')[0].split('//')[1];
-  cookieStore.set(`sb-${projectRef}-auth-token`, JSON.stringify(data.session), {
-    path: '/',
-    httpOnly: true,
-    sameSite: 'lax',
-    maxAge: data.session.expires_in,
-  });
-
-  // Set the user role cookie
-  cookieStore.set('user-role', role, {
-    path: '/',
-    httpOnly: true,
-    sameSite: 'lax',
-  });
-
-  // IMPORTANT: Redirect to the specific role path
-  const targetPath = ROLE_PATHS[role as keyof typeof ROLE_PATHS] || '/dashboard';
-  redirect(targetPath);
+  // Middleware will handle cookie setting and redirects
+  // Just return success - the page will redirect via middleware
+  return { success: true };
 }
 
 export async function signOut() {
@@ -118,7 +96,6 @@ export async function signUp(formData: FormData) {
 
   try {
     // Create user with Supabase Auth
-    // We use the standard supabase client to allow the session to be established if email confirmation is off
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -144,57 +121,38 @@ export async function signUp(formData: FormData) {
 
     if (!data.session) {
       return {
-        message: "Account created successfully. Please sign in to continue.",
+        message: "Account created successfully. Please check your email and sign in to continue.",
       };
     }
 
-    // Create user record in database if it doesn't exist
-    await prisma.public.User.upsert({
+    // Create profile record in database if it doesn't exist
+    await prisma.Profile.upsert({
       where: { id: data.user.id },
       update: {},
       create: {
         id: data.user.id,
         email: data.user.email!,
-        name: data.user.user_metadata?.name || name || '',
-        role: 'OPERATOR', // Default role
+        full_name: data.user.user_metadata?.name || name || '',
+        role: 'PENDING', // Default role for new signups
       },
     });
 
-    // Get role from user metadata (just set during signup)
-    const role = data.user.user_metadata?.role || 'PENDING';
-
-    const cookieStore = await cookies();
-
-    // Set Supabase session cookie for SSR
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-    const projectRef = supabaseUrl.split('.')[0].split('//')[1];
-    cookieStore.set(`sb-${projectRef}-auth-token`, JSON.stringify(data.session), {
-      path: '/',
-      httpOnly: true,
-      sameSite: 'lax',
-      maxAge: data.session.expires_in,
+    // Create User record
+    await prisma.User.upsert({
+      where: { email: data.user.email! },
+      update: {},
+      create: {
+        id: data.user.id,
+        email: data.user.email!,
+        name: data.user.user_metadata?.name || name || '',
+        role: 'PENDING', // Default role
+      },
     });
 
-    // Set the user role cookie
-    cookieStore.set('user-role', role, {
-      path: '/',
-      httpOnly: true,
-      sameSite: 'lax',
-    });
-
-    cookieStore.set('auth-token', data.session.access_token, {
-      path: '/',
-      httpOnly: true,
-      sameSite: 'lax',
-    });
-
-    const targetPath = ROLE_PATHS[role as keyof typeof ROLE_PATHS] || '/dashboard';
-    redirect(targetPath);
+    // Middleware will handle cookie setting and redirects
+    return { success: true };
 
   } catch (error) {
-    if (error instanceof Error && error.message === 'NEXT_REDIRECT') {
-      throw error; // Re-throw redirect errors so Next.js can handle them
-    }
     console.error("Sign up error:", error);
     return { error: "An unexpected error occurred. Please try again." };
   }

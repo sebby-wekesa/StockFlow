@@ -25,8 +25,10 @@ export default function LoginPage() {
         setIsLogin(true);
         return;
       }
-      if (res?.redirectTo) {
-        router.replace(res.redirectTo);
+      if (res?.success) {
+        // Success - redirect to dashboard, middleware will handle role-based routing
+        router.push('/dashboard');
+        return;
       }
     } catch (error) {
       setError(error instanceof Error ? error.message : "An unexpected error occurred");

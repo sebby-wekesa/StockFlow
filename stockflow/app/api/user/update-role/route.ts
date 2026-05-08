@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Update role in Prisma User table
-    await prisma.public.User.update({
+    await prisma.User.update({
       where: { id: userId },
       data: { role: role as UserRole },
     });
