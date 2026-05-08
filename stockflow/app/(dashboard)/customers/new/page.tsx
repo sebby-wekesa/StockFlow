@@ -1,6 +1,8 @@
 import Link from 'next/link'
 import { createCustomer } from '../actions'
 
+export const dynamic = "force-dynamic";
+
 export default function NewCustomerPage() {
   return (
     <div className="max-w-2xl">
