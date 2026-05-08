@@ -1,6 +1,8 @@
 import { createDesign } from "@/actions/design";
 import { StageInput } from "@/components/StageInput";
 
+export const dynamic = "force-dynamic";
+
 export default function NewDesignPage() {
   return (
     <div className="max-w-2xl">
