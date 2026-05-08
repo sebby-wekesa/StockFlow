@@ -20,7 +20,7 @@ export async function getUser() {
   if (!authUser) return null;
 
   try {
-    const profile = await prisma.public.Profiles.findUnique({
+    const profile = await prisma.public.Profile.findUnique({
       where: { id: authUser.id },
     });
 
