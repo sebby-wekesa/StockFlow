@@ -26,7 +26,7 @@ export async function POST(req: Request) {
     // 2. Determine operatorId if not provided (fallback to first operator for demo purposes)
     let effectiveOperatorId = operatorId;
     if (!effectiveOperatorId) {
-      const firstOperator = await prisma.user.findFirst({ where: { role: "OPERATOR" } });
+      const firstOperator = await prisma.public.User.findFirst({ where: { role: "OPERATOR" } });
       effectiveOperatorId = firstOperator?.id;
     }
 

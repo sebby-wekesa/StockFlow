@@ -1,4 +1,4 @@
-import { supabaseServer } from "./supabase-admin";
+import { supabaseServerComponent } from "./supabase-admin";
 import { prisma } from "./prisma";
 import { type UserRole } from "./types";
 
@@ -14,13 +14,13 @@ export type AuthUser = {
 };
 
 export async function getUser() {
-  const supabase = supabaseServer();
+  const supabase = await supabaseServerComponent();
   const { data: { user: authUser } } = await supabase.auth.getUser();
 
   if (!authUser) return null;
 
   try {
-    const profile = await prisma.profiles.findUnique({
+    const profile = await prisma.public.Profiles.findUnique({
       where: { id: authUser.id },
     });
 

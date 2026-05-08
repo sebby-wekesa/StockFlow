@@ -14,7 +14,7 @@ async function getAdminStats() {
   const designs = await prisma.design.count();
 
   // Count users from Prisma User table
-  const users = await prisma.user.count();
+  const users = await prisma.public.User.count();
 
   const inventory = await prisma.rawMaterial.findMany();
 

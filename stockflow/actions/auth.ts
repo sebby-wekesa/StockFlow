@@ -65,25 +65,23 @@ export async function signIn(formData: FormData) {
     return { error: "Authentication failed. Please try again." };
   }
 
-  // FETCH THE ACTUAL ROLE FROM YOUR DATABASE TABLE
-  const dbUser = await prisma.user.findUnique({
-    where: { id: data.user.id },
-    select: { role: true },
-  });
-
-  const role = dbUser?.role || 'PENDING';
+   // Get role from user metadata (set during signup)
+   const role = data.user.user_metadata?.role || 'PENDING';
 
   const cookieStore = await cookies();
 
-  // Set the cookie with a 'Path=/' to ensure all routes can see it
-  cookieStore.set('user-role', role, {
+  // Set Supabase session cookie for SSR
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+  const projectRef = supabaseUrl.split('.')[0].split('//')[1];
+  cookieStore.set(`sb-${projectRef}-auth-token`, JSON.stringify(data.session), {
     path: '/',
     httpOnly: true,
     sameSite: 'lax',
+    maxAge: data.session.expires_in,
   });
 
-  // Set the auth token cookie as well
-  cookieStore.set('auth-token', data.session.access_token, {
+  // Set the user role cookie
+  cookieStore.set('user-role', role, {
     path: '/',
     httpOnly: true,
     sameSite: 'lax',
@@ -150,17 +148,34 @@ export async function signUp(formData: FormData) {
       };
     }
 
-    // FETCH THE ACTUAL ROLE FROM YOUR DATABASE TABLE
-    const dbUser = await prisma.user.findUnique({
+    // Create user record in database if it doesn't exist
+    await prisma.public.User.upsert({
       where: { id: data.user.id },
-      select: { role: true },
+      update: {},
+      create: {
+        id: data.user.id,
+        email: data.user.email!,
+        name: data.user.user_metadata?.name || name || '',
+        role: 'OPERATOR', // Default role
+      },
     });
 
-    const role = dbUser?.role || 'PENDING';
+    // Get role from user metadata (just set during signup)
+    const role = data.user.user_metadata?.role || 'PENDING';
 
     const cookieStore = await cookies();
 
-    // Set the cookies with proper path settings
+    // Set Supabase session cookie for SSR
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+    const projectRef = supabaseUrl.split('.')[0].split('//')[1];
+    cookieStore.set(`sb-${projectRef}-auth-token`, JSON.stringify(data.session), {
+      path: '/',
+      httpOnly: true,
+      sameSite: 'lax',
+      maxAge: data.session.expires_in,
+    });
+
+    // Set the user role cookie
     cookieStore.set('user-role', role, {
       path: '/',
       httpOnly: true,

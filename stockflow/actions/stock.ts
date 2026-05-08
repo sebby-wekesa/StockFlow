@@ -11,7 +11,7 @@ async function requireUser() {
   const supabase = createServerSupabase()
   const { data: { user: authUser } } = await supabase.auth.getUser()
   if (!authUser) throw new Error('Not authenticated')
-  const user = await prisma.user.findUnique({ where: { id: authUser.id } })
+  const user = await prisma.public.User.findUnique({ where: { id: authUser.id } })
   if (!user) throw new Error('User not provisioned')
   return user
 }
@@ -58,7 +58,7 @@ export async function dispatchTransfer(formData: FormData) {
   const user = await requireUser()
 
   // Check that source has enough stock
-  const sourceStock = await prisma.branchStock.findUnique({
+  const sourceStock = await prisma.public.BranchStock.findUnique({
     where: {
       product_id_branch: { product_id: data.product_id, branch: data.source_branch },
     },
@@ -72,7 +72,7 @@ export async function dispatchTransfer(formData: FormData) {
   // Transfer in a transaction
   await prisma.$transaction(async (tx) => {
     // 1. Decrement source stock
-    await tx.branchStock.update({
+    await tx.public.BranchStock.update({
       where: {
         product_id_branch: { product_id: data.product_id, branch: data.source_branch },
       },
@@ -80,20 +80,22 @@ export async function dispatchTransfer(formData: FormData) {
     })
 
     // 2. Increment destination stock (upsert)
-    await tx.branchStock.upsert({
+    await tx.public.BranchStock.upsert({
       where: {
         product_id_branch: { product_id: data.product_id, branch: data.dest_branch },
       },
-      update: { qty: { increment: data.qty } },
       create: {
         product_id: data.product_id,
         branch: data.dest_branch,
         qty: data.qty,
       },
+      update: {
+        qty: { increment: data.qty },
+      },
     })
 
     // 3. Record stock movements
-    await tx.stockMovement.create({
+    await tx.public.StockMovement.create({
       data: {
         product_id: data.product_id,
         movement_type: 'transfer_out',
@@ -106,7 +108,7 @@ export async function dispatchTransfer(formData: FormData) {
       },
     })
 
-    await tx.stockMovement.create({
+    await tx.public.StockMovement.create({
       data: {
         product_id: data.product_id,
         movement_type: 'transfer_in',

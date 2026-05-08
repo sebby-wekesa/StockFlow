@@ -32,27 +32,27 @@ export default async function BranchStockPage({
 
   // Fetch all the dashboard data in parallel
   const [products, total, branchSummaries, lowStockCount] = await Promise.all([
-    prisma.product.findMany({
+    prisma.public.Product.findMany({
       where: productWhere,
       orderBy: { product_code: 'asc' },
       take: PAGE_SIZE,
       skip: (page - 1) * PAGE_SIZE,
       include: { stock_levels: true },
     }),
-    prisma.product.count({ where: productWhere }),
+    prisma.public.Product.count({ where: productWhere }),
     Promise.all(
       ALL_BRANCHES.map(async (branch) => {
         const [stockAgg, lowStock] = await Promise.all([
-          prisma.branchStock.aggregate({
+          prisma.public.BranchStock.aggregate({
             where: { branch, qty: { gt: 0 } },
             _sum: { qty: true },
             _count: { _all: true },
           }),
-          prisma.branchStock.count({ where: { branch, qty: { gt: 0, lt: 5 } } }),
+          prisma.public.BranchStock.count({ where: { branch, qty: { gt: 0, lt: 5 } } }),
         ])
 
         // Compute approximate value: sum(qty * selling_price) for stocked products
-        const valuedStock = await prisma.branchStock.findMany({
+        const valuedStock = await prisma.public.BranchStock.findMany({
           where: { branch, qty: { gt: 0 } },
           include: { product: { select: { selling_price: true } } },
         })
@@ -70,7 +70,7 @@ export default async function BranchStockPage({
         }
       })
     ),
-    prisma.branchStock.count({ where: { qty: { gt: 0, lt: 5 } } }),
+    prisma.public.BranchStock.count({ where: { qty: { gt: 0, lt: 5 } } }),
   ])
 
   const totalPages = Math.ceil(total / PAGE_SIZE)

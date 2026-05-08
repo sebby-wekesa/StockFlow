@@ -18,14 +18,13 @@ type AdminUserRow = {
 async function getUsers() {
   try {
     // Get users from Prisma User table
-    const users = await prisma.user.findMany({
+    const users = await prisma.public.User.findMany({
       select: {
         id: true,
         email: true,
         name: true,
         role: true,
         department: true,
-        is_active: true,
         createdAt: true,
       },
       orderBy: { createdAt: 'desc' },

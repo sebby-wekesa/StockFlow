@@ -36,27 +36,32 @@ export async function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Get session from Supabase
-  const { data: { session } } = await supabase.auth.getSession();
-  const user = session?.user;
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser();
 
-  // 1. If no user is found and path is protected, go to login
-  if (!user && pathname !== '/login') {
+  if (error) {
+    console.error("Auth error:", error.message);
+  }
+
+  // 1. If no user is found, redirect to login
+  if (!user) {
     return NextResponse.redirect(new URL('/login', request.url));
   }
 
   // 2. If user exists, check their role
   if (user) {
-    const rawUserRole = request.cookies.get('user-role')?.value;
+    const rawUserRole = user.user_metadata?.role;
     const userRole = rawUserRole ? normalizeUserRole(rawUserRole) : null;
     const authPending = request.cookies.get('auth-pending')?.value;
 
     // Debug logging
-    console.log("Path:", pathname, "User:", !!user, "Session:", !!session, "Raw Role:", rawUserRole, "Normalized Role:", userRole, "Auth Pending:", authPending);
+    console.log("Path:", pathname, "User:", !!user, "Raw Role:", rawUserRole, "Normalized Role:", userRole, "Auth Pending:", authPending);
     console.log("Path:", pathname, "User:", !!user, "Role:", userRole);
 
-    // If they are logged in but have no role cookie,
-    // they MUST be allowed to reach the page that SETS the cookie.
+    // If they are logged in but have no role in metadata,
+    // they MUST be allowed to reach the page that SETS the role.
     if (!userRole) {
       // If auth is pending (just logged in), allow access temporarily
       if (authPending === 'true') {
@@ -92,6 +97,8 @@ export async function proxy(request: NextRequest) {
     }
 
     // 5. Redirect root/dashboard paths to role-specific homes
+    // Temporarily disabled to prevent auth loops until role consistency is fixed
+    /*
     if (pathname === "/" || pathname === "/dashboard") {
       const targetPath = ROLE_PATHS[userRole as keyof typeof ROLE_PATHS] || '/dashboard';
 
@@ -100,6 +107,7 @@ export async function proxy(request: NextRequest) {
         return NextResponse.redirect(new URL(targetPath, request.url));
       }
     }
+    */
   }
 
   return NextResponse.next();

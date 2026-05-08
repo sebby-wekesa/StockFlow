@@ -36,8 +36,17 @@ export function setAuthCookies(cookieStore: MutableCookieStore, session: Session
 export function clearAuthCookies(cookieStore: MutableCookieStore) {
   const expiredCookie = { expires: new Date(0), path: "/" };
 
+  // Clear old auth cookies
   cookieStore.set("auth-token", "", expiredCookie);
   cookieStore.set("refresh-token", "", expiredCookie);
+
+  // Clear Supabase session cookie
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (supabaseUrl) {
+    const projectRef = supabaseUrl.split('.')[0].split('//')[1];
+    cookieStore.set(`sb-${projectRef}-auth-token`, "", expiredCookie);
+  }
+
   cookieStore.set("user-role", "", expiredCookie);
   cookieStore.set("demo-logged-in", "", expiredCookie);
 }

@@ -85,7 +85,7 @@ export const supabaseServer = (request: NextRequest) => {
 };
 
 // Server-side client for server components (non-middleware)
-export const supabaseServerComponent = () => {
+export const supabaseServerComponent = async () => {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
@@ -93,7 +93,7 @@ export const supabaseServerComponent = () => {
     throw new Error("Missing Supabase environment variables");
   }
 
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
 
   return createServerClient(supabaseUrl, supabaseAnonKey, {
     cookies: {

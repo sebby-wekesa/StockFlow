@@ -762,16 +762,21 @@ model Product {
   id             String           @id
   name           String
   sku            String?          @unique
+  product_code   String?          // For job cards
+  canonical_name String?          // For job cards
   origin         StockOrigin      @default(FACTORY_MADE)
   uom            String
   currentStock   Float            @default(0)
   unitCost       Float?
   landingCost    Float?
+  selling_price  Float?
   vendor         String?
   branchId       String?
   createdAt      DateTime         @default(now())
   updatedAt      DateTime
   Branch         Branch?          @relation(fields: [branchId], references: [id])
+  BranchStock    BranchStock[]
+  JobCard        JobCard[]
   ProductAlias   ProductAlias[]
   ProductReceipt ProductReceipt[]
 
@@ -876,6 +881,7 @@ model RawMaterial {
   BillOfMaterials        BillOfMaterials[]
   DemandForecast         DemandForecast[]
   InventoryRawMaterial   InventoryRawMaterial[]
+  JobCardRawMaterial     JobCardRawMaterial[]
   MaterialConsumptionLog MaterialConsumptionLog[]
   MaterialReceipt        MaterialReceipt[]
   PurchaseOrderItem      PurchaseOrderItem[]
@@ -948,6 +954,22 @@ model StageLog {
   @@schema("public")
 }
 
+model StockMovement {
+  id             String        @id
+  product_id     String
+  movement_type  String
+  branch         String
+  qty            Int
+  reference      String?
+  movement_date  DateTime      @default(now())
+  notes          String?
+  created_by     String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime
+
+  @@schema("public")
+}
+
 model Supplier {
   id              String            @id
   name            String
@@ -973,6 +995,65 @@ model UnitOfMeasure {
   category  String
   createdAt DateTime @default(now())
   updatedAt DateTime
+
+  @@schema("public")
+}
+
+model BranchStock {
+  product_id String
+  branch     String
+  qty        Int     @default(0)
+  product    Product @relation(fields: [product_id], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime
+
+  @@unique([product_id, branch])
+  @@schema("public")
+}
+
+model JobCard {
+  id         String             @id
+  product_id String
+  qty_ordered Int
+  status     String
+  priority   String?
+  created_by String?
+  createdAt  DateTime           @default(now())
+  updatedAt  DateTime
+  product    Product            @relation(fields: [product_id], references: [id])
+  stages     JobCardStage[]
+  rawMaterials JobCardRawMaterial[]
+
+  @@schema("public")
+}
+
+model JobCardStage {
+  id           String   @id
+  job_id       String
+  stage_number Int
+  stage_name   String
+  department   String
+  qty_ordered  Int
+  qty_in       Int?     @default(0)
+  qty_out      Int?     @default(0)
+  completed_at DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime
+  jobCard      JobCard  @relation(fields: [job_id], references: [id], onDelete: Cascade)
+
+  @@schema("public")
+}
+
+model JobCardRawMaterial {
+  id             String   @id
+  job_id         String
+  raw_material_id String
+  qty_required   Decimal  @db.Decimal(10, 4)
+  unit           String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime
+  jobCard        JobCard  @relation(fields: [job_id], references: [id], onDelete: Cascade)
+  rawMaterial    RawMaterial @relation(fields: [raw_material_id], references: [id])
 
   @@schema("public")
 }
