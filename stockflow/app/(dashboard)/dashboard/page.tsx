@@ -2,20 +2,11 @@ import { requireAuth } from '@/lib/auth'
 import { Role } from '@/lib/auth'
 import { RawMaterial } from '@prisma/client'
 import { TeamRole } from '@/lib/proxy'
-import { cookies } from 'next/headers'
-
 
 export const dynamic = 'force-dynamic'
 
 export default async function DashboardPage({ searchParams }: { searchParams: { previewRole?: string } }) {
   const user = await requireAuth()
-
-  // Clear auth-pending cookie since we have a valid user with role
-  const cookieStore = await cookies()
-  cookieStore.set('auth-pending', '', {
-    expires: new Date(0),
-    path: '/',
-  })
 
   // Use previewRole from URL if present, else user role
   const effectiveRole = (searchParams.previewRole || user.role).toUpperCase() as Role;

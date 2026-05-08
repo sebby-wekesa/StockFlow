@@ -18,17 +18,31 @@ function getConnectionString(url: string) {
 // 1. Define the singleton function
 const prismaClientSingleton = () => {
   if (!databaseUrl) {
-    throw new Error('DATABASE_URL is not configured')
+    console.error('DATABASE_URL is not configured')
+    // Return a mock client that throws on usage
+    const throwFn = () => {
+      throw new Error('DATABASE_URL is not configured')
+    };
+    const createProxy = () => new Proxy(throwFn, {
+      get: (target, prop) => {
+        if (prop === 'then') return undefined; // Prevent async handling
+        return createProxy(); // Recursive proxy for nested properties
+      }
+    });
+    return createProxy() as any;
   }
 
   try {
+    console.log('Initializing Prisma client with adapter...')
     const adapter = new PrismaPg({ connectionString: getConnectionString(databaseUrl) })
-    return new PrismaClient({ adapter })
+    const client = new PrismaClient({ adapter })
+    console.log('Prisma client initialized successfully')
+    return client
   } catch (error) {
     console.error('Failed to create Prisma client:', error)
     // Return a mock client that throws on usage
     const throwFn = () => {
-      throw new Error('Database not available during build')
+      throw new Error(`Database connection failed: ${error.message}`)
     };
     const createProxy = () => new Proxy(throwFn, {
       get: (target, prop) => {

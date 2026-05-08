@@ -26,8 +26,10 @@ export default function LoginPage() {
         return;
       }
       if (res?.success) {
-        // Success - redirect to dashboard, middleware will handle role-based routing
-        router.push('/dashboard');
+        // Success - wait a moment for session to be established, then redirect
+        setTimeout(() => {
+          router.push('/dashboard');
+        }, 500);
         return;
       }
     } catch (error) {

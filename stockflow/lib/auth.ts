@@ -20,7 +20,7 @@ export async function getUser() {
   if (!authUser) return null;
 
   try {
-    // First check if User model exists and is accessible
+    // Check if User model exists and is accessible
     if (!prisma.user) {
       console.error("User model not available in Prisma client");
       return null;
@@ -35,7 +35,7 @@ export async function getUser() {
     });
 
     if (!user) {
-      console.log("User not found in database");
+      console.log("User not found in database for ID:", authUser.id);
       return null;
     }
 

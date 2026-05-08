@@ -2,8 +2,9 @@
 
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { supabase } from "@/lib/supabase";
+import { createServerClient } from '@supabase/ssr'
 import { supabaseAdmin } from "@/lib/supabase-admin";
+import { clearAuthCookies } from "@/lib/auth-session";
 import { prisma } from "@/lib/prisma";
 import { loginSchema } from "@/lib/validations";
 
@@ -47,6 +48,26 @@ export async function signIn(formData: FormData) {
     return { error: firstError };
   }
 
+  // Create Supabase server client
+  const cookieStore = await cookies();
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          return cookieStore.get(name)?.value
+        },
+        set(name: string, value: string, options: any) {
+          cookieStore.set({ name, value, ...options })
+        },
+        remove(name: string, options: any) {
+          cookieStore.set({ name, value: '', ...options })
+        },
+      },
+    }
+  );
+
   const { data, error } = await supabase.auth.signInWithPassword({
     email: validation.data.email,
     password: validation.data.password,
@@ -65,8 +86,71 @@ export async function signIn(formData: FormData) {
     return { error: "Authentication failed. Please try again." };
   }
 
-  // Middleware will handle cookie setting and redirects
-  // Just return success - the page will redirect via middleware
+  // Verify session is properly set in cookies
+  const { data: { session: verifySession } } = await supabase.auth.getSession();
+  if (!verifySession) {
+    console.error("Session not established properly");
+    return { error: "Authentication failed. Please try again." };
+  }
+
+  // Ensure user exists in database
+  try {
+    // Try to create profile record
+    try {
+      if (prisma.profile) {
+        await prisma.profile.upsert({
+          where: { id: data.user.id },
+          update: {},
+          create: {
+            id: data.user.id,
+            email: data.user.email!,
+            full_name: data.user.user_metadata?.name || '',
+            role: data.user.user_metadata?.role || 'PENDING',
+          },
+        });
+        console.log("Profile record created/updated in database");
+      } else {
+        console.error("Profile model not available in Prisma client");
+      }
+    } catch (profileError) {
+      console.error("Profile creation failed:", profileError);
+    }
+
+    // Check if User model exists
+    if (prisma.user) {
+      // First try to find existing user
+      const existingUser = await prisma.user.findUnique({
+        where: { id: data.user.id }
+      });
+
+      if (!existingUser) {
+        // Create new user record - need to provide password and timestamps for schema
+        // Since this is Supabase auth, we'll use a placeholder password
+        await prisma.user.create({
+          data: {
+            id: data.user.id,
+            email: data.user.email!,
+            name: data.user.user_metadata?.name || '',
+            role: (data.user.user_metadata?.role as any) || 'PENDING',
+            password: 'SUPABASE_AUTH', // Placeholder since auth is handled by Supabase
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
+        });
+        console.log("Created new user record in database");
+      } else {
+        // Update existing user if needed
+        console.log("User record already exists in database");
+      }
+    } else {
+      console.error("User model not available in Prisma client");
+    }
+  } catch (dbError) {
+    console.error("Database user creation failed:", dbError);
+    // Don't fail login if DB update fails, but log it
+  }
+
+  console.log("Login successful, session and database records established");
   return { success: true };
 }
 
@@ -95,6 +179,26 @@ export async function signUp(formData: FormData) {
   }
 
   try {
+    // Create Supabase server client
+    const cookieStore = await cookies();
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          get(name: string) {
+            return cookieStore.get(name)?.value
+          },
+          set(name: string, value: string, options: any) {
+            cookieStore.set({ name, value, ...options })
+          },
+          remove(name: string, options: any) {
+            cookieStore.set({ name, value: '', ...options })
+          },
+        },
+      }
+    );
+
     // Create user with Supabase Auth
     const { data, error } = await supabase.auth.signUp({
       email,
