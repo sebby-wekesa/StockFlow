@@ -7,7 +7,7 @@ async function getSaleOrders() {
     include: {
       SaleItem: {
         include: {
-          finishedGoods: {
+          FinishedGoods: {
             include: {
               design: true
             }
@@ -43,6 +43,10 @@ export default async function SalesOrdersPage() {
   // Transform saleOrders to match component expectations
   const saleOrders = rawSaleOrders.map(order => ({
     ...order,
+    items: order.SaleItem.map(item => ({
+      ...item,
+      finishedGoods: item.FinishedGoods
+    })),
     amount: Number(order.totalAmount)
   }));
 
