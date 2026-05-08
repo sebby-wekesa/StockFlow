@@ -22,7 +22,7 @@ async function requireUser() {
     throw new Error('Not authenticated')
   }
 
-  const user = await prisma.User.findUnique({ where: { id: authUser.id } })
+  const user = await prisma.user.findUnique({ where: { id: authUser.id } })
   if (!user) {
     throw new Error('User not provisioned')
   }

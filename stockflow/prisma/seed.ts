@@ -125,7 +125,7 @@ async function main() {
     }
 
     // Upsert in Prisma
-    const user = await prisma.User.upsert({
+    const user = await prisma.user.upsert({
       where: { email: userData.email },
       update: {
         role: userData.role,

@@ -11,7 +11,7 @@ export default async function NewSalesPage() {
   if (!user) redirect('/login')
 
   // For now, assume user has branches - this might need adjustment based on actual schema
-  const userWithBranches = await prisma.User.findUnique({
+  const userWithBranches = await prisma.user.findUnique({
     where: { id: user.id },
     include: { branches: true }
   })

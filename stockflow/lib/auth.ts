@@ -21,12 +21,12 @@ export async function getUser() {
 
   try {
     // First check if User model exists and is accessible
-    if (!prisma.User) {
+    if (!prisma.user) {
       console.error("User model not available in Prisma client");
       return null;
     }
 
-    const user = await prisma.User.findUnique({
+    const user = await prisma.user.findUnique({
       where: { id: authUser.id },
       include: {
         Branch: true,

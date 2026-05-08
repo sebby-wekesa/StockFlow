@@ -10,7 +10,7 @@ export async function GET(request: Request) {
   if (!authUser) {
     return new NextResponse('Unauthorized', { status: 401 })
   }
-  const user = await prisma.User.findUnique({ where: { id: authUser.id } })
+  const user = await prisma.user.findUnique({ where: { id: authUser.id } })
   if (!user || !['admin', 'manager', 'accountant'].includes(user.role)) {
     return new NextResponse('Forbidden', { status: 403 })
   }

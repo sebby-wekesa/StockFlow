@@ -11,7 +11,7 @@ async function requireUser() {
   const supabase = createServerSupabase()
   const { data: { user: authUser } } = await supabase.auth.getUser()
   if (!authUser) throw new Error('Not authenticated')
-  const user = await prisma.User.findUnique({ where: { id: authUser.id } })
+  const user = await prisma.user.findUnique({ where: { id: authUser.id } })
   if (!user) throw new Error('User not provisioned')
   return user
 }
@@ -58,7 +58,7 @@ export async function dispatchTransfer(formData: FormData) {
   const user = await requireUser()
 
   // Check that source has enough stock
-  const sourceStock = await prisma.BranchStock.findUnique({
+  const sourceStock = await prisma.branchStock.findUnique({
     where: {
       product_id_branch: { product_id: data.product_id, branch: data.source_branch },
     },

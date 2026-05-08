@@ -18,7 +18,7 @@ type AdminUserRow = {
 async function getUsers() {
   try {
     // Get users from Prisma User table
-    const users = await prisma.User.findMany({
+    const users = await prisma.user.findMany({
       select: {
         id: true,
         email: true,
