@@ -13,8 +13,6 @@ async function getSaleOrders() {
             }
           }
         }
-          }
-        }
       }
     },
     orderBy: { createdAt: 'desc' }
