@@ -1,7 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from '@supabase/ssr'
 import { getSupabaseAdmin } from '@/lib/supabase-admin'
-import { getRoleHomePage, normalizeUserRole } from '@/lib/types'
+import { normalizeUserRole } from '@/lib/types'
+import { getRoleHomePage } from '@/lib/auth-session'
 
 // Helper function to resolve user role
 async function resolveUserRole(userId: string, fallbackRole?: string) {
