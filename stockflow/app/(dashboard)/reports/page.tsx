@@ -1,12 +1,15 @@
 import Link from 'next/link'
 import { RANGE_LABELS, type DateRangeKey } from '@/lib/reports'
 
-export default function ReportsPage({
+export const dynamic = 'force-dynamic'
+
+export default async function ReportsPage({
   searchParams,
 }: {
-  searchParams: { range?: string }
+  searchParams: Promise<Record<string, string>>
 }) {
-  const currentRange = (searchParams.range as DateRangeKey) || '30d'
+  const params = await searchParams
+  const currentRange = (params.range as DateRangeKey) || '30d'
 
   const reportLinks = [
     {
@@ -14,26 +17,27 @@ export default function ReportsPage({
       description: 'Revenue, branch breakdown, top products & customers',
       href: `/api/reports/sales?range=${currentRange}`,
       icon: '📊',
+      disabled: false,
     },
     {
       title: 'Stock Report',
-      description: 'Value at cost vs sell, low stock, slow movers',
-      href: '#',
+      description: 'Current inventory levels across all branches',
+      href: `/api/reports/stock?range=${currentRange}`,
       icon: '📦',
-      disabled: true,
+      disabled: false,
     },
     {
       title: 'Production Report',
-      description: 'Output, scrap rate per stage',
-      href: '#',
+      description: 'Output, scrap rate per stage and yield analysis',
+      href: `/api/reports/production?range=${currentRange}`,
       icon: '⚙️',
-      disabled: true,
+      disabled: false,
     },
   ]
 
   return (
-    <div className="max-w-4xl">
-      <div className="mb-6">
+    <div className="p-6 space-y-6">
+      <div>
         <h1 className="font-head text-2xl font-bold">Reports</h1>
         <p className="text-muted text-sm mt-1">
           Export data for analysis and reporting
@@ -70,29 +74,26 @@ export default function ReportsPage({
             <div className="text-3xl mb-3">{report.icon}</div>
             <h3 className="font-bold text-lg mb-2">{report.title}</h3>
             <p className="text-sm text-muted mb-4">{report.description}</p>
-            {report.disabled ? (
-              <button className="btn btn-outline btn-sm w-full" disabled>
-                Coming soon
-              </button>
-            ) : (
-              <a
-                href={report.href}
-                className="btn btn-primary btn-sm w-full"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Download CSV
-              </a>
-            )}
+            <a
+              href={report.href}
+              className="btn btn-primary btn-sm w-full"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Download CSV
+            </a>
           </div>
         ))}
       </div>
 
-      <div className="mt-8 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-        <h4 className="font-medium text-blue-900 mb-2">💡 Tip</h4>
+      <div className="card p-4 bg-blue-50/50 border-blue-200">
+        <h4 className="font-medium text-blue-900 mb-2 flex items-center gap-2">
+          <span className="text-lg">💡</span>
+          <span>Pro tip</span>
+        </h4>
         <p className="text-sm text-blue-800">
           CSV files open directly in Excel, Google Sheets, or any spreadsheet application.
-          Use the date range selector above to customize the reporting period.
+          Use the date range selector above to customize the reporting period for all reports.
         </p>
       </div>
     </div>

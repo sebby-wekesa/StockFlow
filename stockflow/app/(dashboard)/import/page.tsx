@@ -2,6 +2,8 @@ import Link from 'next/link'
 import { prisma } from '@/lib/prisma'
 import { UploadForm } from '@/components/import/UploadForm'
 
+export const dynamic = 'force-dynamic'
+
 export default async function ImportPage() {
   // Show recent in-progress imports so user can resume
   const recentBatches = await prisma.importBatch?.findMany({
@@ -12,8 +14,8 @@ export default async function ImportPage() {
   }) || []
 
   return (
-    <div className="max-w-4xl">
-      <div className="mb-6 flex items-start justify-between">
+    <div className="p-6 space-y-6">
+      <div className="flex items-start justify-between">
         <div>
           <h1 className="font-head text-2xl font-bold">Import centre</h1>
           <p className="text-muted text-sm mt-1">
