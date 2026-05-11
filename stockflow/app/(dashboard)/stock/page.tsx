@@ -11,12 +11,13 @@ const PAGE_SIZE = 50
 export default async function BranchStockPage({
   searchParams,
 }: {
-  searchParams: { q?: string; category?: string; branch?: string; page?: string }
+  searchParams: Promise<{ q?: string; category?: string; branch?: string; page?: string }>
 }) {
-  const q = searchParams.q?.trim() ?? ''
-  const category = searchParams.category as ProductCategory | undefined
-  const focusedBranch = searchParams.branch as Branch | undefined
-  const page = Math.max(1, Number(searchParams.page ?? 1))
+  const params = await searchParams;
+  const q = params.q?.trim() ?? ''
+  const category = params.category as ProductCategory | undefined
+  const focusedBranch = params.branch as Branch | undefined
+  const page = Math.max(1, Number(params.page ?? 1))
 
   // Build product filter
   const productWhere: any = {
@@ -32,45 +33,82 @@ export default async function BranchStockPage({
 
   // Fetch all the dashboard data in parallel
   const [products, total, branchSummaries, lowStockCount] = await Promise.all([
-    prisma.product.findMany({
-      where: productWhere,
-      orderBy: { product_code: 'asc' },
-      take: PAGE_SIZE,
-      skip: (page - 1) * PAGE_SIZE,
-      include: { stock_levels: true },
-    }),
+     prisma.product.findMany({
+       where: productWhere,
+       orderBy: { product_code: 'asc' },
+       take: PAGE_SIZE,
+       skip: (page - 1) * PAGE_SIZE,
+     }),
     prisma.product.count({ where: productWhere }),
     Promise.all(
       ALL_BRANCHES.map(async (branch) => {
         const [stockAgg, lowStock] = await Promise.all([
-          prisma.branchStock.aggregate({
-            where: { branch, qty: { gt: 0 } },
-            _sum: { qty: true },
+          // For raw materials
+          prisma.inventoryRawMaterial.aggregate({
+            where: { branchId: branch, availableKg: { gt: 0 } },
+            _sum: { availableKg: true },
             _count: { _all: true },
           }),
-          prisma.branchStock.count({ where: { branch, qty: { gt: 0, lt: 5 } } }),
+          // For finished goods
+          prisma.inventoryFinishedGoods.aggregate({
+            where: { branchId: branch, availableQty: { gt: 0 } },
+            _sum: { availableQty: true },
+            _count: { _all: true },
+          }),
         ])
 
-        // Compute approximate value: sum(qty * selling_price) for stocked products
-        const valuedStock = await prisma.branchStock.findMany({
-          where: { branch, qty: { gt: 0 } },
-          include: { product: { select: { selling_price: true } } },
-        })
-        const value = valuedStock.reduce(
-          (sum, s) => sum + s.qty * (Number(s.product.selling_price) || 0),
+        // Calculate low stock for both raw materials and finished goods
+        const [rawLowStock, finishedLowStock] = await Promise.all([
+          prisma.inventoryRawMaterial.count({
+            where: {
+              branchId: branch,
+              availableKg: { gt: 0, lt: 5 },
+            },
+          }),
+          prisma.inventoryFinishedGoods.count({
+            where: {
+              branchId: branch,
+              availableQty: { gt: 0, lt: 5 },
+            },
+          }),
+        ])
+
+        // Compute approximate value: sum(availableKg * unitCost) for raw materials + sum(availableQty * unitCost) for finished goods
+        const [valuedRawStock, valuedFinishedStock] = await Promise.all([
+          prisma.inventoryRawMaterial.findMany({
+            where: { branchId: branch, availableKg: { gt: 0 } },
+            include: { RawMaterial: { select: { unitCost: true } } },
+          }),
+          prisma.inventoryFinishedGoods.findMany({
+            where: { branchId: branch, availableQty: { gt: 0 } },
+            include: { FinishedGoods: { select: { unitCost: true } } },
+          }),
+        ])
+
+        const rawValue = valuedRawStock.reduce(
+          (sum, s) => sum + (Number(s.availableKg) * (Number(s.RawMaterial?.unitCost) || 0)),
           0
         )
+        const finishedValue = valuedFinishedStock.reduce(
+          (sum, s) => sum + (Number(s.availableQty) * (Number(s.FinishedGoods?.unitCost) || 0)),
+          0
+        )
+        const value = rawValue + finishedValue
 
         return {
           branch,
-          totalUnits: stockAgg._sum.qty ?? 0,
-          totalSkus: stockAgg._count._all,
+          totalUnits: ((stockAgg[0]?._sum.availableKg ?? 0) + (stockAgg[1]?._sum.availableQty ?? 0)),
+          totalSkus: ((stockAgg[0]?._count._all ?? 0) + (stockAgg[1]?._count._all ?? 0)),
           value,
-          lowStock,
+          lowStock: (rawLowStock + finishedLowStock),
         }
       })
     ),
-    prisma.branchStock.count({ where: { qty: { gt: 0, lt: 5 } } }),
+    // Low stock count for both raw materials and finished goods
+    Promise.all([
+      prisma.inventoryRawMaterial.count({ where: { availableKg: { gt: 0, lt: 5 } } }),
+      prisma.inventoryFinishedGoods.count({ where: { availableQty: { gt: 0, lt: 5 } } }),
+    ]).then(([rawCount, finishedCount]) => rawCount + finishedCount),
   ])
 
   const totalPages = Math.ceil(total / PAGE_SIZE)
@@ -224,12 +262,35 @@ export default async function BranchStockPage({
                   </td>
                 </tr>
               ) : (
-                products.map((p) => {
-                  const stockByBranch = p.stock_levels.reduce(
-                    (acc, s) => ({ ...acc, [s.branch]: s.qty }),
-                    {} as Record<Branch, number>
-                  )
-                  const totalStock = Object.values(stockByBranch).reduce((sum, qty) => sum + qty, 0)
+                 products.map((p) => {
+                   // Get stock levels for this product from both inventory tables
+                   const rawMaterialStock = ALL_BRANCHES.reduce((acc, branch) => {
+                     const stock = prisma.inventoryRawMaterial.findFirst({
+                       where: { 
+                         branchId: branch as string,
+                         rawMaterialId: p.id
+                       }
+                     });
+                     return {...acc, [branch]: stock?.availableKg ?? 0};
+                   }, {} as Record<Branch, number>);
+                   
+                   const finishedGoodsStock = ALL_BRANCHES.reduce((acc, branch) => {
+                     const stock = prisma.inventoryFinishedGoods.findFirst({
+                       where: { 
+                         branchId: branch as string,
+                         finishedGoodsId: p.id
+                       }
+                     });
+                     return {...acc, [branch]: stock?.availableQty ?? 0};
+                   }, {} as Record<Branch, number>);
+                   
+                   // Combine stock from both sources
+                   const stockByBranch: Record<Branch, number> = {};
+                   ALL_BRANCHES.forEach(branch => {
+                     stockByBranch[branch] = (rawMaterialStock[branch] || 0) + (finishedGoodsStock[branch] || 0);
+                   });
+                   
+                   const totalStock = Object.values(stockByBranch).reduce((sum, qty) => sum + qty, 0);
                   return (
                     <tr key={p.id} className="border-b border-border last:border-b-0 hover:bg-surface2">
                       <td className="px-4 py-3">
