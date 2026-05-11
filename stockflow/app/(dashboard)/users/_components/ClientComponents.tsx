@@ -127,15 +127,24 @@ function UserTable({ users }: UserTableProps) {
                     {user.role}
                   </span>
                 </td>
-                <td>
-                  <div className="flex flex-wrap gap-1">
-                    {user.branches.map((branch) => (
-                      <span key={branch} className="badge badge-outline badge-xs">
-                        {branch}
-                      </span>
-                    ))}
-                  </div>
-                </td>
+                 <td>
+                   <div className="flex flex-wrap gap-1">
+                     {user.branches.length ? (
+                       user.branches.map((branch) => (
+                         <span
+                           key={branch}
+                           className="badge badge-outline badge-xs"
+                         >
+                           {branch}
+                         </span>
+                       ))
+                     ) : (
+                       <span className="text-gray-400 text-xs">
+                         No branches
+                       </span>
+                     )}
+                   </div>
+                 </td>
                 <td>
                   <span className={`badge ${user.is_active ? 'badge-success' : 'badge-error'} badge-sm`}>
                     {user.is_active ? 'Active' : 'Inactive'}

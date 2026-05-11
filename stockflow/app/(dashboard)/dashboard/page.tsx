@@ -5,13 +5,18 @@ import { TeamRole } from '@/lib/proxy'
 
 export const dynamic = 'force-dynamic'
 
-export default async function DashboardPage({ searchParams }: { searchParams: { previewRole?: string } }) {
-  const user = await requireAuth()
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ previewRole?: string }>
+}) {
+  const params = await searchParams;
+  const user = await requireAuth();
 
   // Use previewRole from URL if present, else user role
-  const effectiveRole = (searchParams.previewRole || user.role).toUpperCase() as Role;
+  const effectiveRole = (params.previewRole || user.role).toUpperCase() as Role;
   const role = effectiveRole.toLowerCase() as TeamRole;
-  return <TeamDashboard role={role} user={user} />
+  return <TeamDashboard role={role} user={user} />;
 }
 
 // Pending Dashboard - Shows pending approval message

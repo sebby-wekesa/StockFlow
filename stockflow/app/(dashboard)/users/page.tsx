@@ -5,7 +5,20 @@ import { UserTable } from './_components/ClientComponents'
 export default async function UsersPage() {
   const users = await prisma.user.findMany({
     orderBy: { createdAt: 'asc' },
+    include: {
+      Branch: {
+        select: {
+          name: true,
+        },
+      },
+    },
   })
+
+  // Transform users to have branches array for frontend compatibility
+  const usersWithBranches = users.map(user => ({
+    ...user,
+    branches: user.Branch ? [user.Branch.name] : [],
+  }))
 
   return (
     <div className="max-w-6xl">
@@ -19,7 +32,7 @@ export default async function UsersPage() {
         <InviteButton />
       </div>
 
-      <UserTable users={users} />
+      <UserTable users={usersWithBranches} />
     </div>
   )
 }
