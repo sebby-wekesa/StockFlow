@@ -2,28 +2,58 @@
 
 import { useState, useTransition } from 'react'
 import { uploadImport } from '@/app/(dashboard)/import/actions'
+import { useRouter } from 'next/navigation'
 import { SHEET_TYPE_LABELS, type SheetType } from '@/lib/import/parsers'
 import { ALL_BRANCHES } from '@/lib/branches'
 
 export function UploadForm() {
+  const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
   const [file, setFile] = useState<File | null>(null)
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
+    console.log('Form submitted, file:', file)
     setError(null)
     if (!file) {
       setError('Please choose a file')
       return
     }
 
+    console.log('Starting upload transition')
     startTransition(async () => {
       try {
-        const formData = new FormData(e.target as HTMLFormElement)
-        formData.set('file', file)
-        await uploadImport(formData)
+        const formData = new FormData()
+
+        // Add file
+        formData.append('file', file)
+
+        // Add form fields manually since some inputs might not have name attributes
+        const form = e.target as HTMLFormElement
+        const sheetTypeSelect = form.querySelector('select[name="sheet_type"]') as HTMLSelectElement
+        const importModeSelect = form.querySelector('select[name="import_mode"]') as HTMLSelectElement
+        const targetBranchSelect = form.querySelector('select[name="target_branch"]') as HTMLSelectElement
+
+        if (sheetTypeSelect) formData.append('sheet_type', sheetTypeSelect.value)
+        if (importModeSelect) formData.append('import_mode', importModeSelect.value)
+        if (targetBranchSelect) formData.append('target_branch', targetBranchSelect.value)
+
+        console.log('Submitting form data:', {
+          file: file.name,
+          sheet_type: sheetTypeSelect?.value,
+          import_mode: importModeSelect?.value,
+          target_branch: targetBranchSelect?.value,
+        })
+
+        const result = await uploadImport(formData)
+        if (result.success && result.batchId) {
+          router.push(`/import/${result.batchId}`)
+        } else {
+          throw new Error(result.error || 'Upload failed')
+        }
       } catch (err) {
+        console.error('Upload error:', err)
         setError(err instanceof Error ? err.message : 'Upload failed')
       }
     })

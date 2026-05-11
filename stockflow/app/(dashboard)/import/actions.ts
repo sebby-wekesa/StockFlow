@@ -9,57 +9,78 @@ import { normaliseForMatching } from '@/lib/import/alias-matcher'
 import type { ImportMode, ImportField } from '@prisma/client'
 
 export async function uploadImport(formData: FormData) {
-  const user = await getUser()
-  if (!user) throw new Error('Not authenticated')
+  try {
+    console.log('uploadImport called with formData keys:', Array.from(formData.keys()))
 
-  const file = formData.get('file') as File
-  if (!file) throw new Error('No file provided')
+    const user = await getUser()
+    if (!user) throw new Error('Not authenticated')
 
-  const sheetType = formData.get('sheet_type') as SheetType
-  if (!sheetType) throw new Error('No sheet type selected')
+    const file = formData.get('file') as File
+    console.log('File received:', { name: file?.name, size: file?.size, type: file?.type })
+    if (!file) throw new Error('No file provided')
+    if (file.size === 0) throw new Error('File is empty')
+    if (!file.name.match(/\.(xlsx|xls)$/i)) throw new Error('File must be an Excel file (.xlsx or .xls)')
 
-  const importMode = (formData.get('import_mode') as ImportMode) || 'update'
-  const targetBranch = formData.get('target_branch') as string || null
+    const sheetType = formData.get('sheet_type') as string
+    const importMode = (formData.get('import_mode') as ImportMode) || 'update'
+    const targetBranch = formData.get('target_branch') as string || null
 
-  // Parse the Excel file
-  const parsedFile = await parseExcelFile(file)
+    console.log('Form data:', { sheetType, importMode, targetBranch })
 
-  // Auto-detect sheet type if not provided
-  const detectedType = detectSheetType(parsedFile.headers)
-  const finalSheetType = sheetType !== 'auto' ? sheetType : detectedType
-  if (!finalSheetType) {
-    throw new Error('Could not detect sheet type. Please select manually.')
-  }
+    // Parse the Excel file
+    let parsedFile
+    try {
+      parsedFile = await parseExcelFile(file)
+    } catch (error) {
+      console.error('Excel parsing error:', error)
+      throw new Error('Failed to parse Excel file. Please ensure it\'s a valid Excel file.')
+    }
 
-  // Create the import batch
-  const batch = await prisma.importBatch.create({
-    data: {
-      file_name: file.name,
-      sheet_type: finalSheetType,
-      import_mode: importMode,
-      target_branch: targetBranch,
-      status: 'uploaded',
-      row_count: parsedFile.totalRows,
-      created_by: user.id,
-    },
-  })
+    if (parsedFile.rows.length === 0) {
+      throw new Error('Excel file contains no data rows.')
+    }
 
-  // Create import rows in chunks to avoid query size limits
-  const chunkSize = 500
-  for (let i = 0; i < parsedFile.rows.length; i += chunkSize) {
-    const chunk = parsedFile.rows.slice(i, i + chunkSize)
+    // Auto-detect sheet type if not provided or set to auto
+    const detectedType = detectSheetType(parsedFile.headers)
+    const finalSheetType = sheetType && sheetType !== 'auto' ? sheetType as SheetType : detectedType
 
-    await prisma.importRow.createMany({
-      data: chunk.map((row, index) => ({
-        batch_id: batch.id,
-        row_number: i + index + 2, // +2 because Excel rows start at 1, and we skip header
-        raw_data: row,
-      })),
+    if (!finalSheetType) {
+      throw new Error(`Could not detect sheet type automatically. Please select the appropriate sheet type manually. Detected headers: ${parsedFile.headers.join(', ')}`)
+    }
+
+    // Create the import batch
+    const batch = await prisma.importBatch.create({
+      data: {
+        file_name: file.name,
+        sheet_type: finalSheetType,
+        import_mode: importMode,
+        target_branch: targetBranch,
+        status: 'uploaded',
+        row_count: parsedFile.totalRows,
+        created_by: user.id,
+      },
     })
-  }
 
-  revalidatePath('/import')
-  redirect(`/import/${batch.id}`)
+    // Create import rows in chunks to avoid query size limits
+    const chunkSize = 500
+    for (let i = 0; i < parsedFile.rows.length; i += chunkSize) {
+      const chunk = parsedFile.rows.slice(i, i + chunkSize)
+
+      await prisma.importRow.createMany({
+        data: chunk.map((row, index) => ({
+          batch_id: batch.id,
+          row_number: i + index + 2, // +2 because Excel rows start at 1, and we skip header
+          raw_data: row,
+        })),
+      })
+    }
+
+    revalidatePath('/import')
+    return { success: true, batchId: batch.id }
+  } catch (error) {
+    console.error("Upload Error:", error);
+    return { success: false, error: error instanceof Error ? error.message : "Upload failed" };
+  }
 }
 
 export async function saveColumnMapping(batchId: string, mappings: Record<string, ImportField>) {
