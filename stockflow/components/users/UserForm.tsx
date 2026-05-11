@@ -7,29 +7,34 @@ import type { Branch, UserRole } from '@prisma/client'
 
 const ROLE_OPTIONS: { value: UserRole; label: string; description: string }[] = [
   {
-    value: 'admin',
+    value: 'ADMIN',
     label: 'Admin',
     description: 'Full access including user management and imports',
   },
   {
-    value: 'manager',
+    value: 'MANAGER',
     label: 'Manager',
     description: 'Can approve, view all reports, manage production',
   },
   {
-    value: 'warehouse',
-    label: 'Warehouse',
-    description: 'Receive raw materials, manage production stages',
+    value: 'OPERATOR',
+    label: 'Operator',
+    description: 'Manage production stages and operations',
   },
   {
-    value: 'sales',
+    value: 'WAREHOUSE',
+    label: 'Warehouse',
+    description: 'Receive raw materials, manage inventory',
+  },
+  {
+    value: 'SALES',
     label: 'Sales',
     description: 'Record sales for assigned branches',
   },
   {
-    value: 'accountant',
-    label: 'Accountant',
-    description: 'Read-only access to all reports and data',
+    value: 'PACKAGING',
+    label: 'Packaging',
+    description: 'Handle finished goods packaging',
   },
 ]
 
@@ -37,7 +42,7 @@ type Initial = {
   email?: string
   name?: string
   role?: UserRole
-  branches?: Branch[]
+  branchId?: string
 }
 
 export function UserForm({
@@ -126,22 +131,21 @@ export function UserForm({
 
       <div>
         <label className="label">
-          <span className="label-text">Branch access</span>
+          <span className="label-text">Branch</span>
         </label>
-        <div className="grid grid-cols-3 gap-4">
+        <select
+          name="branchId"
+          className="select select-bordered w-full"
+          defaultValue={initial?.branchId}
+          required
+        >
+          <option value="">Select a branch</option>
           {ALL_BRANCHES.map((branch) => (
-            <label key={branch} className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                name="branches"
-                value={branch}
-                className="checkbox"
-                defaultChecked={initial?.branches?.includes(branch as Branch) ?? (branch === 'mombasa')}
-              />
-              <span>{BRANCH_LABELS[branch]}</span>
-            </label>
+            <option key={branch} value={branch}>
+              {BRANCH_LABELS[branch]}
+            </option>
           ))}
-        </div>
+        </select>
       </div>
 
       <div className="flex justify-end gap-2">

@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { inviteUser } from '@/actions/users'
+import { useState, useTransition } from 'react'
+import { inviteUser, updateUser } from '@/actions/users'
 import { UserForm } from '@/components/users/UserForm'
 import type { User } from '@prisma/client'
 
@@ -10,11 +10,32 @@ interface InviteModalProps {
 }
 
 function InviteModal({ onClose }: InviteModalProps) {
+  const [isPending, startTransition] = useTransition()
+  const [error, setError] = useState<string | null>(null)
+
+  async function handleSubmit(formData: FormData) {
+    setError(null)
+    startTransition(async () => {
+      const result = await inviteUser(formData)
+      if (result.success) {
+        onClose()
+      } else {
+        setError(result.error)
+      }
+    })
+  }
+
   return (
     <dialog className="modal modal-open">
       <div className="modal-box max-w-md">
-        <form action={inviteUser} className="space-y-4">
+        <form action={handleSubmit} className="space-y-4">
           <h3 className="font-bold text-lg">Invite new user</h3>
+
+          {error && (
+            <div className="alert alert-error">
+              <span>{error}</span>
+            </div>
+          )}
 
           <div>
             <label className="label">
@@ -26,6 +47,7 @@ function InviteModal({ onClose }: InviteModalProps) {
               className="input input-bordered w-full"
               placeholder="user@company.com"
               required
+              disabled={isPending}
             />
           </div>
 
@@ -39,6 +61,7 @@ function InviteModal({ onClose }: InviteModalProps) {
               className="input input-bordered w-full"
               placeholder="John Doe"
               required
+              disabled={isPending}
             />
           </div>
 
@@ -46,12 +69,14 @@ function InviteModal({ onClose }: InviteModalProps) {
             <label className="label">
               <span className="label-text">Role</span>
             </label>
-            <select name="role" className="select select-bordered w-full" required>
-              <option value="sales">Sales</option>
-              <option value="warehouse">Warehouse</option>
-              <option value="accountant">Accountant</option>
-              <option value="manager">Manager</option>
-              <option value="admin">Admin</option>
+            <select name="role" className="select select-bordered w-full" required disabled={isPending}>
+              <option value="">Select a role</option>
+              <option value="ADMIN">Admin</option>
+              <option value="MANAGER">Manager</option>
+              <option value="OPERATOR">Operator</option>
+              <option value="WAREHOUSE">Warehouse</option>
+              <option value="SALES">Sales</option>
+              <option value="PACKAGING">Packaging</option>
             </select>
           </div>
 
@@ -68,6 +93,7 @@ function InviteModal({ onClose }: InviteModalProps) {
                     value={branch}
                     className="checkbox"
                     defaultChecked={branch === 'mombasa'}
+                    disabled={isPending}
                   />
                   <span className="capitalize">{branch}</span>
                 </label>
@@ -76,11 +102,11 @@ function InviteModal({ onClose }: InviteModalProps) {
           </div>
 
           <div className="modal-action">
-            <button type="button" className="btn" onClick={onClose}>
+            <button type="button" className="btn" onClick={onClose} disabled={isPending}>
               Cancel
             </button>
-            <button type="submit" className="btn btn-primary">
-              Send invite
+            <button type="submit" className="btn btn-primary" disabled={isPending}>
+              {isPending ? 'Sending...' : 'Send invite'}
             </button>
           </div>
         </form>
@@ -106,7 +132,7 @@ function UserTable({ users }: UserTableProps) {
               <th>Name</th>
               <th>Email</th>
               <th>Role</th>
-              <th>Branches</th>
+              <th>Branch</th>
               <th>Status</th>
               <th>Actions</th>
             </tr>
@@ -118,33 +144,24 @@ function UserTable({ users }: UserTableProps) {
                 <td>{user.email}</td>
                 <td>
                   <span className={`badge ${
-                    user.role === 'admin' ? 'badge-error' :
-                    user.role === 'manager' ? 'badge-warning' :
-                    user.role === 'warehouse' ? 'badge-info' :
-                    user.role === 'sales' ? 'badge-success' :
+                    user.role === 'ADMIN' ? 'badge-error' :
+                    user.role === 'MANAGER' ? 'badge-warning' :
+                    user.role === 'WAREHOUSE' ? 'badge-info' :
+                    user.role === 'SALES' ? 'badge-success' :
+                    user.role === 'OPERATOR' ? 'badge-primary' :
+                    user.role === 'PACKAGING' ? 'badge-secondary' :
                     'badge-neutral'
                   } badge-sm`}>
                     {user.role}
                   </span>
                 </td>
                  <td>
-                   <div className="flex flex-wrap gap-1">
-                     {user.branches.length ? (
-                       (user.branches ?? []).map((branch) => (
-                         <span
-                           key={branch}
-                           className="badge badge-outline badge-xs"
-                         >
-                           {branch}
-                         </span>
-                       ))
-                     ) : (
-                       <span className="text-gray-400 text-xs">
-                         No branches
-                       </span>
-                     )}
-                   </div>
-                 </td>
+                  {user.Branch?.name || (
+                    <span className="text-gray-400 text-xs">
+                      No branch
+                    </span>
+                  )}
+                </td>
                 <td>
                   <span className={`badge ${user.is_active ? 'badge-success' : 'badge-error'} badge-sm`}>
                     {user.is_active ? 'Active' : 'Inactive'}
@@ -171,10 +188,13 @@ function UserTable({ users }: UserTableProps) {
             <h3 className="font-bold text-lg mb-4">Edit user</h3>
             <UserForm
               mode="edit"
-              initial={users.find((u) => u.id === editingId)}
+              initial={{
+                ...users.find((u) => u.id === editingId),
+                branchId: users.find((u) => u.id === editingId)?.branchId
+              }}
               action={async (formData) => {
-                // This would need to be implemented
-                console.log('Update user:', editingId, formData)
+                formData.append('userId', editingId!)
+                await updateUser(formData)
                 setEditingId(null)
               }}
             />

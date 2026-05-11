@@ -17,21 +17,22 @@ async function assertAdminAccess() {
   }
 }
 
-export async function inviteUser(data: { name: string; email: string; role: string; branchId: string }) {
+export async function inviteUser(formData: FormData) {
   try {
     await assertAdminAccess();
 
-    const { name, email, role, branchId } = data;
+    const email = formData.get('email') as string;
+    const name = formData.get('name') as string;
+    const role = formData.get('role') as string;
+    const branchId = formData.get('branchId') as string;
 
     if (!email || !name || !role || !branchId) {
       return { success: false, error: "All fields are required" };
     }
 
-    if (typeof role !== "string" || !USER_ROLES.includes(role.toUpperCase() as typeof USER_ROLES[number])) {
+    if (typeof role !== "string" || !USER_ROLES.includes(role as typeof USER_ROLES[number])) {
       return { success: false, error: "Invalid role" };
     }
-
-    const normalizedRole = normalizeUserRole(role);
 
     // 1. Create user in Supabase Auth
     const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.createUser({
@@ -40,8 +41,7 @@ export async function inviteUser(data: { name: string; email: string; role: stri
       email_confirm: true,
       user_metadata: {
         name,
-        branchId,
-        role: normalizedRole,
+        role,
       }
     });
 
@@ -52,22 +52,34 @@ export async function inviteUser(data: { name: string; email: string; role: stri
       throw new Error(`Auth Error: ${authError.message}`);
     }
 
-    // 2. Update profile in Supabase (trigger will create it, but we need to set role and department)
+    // 2. Create user in Prisma
+    await prisma.user.create({
+      data: {
+        id: authUser.user!.id,
+        email,
+        name,
+        role: role as typeof USER_ROLES[number],
+        organizationId: "org-1", // TODO: get from current user
+        branchId,
+      }
+    });
+
+    // 3. Create profile in Supabase
     const { error: profileError } = await supabaseAdmin
       .from('profiles')
-      .update({
-        role: normalizedRole,
-        branch_id: branchId,
-      })
-      .eq('id', authUser.user!.id);
+      .insert({
+        id: authUser.user!.id,
+        email,
+        full_name: name,
+        role,
+      });
 
     if (profileError) {
-      console.error("Profile update error:", profileError);
-      // Don't fail the whole operation, profile might be created by trigger
+      console.error("Profile creation error:", profileError);
+      // Don't fail the whole operation
     }
 
-    revalidatePath("/admin/users");
-    revalidatePath("/admin/settings");
+    revalidatePath("/users");
     return { success: true };
   } catch (error) {
     console.error("Invite Error:", error);
@@ -133,6 +145,53 @@ export async function deleteUser(userId: string) {
     revalidatePath("/admin/users");
   } catch (error) {
     console.error("Delete user error:", error);
+    throw error;
+  }
+}
+
+export async function updateUser(formData: FormData) {
+  try {
+    await assertAdminAccess();
+
+    const userId = formData.get('userId') as string;
+    const name = formData.get('name') as string;
+    const role = formData.get('role') as string;
+    const branchId = formData.get('branchId') as string;
+
+    if (!userId || !name || !role || !branchId) {
+      throw new Error("All fields are required");
+    }
+
+    if (typeof role !== "string" || !USER_ROLES.includes(role as typeof USER_ROLES[number])) {
+      throw new Error("Invalid role");
+    }
+
+    // Update user in Prisma
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        name,
+        role: role as typeof USER_ROLES[number],
+        branchId,
+      }
+    });
+
+    // Update profile in Supabase
+    const { error: profileError } = await supabaseAdmin
+      .from('profiles')
+      .update({
+        full_name: name,
+        role,
+      })
+      .eq('id', userId);
+
+    if (profileError) {
+      console.error("Profile update error:", profileError);
+    }
+
+    revalidatePath("/users");
+  } catch (error) {
+    console.error("Update user error:", error);
     throw error;
   }
 }
