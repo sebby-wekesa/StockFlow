@@ -11,12 +11,13 @@ const PAGE_SIZE = 50
 export default async function SalesPage({
   searchParams,
 }: {
-  searchParams: { branch?: string; status?: string; q?: string; page?: string }
+  searchParams: Promise<Record<string, string>>
 }) {
-  const branch = searchParams.branch as Branch | undefined
-  const status = searchParams.status as SalesOrderStatus | undefined
-  const q = searchParams.q?.trim() ?? ''
-  const page = Math.max(1, Number(searchParams.page ?? 1))
+  const params = await searchParams
+  const branch = params.branch as Branch | undefined
+  const status = params.status as SalesOrderStatus | undefined
+  const q = params.q?.trim() ?? ''
+  const page = Math.max(1, Number(params.page ?? 1))
 
   const where: any = {}
   if (branch) where.branch = branch
@@ -42,7 +43,7 @@ export default async function SalesPage({
     prisma.salesOrder.count({ where }),
     prisma.salesOrder.groupBy({
       by: ['branch'],
-      where: { status: { in: ['INVOICED', 'FULFILLED'] } },
+      where: { status: { in: ['CONFIRMED', 'SHIPPED'] } },
       _count: { _all: true },
     }),
   ])
@@ -119,7 +120,7 @@ export default async function SalesPage({
         >
           All statuses
         </Link>
-        {(['PENDING', 'INVOICED', 'FULFILLED', 'CANCELLED'] as const).map((s) => (
+        {(['PENDING', 'CONFIRMED', 'SHIPPED', 'CANCELLED'] as const).map((s) => (
           <Link
             key={s}
             href={buildHref({ status: s, page: 1 })}

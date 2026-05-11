@@ -15,7 +15,7 @@ export default async function OperatorHistoryPage() {
   // Get completed orders or logs for the user
   const completedOrders = await prisma.productionOrder.findMany({
     where: { status: "COMPLETED" },
-    include: { design: true },
+    include: { Design: true },
     orderBy: { updatedAt: "desc" },
     take: 20,
   });

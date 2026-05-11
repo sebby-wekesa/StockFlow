@@ -10,11 +10,12 @@ const PAGE_SIZE = 50
 export default async function ProductsPage({
   searchParams,
 }: {
-  searchParams: { category?: string; q?: string; page?: string }
+  searchParams: Promise<Record<string, string>>
 }) {
-  const category = searchParams.category as ProductCategory | undefined
-  const q = searchParams.q?.trim() ?? ''
-  const page = Math.max(1, Number(searchParams.page ?? 1))
+  const params = await searchParams
+  const category = params.category as ProductCategory | undefined
+  const q = params.q?.trim() ?? ''
+  const page = Math.max(1, Number(params.page ?? 1))
 
   // Build the WHERE clause
   const where: any = {}

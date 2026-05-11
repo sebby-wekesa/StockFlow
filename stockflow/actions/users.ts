@@ -13,7 +13,7 @@ import type { Branch, UserRole } from '@prisma/client'
 // ─────────────────────────────────────────────────────────────────────────────
 
 async function requireAdmin() {
-  const supabase = createServerSupabase()
+  const supabase = await createServerSupabase()
   const { data: { user: authUser } } = await supabase.auth.getUser()
   if (!authUser) throw new Error('Not authenticated')
 

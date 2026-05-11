@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
     // Get the order to find current stage
     const order = await prisma.productionOrder.findFirst({
       where: { id: orderId },
-      include: { design: true },
+      include: { Design: true },
     })
 
     if (!order) {

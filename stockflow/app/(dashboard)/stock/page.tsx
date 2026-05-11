@@ -11,34 +11,29 @@ const PAGE_SIZE = 50
 export default async function BranchStockPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; category?: string; branch?: string; page?: string }>
+  searchParams: Promise<{ branch?: string; page?: string }>
 }) {
   const params = await searchParams;
-  const q = params.q?.trim() ?? ''
-  const category = params.category as ProductCategory | undefined
   const focusedBranch = params.branch as Branch | undefined
   const page = Math.max(1, Number(params.page ?? 1))
 
   // Build product filter
   const productWhere: any = {
-    is_active: true,
-    category: category ?? { not: 'service' },
-  }
-  if (q) {
-    productWhere.OR = [
-      { product_code: { contains: q, mode: 'insensitive' } },
-      { canonical_name: { contains: q, mode: 'insensitive' } },
-    ]
+    currentStock: {
+      gt: 0,
+    },
   }
 
   // Fetch all the dashboard data in parallel
   const [products, total, branchSummaries, lowStockCount] = await Promise.all([
      prisma.product.findMany({
-       where: productWhere,
-       orderBy: { product_code: 'asc' },
-       take: PAGE_SIZE,
-       skip: (page - 1) * PAGE_SIZE,
-     }),
+        where: productWhere,
+        orderBy: {
+          sku: 'asc',
+        },
+        take: PAGE_SIZE,
+        skip: (page - 1) * PAGE_SIZE,
+      }),
     prisma.product.count({ where: productWhere }),
     Promise.all(
       ALL_BRANCHES.map(async (branch) => {
@@ -113,14 +108,10 @@ export default async function BranchStockPage({
 
   const totalPages = Math.ceil(total / PAGE_SIZE)
 
-  function buildHref(overrides: { q?: string; category?: string; branch?: string; page?: number }) {
+  function buildHref(overrides: { branch?: string; page?: number }) {
     const params = new URLSearchParams()
-    const _q = overrides.q ?? q
-    const _cat = overrides.category ?? category
     const _branch = overrides.branch ?? focusedBranch
     const _page = overrides.page ?? page
-    if (_q) params.set('q', _q)
-    if (_cat) params.set('category', _cat)
     if (_branch) params.set('branch', _branch)
     if (_page > 1) params.set('page', String(_page))
     const qs = params.toString()
@@ -196,45 +187,9 @@ export default async function BranchStockPage({
         })}
       </div>
 
-      {/* CATEGORY FILTER PILLS */}
-      <div className="flex flex-wrap gap-1.5 mb-4">
-        <Link
-          href={buildHref({ category: '', page: 1 })}
-          className={`px-3 py-1.5 rounded-full text-xs border transition-colors ${
-            !category
-              ? 'bg-accent border-accent text-bg font-semibold'
-              : 'bg-surface border-border text-muted hover:border-accent hover:text-text'
-          }`}
-        >
-          All categories
-        </Link>
-        {(['manufactured_spring', 'manufactured_ubolt', 'imported', 'local_purchase'] as const).map((cat) => (
-          <Link
-            key={cat}
-            href={buildHref({ category: cat, page: 1 })}
-            className={`px-3 py-1.5 rounded-full text-xs border transition-colors ${
-              category === cat
-                ? 'bg-accent border-accent text-bg font-semibold'
-                : 'bg-surface border-border text-muted hover:border-accent hover:text-text'
-            }`}
-          >
-            {CATEGORY_SHORT[cat]}
-          </Link>
-        ))}
-      </div>
 
-      {/* SEARCH FORM */}
-      <form className="mb-4">
-        {category && <input type="hidden" name="category" value={category} />}
-        {focusedBranch && <input type="hidden" name="branch" value={focusedBranch} />}
-        <input
-          type="search"
-          name="q"
-          defaultValue={q}
-          placeholder="Search by product code or name..."
-          className="input max-w-md"
-        />
-      </form>
+
+
 
       {/* PRODUCT TABLE */}
       <div className="card overflow-hidden">
@@ -254,11 +209,7 @@ export default async function BranchStockPage({
               {products.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="px-4 py-12 text-center text-muted text-sm">
-                    {(q || category || focusedBranch) ? (
-                      <>No products match these filters. <Link href="/stock" className="text-accent">Clear filters</Link></>
-                    ) : (
-                      <>No products found.</>
-                    )}
+                    No products found.
                   </td>
                 </tr>
               ) : (

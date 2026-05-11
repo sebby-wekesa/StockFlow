@@ -130,7 +130,7 @@ function UserTable({ users }: UserTableProps) {
                  <td>
                    <div className="flex flex-wrap gap-1">
                      {user.branches.length ? (
-                       user.branches.map((branch) => (
+                       (user.branches ?? []).map((branch) => (
                          <span
                            key={branch}
                            className="badge badge-outline badge-xs"

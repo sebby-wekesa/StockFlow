@@ -9,7 +9,7 @@ import { getStagesForCategory } from '@/lib/production'
 import type { ProductCategory } from '@prisma/client'
 
 async function requireUser() {
-  const supabase = createServerSupabase()
+  const supabase = await createServerSupabase()
   const { data: { user: authUser } } = await supabase.auth.getUser()
   if (!authUser) throw new Error('Not authenticated')
   const user = await prisma.user.findUnique({ where: { id: authUser.id } })
@@ -219,18 +219,18 @@ export async function completeStage(formData: FormData) {
       })
 
       // Increment finished goods stock
-      await tx.branchStock.upsert({
+      await tx.inventoryFinishedGoods.upsert({
         where: {
-          branch_product: {
-            branch: 'mombasa', // Production happens at Mombasa
-            product_id: job.product_id,
+          branchId_finishedGoodsId: {
+            branchId: 'mombasa', // Production happens at Mombasa
+            finishedGoodsId: job.finishedGoodsId,
           },
         },
-        update: { qty: { increment: data.qty_out } },
+        update: { availableQty: { increment: data.qty_out } },
         create: {
-          branch: 'mombasa',
-          product_id: job.product_id,
-          qty: data.qty_out,
+          branchId: 'mombasa',
+          finishedGoodsId: job.finishedGoodsId,
+          availableQty: data.qty_out,
         },
       })
 
@@ -380,7 +380,7 @@ export async function getOrderForLogging(orderId: string) {
   if (!order) throw new Error('Order not found')
 
   // Check if user can access this order's branch
-  const userBranchIds = user.branches.map(b => b.id);
+  const userBranchIds = (user.branches ?? []).map(b => b.id);
   if (!userBranchIds.includes(order.branch.id)) {
     throw new Error('Access denied')
   }

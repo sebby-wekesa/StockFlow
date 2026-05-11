@@ -382,7 +382,7 @@ export async function getManagerData() {
   try {
     pendingApprovals = await prisma.productionOrder.findMany({
       where: { status: 'PENDING' },
-      include: { design: true },
+      include: { Design: true },
     });
   } catch (error) {
     console.warn('Failed to fetch pending approvals:', error)

@@ -7,10 +7,11 @@ const PAGE_SIZE = 50
 export default async function CustomersPage({
   searchParams,
 }: {
-  searchParams: { q?: string; page?: string }
+  searchParams: Promise<Record<string, string>>
 }) {
-  const q = searchParams.q?.trim() ?? ''
-  const page = Math.max(1, Number(searchParams.page ?? 1))
+  const params = await searchParams
+  const q = params.q?.trim() ?? ''
+  const page = Math.max(1, Number(params.page ?? 1))
 
   const where: any = {}
   if (q) {
@@ -28,7 +29,7 @@ export default async function CustomersPage({
       skip: (page - 1) * PAGE_SIZE,
       include: {
         SaleOrder: {
-          where: { status: { in: ['INVOICED', 'FULFILLED'] } },
+          where: { status: { in: ['CONFIRMED', 'SHIPPED'] } },
           select: {
             SaleItem: { select: { totalPrice: true } }
           }

@@ -10,13 +10,14 @@ const PAGE_SIZE = 20
 export default async function JobsPage({
   searchParams,
 }: {
-  searchParams: { status?: string; page?: string }
+  searchParams: Promise<Record<string, string>>
 }) {
   const user = await getUser()
   if (!user) return null
 
-  const status = searchParams.status as 'open' | 'in_progress' | 'complete' | 'cancelled' | undefined
-  const page = Math.max(1, Number(searchParams.page ?? 1))
+  const params = await searchParams
+  const status = params.status as 'open' | 'in_progress' | 'complete' | 'cancelled' | undefined
+  const page = Math.max(1, Number(params.page ?? 1))
 
   const where: any = {}
   if (status) where.status = status

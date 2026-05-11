@@ -44,7 +44,7 @@ export function UserTable({ users }: { users: User[] }) {
                 </td>
                 <td>
                   <div className="flex flex-wrap gap-1">
-                    {user.branches.map((branch) => (
+                    {(user.branches ?? []).map((branch) => (
                       <span key={branch} className="badge badge-outline badge-xs">
                         {BRANCH_LABELS[branch as keyof typeof BRANCH_LABELS]}
                       </span>

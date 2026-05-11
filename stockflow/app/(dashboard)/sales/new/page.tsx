@@ -10,17 +10,17 @@ export default async function NewSalesPage() {
   const user = await getUser()
   if (!user) redirect('/login')
 
-  // For now, assume user has branches - this might need adjustment based on actual schema
+  // For now, assume user has branch
   const userWithBranches = await prisma.user.findUnique({
     where: { id: user.id },
-    include: { branches: true }
+    include: { Branch: true }
   })
 
   if (!userWithBranches) redirect('/login')
 
   const allowedBranches = user.role === 'admin'
     ? (['mombasa', 'nairobi', 'bonje'] as Branch[])
-    : userWithBranches.branches.map(b => b.id as Branch)
+    : (userWithBranches.Branch ? [userWithBranches.Branch.id as Branch] : [])
 
   const defaultBranch = allowedBranches[0]
 

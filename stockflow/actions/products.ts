@@ -13,7 +13,7 @@ import type { ProductCategory, ProductType, UOM } from '@prisma/client'
 // ─────────────────────────────────────────────────────────────────────────────
 
 async function requireUser() {
-  const supabase = createServerSupabase()
+  const supabase = await createServerSupabase()
   const {
     data: { user: authUser },
   } = await supabase.auth.getUser()

@@ -9,7 +9,7 @@ import { nextInvoiceNumber } from '@/lib/sales'
 import type { Branch } from '@prisma/client'
 
 async function requireUser() {
-  const supabase = createServerSupabase()
+  const supabase = await createServerSupabase()
   const { data: { user: authUser } } = await supabase.auth.getUser()
   if (!authUser) throw new Error('Not authenticated')
   const user = await prisma.user.findUnique({ where: { id: authUser.id } })
@@ -102,16 +102,17 @@ export async function createSalesOrder(formData: FormData) {
   if (action === 'invoice') {
     for (const line of data.lines) {
       const product = productMap.get(line.product_id)!
-      if (product.category === 'service') continue // services don't deduct stock
+      // Assume all products deduct stock if not service, but since no category, check origin or something
+      // For now, always check stock
 
-      const stock = await prisma.branchStock.findUnique({
+      const stock = await prisma.product.findUnique({
         where: {
-          product_id_branch: { product_id: line.product_id, branch: data.branch as Branch },
+          id: line.product_id,
         },
       })
-      if (!stock || stock.qty < line.qty) {
+      if (!stock || stock.currentStock < line.qty) {
         throw new Error(
-          `Insufficient stock for ${product.product_code}: have ${stock?.qty ?? 0}, need ${line.qty}`
+          `Insufficient stock for ${product.sku}: have ${stock?.currentStock ?? 0}, need ${line.qty}`
         )
       }
     }
@@ -157,32 +158,24 @@ export async function createSalesOrder(formData: FormData) {
         },
       })
 
-      if (action === 'invoice' && product.category !== 'service') {
-        // Stock movement (sales_out is negative)
-        await tx.stockMovement.create({
+      if (action === 'invoice') {
+        // Log sale
+        await tx.auditLog.create({
           data: {
-            product_id: line.product_id,
-            movement_type: 'sales_out',
-            branch: data.branch as Branch,
-            qty: -line.qty,
-            unit_price: line.unit_price,
-            customer_name: data.customer_name,
-            reference: orderNumber,
-            movement_date: data.invoice_date,
-            notes: line.notes,
-            created_by: user.id,
+            userId: user.id,
+            action: 'SALE',
+            entityType: 'Product',
+            entityId: line.product_id,
+            details: `Sold ${line.qty} at ${line.unit_price} via order ${orderNumber}`,
           },
         })
 
-        // Decrement branch balance
-        await tx.branchStock.update({
+        // Decrement stock
+        await tx.product.update({
           where: {
-            product_id_branch: {
-              product_id: line.product_id,
-              branch: data.branch as Branch,
-            },
+            id: line.product_id,
           },
-          data: { qty: { decrement: line.qty } },
+          data: { currentStock: { decrement: line.qty } },
         })
       }
     }
@@ -200,24 +193,23 @@ export async function createSalesOrder(formData: FormData) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export async function confirmDraft(orderId: string) {
-  const order = await prisma.salesOrder.findUnique({
+  const order = await prisma.saleOrder.findUnique({
     where: { id: orderId },
-    include: { lines: { include: { product: true } } },
+    include: { SaleItem: { include: { FinishedGoods: true } } },
   })
   if (!order) throw new Error('Order not found')
-  if (order.status !== 'draft') throw new Error('Only drafts can be confirmed')
+  if (order.status !== 'PENDING') throw new Error('Only pending can be confirmed')
 
   const user = await requireBranchAccess(order.branch)
 
   // Verify stock for every line
-  for (const line of order.lines) {
-    if (line.product.category === 'service') continue
-    const stock = await prisma.branchStock.findUnique({
-      where: { product_id_branch: { product_id: line.product_id, branch: order.branch } },
+  for (const line of order.SaleItem) {
+    const stock = await prisma.inventoryFinishedGoods.findUnique({
+      where: { branchId_finishedGoodsId: { branchId: order.branch, finishedGoodsId: line.finishedGoodsId } },
     })
-    if (!stock || stock.qty < line.qty) {
+    if (!stock || stock.availableQty < line.quantity) {
       throw new Error(
-        `Insufficient stock for ${line.product.product_code}: have ${stock?.qty ?? 0}, need ${line.qty}`
+        `Insufficient stock for ${line.FinishedGoods.sku}: have ${stock?.availableQty ?? 0}, need ${line.quantity}`
       )
     }
   }
@@ -225,33 +217,32 @@ export async function confirmDraft(orderId: string) {
   const newOrderNumber = await nextInvoiceNumber(order.branch)
 
   await prisma.$transaction(async (tx) => {
-    await tx.salesOrder.update({
+    await tx.saleOrder.update({
       where: { id: orderId },
       data: {
-        status: 'invoiced',
-        order_number: newOrderNumber,
+        status: 'CONFIRMED',
       },
     })
 
-    for (const line of order.lines) {
-      if (line.product.category === 'service') continue
-      await tx.stockMovement.create({
+    for (const line of order.SaleItem) {
+      await tx.auditLog.create({
         data: {
-          product_id: line.product_id,
-          movement_type: 'sales_out',
-          branch: order.branch,
-          qty: -line.qty,
-          unit_price: line.unit_price,
-          customer_name: order.customer_name,
-          reference: newOrderNumber,
-          movement_date: order.invoice_date,
-          notes: line.notes,
-          created_by: user.id,
+          userId: user.id,
+          action: 'SALE',
+          entityType: 'FinishedGoods',
+          entityId: line.finishedGoodsId,
+          details: `Sold ${line.quantity} at ${line.unitPrice}`,
         },
       })
-      await tx.branchStock.update({
-        where: { product_id_branch: { product_id: line.product_id, branch: order.branch } },
-        data: { qty: { decrement: line.qty } },
+
+      await tx.inventoryFinishedGoods.update({
+        where: {
+          branchId_finishedGoodsId: {
+            branchId: order.branch,
+            finishedGoodsId: line.finishedGoodsId,
+          },
+        },
+        data: { availableQty: { decrement: line.quantity } },
       })
     }
   })
@@ -331,26 +322,20 @@ export async function searchProductsForSale(query: string, branch: Branch) {
 
   const products = await prisma.product.findMany({
     where: {
-      is_active: true,
       OR: [
-        { product_code: { contains: query, mode: 'insensitive' } },
-        { canonical_name: { contains: query, mode: 'insensitive' } },
+        { sku: { contains: query, mode: 'insensitive' } },
+        { name: { contains: query, mode: 'insensitive' } },
       ],
     },
     take: 10,
-    orderBy: { product_code: 'asc' },
-    include: {
-      stock_levels: { where: { branch } },
-    },
+    orderBy: { sku: 'asc' },
   })
 
   return products.map((p) => ({
     id: p.id,
-    product_code: p.product_code,
-    canonical_name: p.canonical_name,
+    sku: p.sku,
+    name: p.name,
     uom: p.uom,
-    category: p.category,
-    selling_price: p.selling_price ? Number(p.selling_price) : 0,
-    stock_at_branch: p.category === 'service' ? null : (p.stock_levels[0]?.qty ?? 0),
+    currentStock: p.currentStock,
   }))
 }

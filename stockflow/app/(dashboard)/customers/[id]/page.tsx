@@ -14,7 +14,7 @@ export default async function CustomerDetailPage({ params }: CustomerPageProps) 
     where: { id },
     include: {
       SaleOrder: {
-        where: { status: { in: ['INVOICED', 'FULFILLED'] } },
+        where: { status: { in: ['CONFIRMED', 'SHIPPED'] } },
         orderBy: { createdAt: 'desc' },
         include: {
           SaleItem: {

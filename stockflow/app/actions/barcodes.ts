@@ -59,7 +59,7 @@ export async function generateFinishedGoodsBarcode(finishedGoodsId: string) {
 
   const finishedGoods = await prisma.finishedGoods.findUnique({
     where: { id: finishedGoodsId },
-    include: { design: true }
+    include: { Design: true }
   });
 
   if (!finishedGoods) {
@@ -127,7 +127,7 @@ export async function getBarcodeData(barcode: string) {
   // Try finished goods
   item = await prisma.finishedGoods.findUnique({
     where: { barcode },
-    include: { design: true }
+    include: { Design: true }
   });
 
   if (item) {

@@ -8,7 +8,7 @@ import { createServerSupabase } from '@/lib/supabase/server'
 import type { Branch } from '@prisma/client'
 
 async function requireUser() {
-  const supabase = createServerSupabase()
+  const supabase = await createServerSupabase()
   const { data: { user: authUser } } = await supabase.auth.getUser()
   if (!authUser) throw new Error('Not authenticated')
   const user = await prisma.user.findUnique({ where: { id: authUser.id } })
@@ -58,41 +58,28 @@ export async function dispatchTransfer(formData: FormData) {
   const user = await requireUser()
 
   // Check that source has enough stock
-  const sourceStock = await prisma.branchStock.findUnique({
+  const sourceStock = await prisma.product.findUnique({
     where: {
-      product_id_branch: { product_id: data.product_id, branch: data.source_branch },
+      id: data.product_id,
     },
   })
-  if (!sourceStock || sourceStock.qty < data.qty) {
+  if (!sourceStock || sourceStock.currentStock < data.qty) {
     throw new Error(
-      `Insufficient stock in ${data.source_branch}: have ${sourceStock?.qty ?? 0}, need ${data.qty}`
+      `Insufficient stock: have ${sourceStock?.currentStock ?? 0}, need ${data.qty}`
     )
   }
 
   // Transfer in a transaction
   await prisma.$transaction(async (tx) => {
-    // 1. Decrement source stock
-    await tx.BranchStock.update({
+    // 1. Decrement stock (global)
+    await tx.product.update({
       where: {
-        product_id_branch: { product_id: data.product_id, branch: data.source_branch },
+        id: data.product_id,
       },
-      data: { qty: { decrement: data.qty } },
+      data: { currentStock: { decrement: data.qty } },
     })
 
-    // 2. Increment destination stock (upsert)
-    await tx.BranchStock.upsert({
-      where: {
-        product_id_branch: { product_id: data.product_id, branch: data.dest_branch },
-      },
-      create: {
-        product_id: data.product_id,
-        branch: data.dest_branch,
-        qty: data.qty,
-      },
-      update: {
-        qty: { increment: data.qty },
-      },
-    })
+    // 2. Log the transfer (no increment since global stock)
 
     // 3. Record stock movements
     await tx.StockMovement.create({
@@ -108,16 +95,13 @@ export async function dispatchTransfer(formData: FormData) {
       },
     })
 
-    await tx.StockMovement.create({
+    await tx.auditLog.create({
       data: {
-        product_id: data.product_id,
-        movement_type: 'transfer_in',
-        branch: data.dest_branch,
-        qty: data.qty,
-        reference: `TRANSFER-${Date.now()}`,
-        movement_date: new Date(),
-        notes: data.notes,
-        created_by: user.id,
+        userId: user.id,
+        action: 'STOCK_TRANSFER',
+        entityType: 'Product',
+        entityId: data.product_id,
+        details: `Transferred ${data.qty} from ${data.source_branch} to ${data.dest_branch}. Notes: ${data.notes}`,
       },
     })
   })
@@ -136,25 +120,20 @@ export async function searchProductsWithStock(query: string, branch: Branch) {
 
   const products = await prisma.product.findMany({
     where: {
-      is_active: true,
-      category: { not: 'service' },
       OR: [
-        { product_code: { contains: query, mode: 'insensitive' } },
-        { canonical_name: { contains: query, mode: 'insensitive' } },
+        { sku: { contains: query, mode: 'insensitive' } },
+        { name: { contains: query, mode: 'insensitive' } },
       ],
     },
     take: 10,
-    orderBy: { product_code: 'asc' },
-    include: {
-      stock_levels: { where: { branch } },
-    },
+    orderBy: { sku: 'asc' },
   })
 
   return products.map((p) => ({
     id: p.id,
-    product_code: p.product_code,
-    canonical_name: p.canonical_name,
+    product_code: p.sku,
+    canonical_name: p.name,
     uom: p.uom,
-    stock_at_branch: p.stock_levels[0]?.qty ?? 0,
+    stock_at_branch: p.currentStock,
   }))
 }

@@ -7,7 +7,7 @@ import { prisma } from '@/lib/prisma'
 import { createServerSupabase } from '@/lib/supabase/server'
 
 async function requireUser() {
-  const supabase = createServerSupabase()
+  const supabase = await createServerSupabase()
   const { data: { user: authUser } } = await supabase.auth.getUser()
   if (!authUser) throw new Error('Not authenticated')
   const user = await prisma.user.findUnique({ where: { id: authUser.id } })
