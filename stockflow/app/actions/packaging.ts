@@ -18,10 +18,10 @@ export async function getPackagingQueue() {
       status: 'CONFIRMED'
     },
     include: {
-      customer: true,
-      items: {
+      Customer: true,
+      SaleItem: {
         include: {
-          finishedGoods: {
+          FinishedGoods: {
             include: {
               Design: true
             }
@@ -36,8 +36,8 @@ export async function getPackagingQueue() {
 
   // Filter to only include orders where all items have available finished goods
   const packableOrders = salesOrders.filter(order => {
-    return order.items.every(item => {
-      const finishedGoods = item.finishedGoods;
+    return order.SaleItem.every(item => {
+      const finishedGoods = item.FinishedGoods;
       return finishedGoods && finishedGoods.quantity >= item.quantity;
     });
   });
@@ -45,19 +45,19 @@ export async function getPackagingQueue() {
   return packableOrders.map(order => ({
     id: order.id,
     orderNumber: `SO-${order.id.slice(-6).toUpperCase()}`,
-    customerName: order.customer?.name || order.customerName,
-    totalItems: order.items.length,
-    totalQuantity: order.items.reduce((sum, item) => sum + item.quantity, 0),
-    totalKg: order.items.reduce((sum, item) => sum + Number(item.finishedGoods?.kgProduced || 0), 0),
+    customerName: order.Customer?.name || order.customerName,
+    totalItems: order.SaleItem.length,
+    totalQuantity: order.SaleItem.reduce((sum, item) => sum + item.quantity, 0),
+    totalKg: order.SaleItem.reduce((sum, item) => sum + Number(item.FinishedGoods?.kgProduced || 0), 0),
     createdAt: order.createdAt,
-    items: order.items.map(item => ({
+    items: order.SaleItem.map(item => ({
       id: item.id,
-      designName: item.finishedGoods?.design?.name || 'Unknown',
-      designCode: item.finishedGoods?.design?.code || 'N/A',
+      designName: item.FinishedGoods?.Design?.name || 'Unknown',
+      designCode: item.FinishedGoods?.Design?.code || 'N/A',
       quantity: item.quantity,
       unitPrice: Number(item.unitPrice),
       totalPrice: Number(item.totalPrice),
-      availableStock: item.finishedGoods?.quantity || 0
+      availableStock: item.FinishedGoods?.quantity || 0
     }))
   }));
 }
@@ -75,9 +75,9 @@ export async function fulfillOrder(orderId: string) {
     const order = await tx.saleOrder.findUnique({
       where: { id: orderId },
       include: {
-        items: {
+        SaleItem: {
           include: {
-            finishedGoods: {
+            FinishedGoods: {
               include: {
                 Design: true
               }
@@ -96,16 +96,16 @@ export async function fulfillOrder(orderId: string) {
     }
 
     // Verify all items are still available
-    for (const item of order.items) {
-      if (!item.finishedGoods || item.finishedGoods.quantity < item.quantity) {
-        throw new Error(`Insufficient stock for ${item.finishedGoods?.design?.name || 'item'}`);
+    for (const item of order.SaleItem) {
+      if (!item.FinishedGoods || item.FinishedGoods.quantity < item.quantity) {
+        throw new Error(`Insufficient stock for ${item.FinishedGoods?.Design?.name || 'item'}`);
       }
     }
 
     // Update finished goods inventory (reduce quantities)
-    for (const item of order.items) {
+    for (const item of order.SaleItem) {
       await tx.finishedGoods.update({
-        where: { id: item.finishedGoodsId },
+        where: { id: item.FinishedGoodsId },
         data: {
           quantity: {
             decrement: item.quantity
@@ -129,7 +129,7 @@ export async function fulfillOrder(orderId: string) {
       success: true,
       orderId,
       fulfilledAt: new Date(),
-      totalItems: order.items.reduce((sum, item) => sum + item.quantity, 0)
+      totalItems: order.SaleItem.reduce((sum, item) => sum + item.quantity, 0)
     };
   });
 }

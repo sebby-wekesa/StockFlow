@@ -63,7 +63,7 @@ export async function getOperatorHistory() {
         operatorId: user.id,
       },
       include: {
-        order: {
+        ProductionOrder: {
           include: {
             Design: true,
         },
@@ -81,8 +81,8 @@ export async function getOperatorHistory() {
 
   return logs.map(log => ({
     id: log.id,
-    orderNumber: log.order.orderNumber,
-    designName: log.order.design.name,
+    orderNumber: log.ProductionOrder.orderNumber,
+    designName: log.ProductionOrder.Design.name,
     completedAt: log.completedAt,
     kgOut: log.kgOut,
     kgScrap: log.kgScrap,
