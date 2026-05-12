@@ -14,40 +14,38 @@ export default async function ImportPage() {
   }) || []
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-start justify-between">
+    <div>
+      <div className="section-header mb-16">
         <div>
-          <h1 className="font-head text-2xl font-bold">Import centre</h1>
-          <p className="text-muted text-sm mt-1">
-            Upload Excel files for bulk data import
-          </p>
+          <div className="section-title">Import Centre</div>
+          <div className="section-sub">Upload Excel files for bulk data import</div>
         </div>
-        <Link href="/import/history" className="btn btn-ghost">
-          History
+        <Link href="/import/history" className="btn btn-secondary">
+          View History
         </Link>
       </div>
 
       {recentBatches.length > 0 && (
-        <div className="card p-4 mb-6 border-purple/30">
-          <div className="font-head font-bold text-sm mb-3 text-purple">
-            In-progress imports
+        <div className="card mb-16">
+          <div className="section-header mb-4">
+            <div className="section-title text-purple">In-Progress Imports</div>
           </div>
-          <div className="space-y-2">
+          <div className="space-y-3">
             {recentBatches.map((batch) => (
               <Link
                 key={batch.id}
                 href={`/import/${batch.id}`}
-                className="flex items-center justify-between p-3 bg-surface2 rounded-md hover:bg-surface transition-colors"
+                className="flex items-center justify-between p-4 bg-surface-secondary rounded-md hover:bg-surface transition-colors border border-border"
               >
-                <div>
-                  <div className="text-sm font-medium">{batch.file_name}</div>
-                  <div className="text-xs text-muted mt-0.5">
-                    {batch.row_count} rows · {batch.sheet_type} · {batch.User.name} ·{' '}
+                <div className="flex-1">
+                  <div className="font-medium text-primary mb-1">{batch.file_name}</div>
+                  <div className="text-muted text-sm">
+                    {batch.row_count} rows · {batch.sheet_type} · {batch.User?.name || 'Unknown'} ·{' '}
                     {new Date(batch.created_at).toLocaleString()}
                   </div>
                 </div>
-                <span className="text-xs px-2 py-0.5 rounded-full bg-purple/15 text-purple capitalize">
-                  {batch.status}
+                <span className="badge badge-purple capitalize ml-4">
+                  {batch.status.replace('_', ' ')}
                 </span>
               </Link>
             ))}

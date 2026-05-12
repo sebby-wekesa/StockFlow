@@ -60,77 +60,78 @@ export function UploadForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="card p-6">
+    <div className="card">
+      <div className="section-header mb-6">
+        <div className="section-title">Upload Excel File</div>
+        <div className="section-sub">Configure import settings and upload your data</div>
+      </div>
+
       {error && (
-        <div className="mb-4 p-3 rounded-md bg-red-500/10 border border-red-500/30 text-red-400 text-sm">
+        <div className="mb-6 p-4 rounded-md bg-red/15 border border-red/30 text-red text-sm">
           {error}
         </div>
       )}
 
-      <div className="mb-4">
-        <label className="block text-xs uppercase tracking-wider text-muted mb-2">
-          Excel File
-        </label>
-        <input
-          type="file"
-          accept=".xlsx,.xls"
-          onChange={(e) => setFile(e.target.files?.[0] || null)}
-          className="input"
-          disabled={isPending}
-          required
-        />
-        <p className="text-xs text-muted mt-1">
-          Upload Excel files (.xlsx, .xls) for bulk data import
-        </p>
-      </div>
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="form-group">
+          <label className="form-label">Excel File</label>
+          <input
+            type="file"
+            accept=".xlsx,.xls"
+            onChange={(e) => setFile(e.target.files?.[0] || null)}
+            className="form-input"
+            disabled={isPending}
+            required
+          />
+          <p className="text-muted text-sm mt-1">
+            Upload Excel files (.xlsx, .xls) for bulk data import
+          </p>
+        </div>
 
-      <div className="mb-4">
-        <label className="block text-xs uppercase tracking-wider text-muted mb-2">
-          File Type
-        </label>
-        <select name="sheet_type" className="input" defaultValue="auto" disabled={isPending}>
-          <option value="auto">Auto-detect</option>
-          {(Object.entries(SHEET_TYPE_LABELS) as [SheetType, string][]).map(([value, label]) => (
-            <option key={value} value={value}>
-              {label}
-            </option>
-          ))}
-        </select>
-      </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="form-group">
+            <label className="form-label">File Type</label>
+            <select name="sheet_type" className="form-input" defaultValue="auto" disabled={isPending}>
+              <option value="auto">Auto-detect</option>
+              {(Object.entries(SHEET_TYPE_LABELS) as [SheetType, string][]).map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </div>
 
-      <div className="mb-4">
-        <label className="block text-xs uppercase tracking-wider text-muted mb-2">
-          Import Mode
-        </label>
-        <select name="import_mode" defaultValue="update" className="input" disabled={isPending}>
-          <option value="update">Update — update existing records</option>
-          <option value="ignore">Ignore — only import new products</option>
-        </select>
-      </div>
+          <div className="form-group">
+            <label className="form-label">Import Mode</label>
+            <select name="import_mode" defaultValue="update" className="form-input" disabled={isPending}>
+              <option value="update">Update existing records</option>
+              <option value="ignore">Only import new products</option>
+            </select>
+          </div>
+        </div>
 
-      <div className="mb-4">
-        <label className="block text-xs uppercase tracking-wider text-muted mb-2">
-          Target Branch
-        </label>
-        <select name="target_branch" className="input" disabled={isPending}>
-          <option value="">All branches</option>
-          {ALL_BRANCHES.map((branch) => (
-            <option key={branch} value={branch}>
-              {branch.charAt(0).toUpperCase() + branch.slice(1)}
-            </option>
-          ))}
-        </select>
-      </div>
+        <div className="form-group">
+          <label className="form-label">Target Branch</label>
+          <select name="target_branch" className="form-input" disabled={isPending}>
+            <option value="">All branches</option>
+            {ALL_BRANCHES.map((branch) => (
+              <option key={branch} value={branch}>
+                {branch.charAt(0).toUpperCase() + branch.slice(1)}
+              </option>
+            ))}
+          </select>
+        </div>
 
-      <div className="flex justify-end gap-2">
-        <button
-          type="submit"
-          disabled={isPending || !file}
-          className="btn btn-primary"
-        >
-          {isPending ? 'Uploading...' : 'Upload & Parse'}
-        </button>
-      </div>
-    </form>
+        <div className="flex justify-end">
+          <button
+            type="submit"
+            disabled={isPending || !file}
+            className="btn btn-primary"
+          >
+            {isPending ? 'Uploading...' : 'Upload & Parse'}
+          </button>
+        </div>
+      </form>
+    </div>
   )
 }
