@@ -1,11 +1,19 @@
 import Link from 'next/link'
 import { prisma } from '@/lib/prisma'
 import { getUser } from '@/lib/auth'
-import { JOB_STATUS_LABELS, JOB_STATUS_BADGE_CLASS } from '@/lib/production'
 
 export const dynamic = 'force-dynamic';
 
 const PAGE_SIZE = 20
+
+const PRODUCTION_STATUS_BADGE_CLASS: Record<string, string> = {
+  PENDING: 'bg-surface2 text-muted',
+  APPROVED: 'bg-blue/15 text-blue',
+  IN_PRODUCTION: 'bg-purple/15 text-purple',
+  COMPLETED: 'bg-teal/15 text-teal',
+  REJECTED: 'bg-red/15 text-red',
+  CANCELLED: 'bg-red/15 text-red',
+}
 
 export default async function JobsPage({
   searchParams,
@@ -16,47 +24,47 @@ export default async function JobsPage({
   if (!user) return null
 
   const params = await searchParams
-  const status = params.status as 'open' | 'in_progress' | 'complete' | 'cancelled' | undefined
+  const status = params.status as 'PENDING' | 'APPROVED' | 'IN_PRODUCTION' | 'COMPLETED' | 'REJECTED' | 'CANCELLED' | undefined
   const page = Math.max(1, Number(params.page ?? 1))
 
   const where: any = {}
   if (status) where.status = status
 
   const [jobs, total] = await Promise.all([
-    prisma.jobCard.findMany({
+    prisma.productionOrder.findMany({
       where,
       orderBy: { createdAt: 'desc' },
       take: PAGE_SIZE,
       skip: (page - 1) * PAGE_SIZE,
       include: {
-        product: { select: { product_code: true, canonical_name: true } },
-        stages: {
-          select: { stage_number: true, completed_at: true, qty_in: true, qty_out: true }
+        Design: { select: { name: true } },
+        StageLog: {
+          select: { completedAt: true, kgIn: true, kgOut: true, sequence: true }
         }
       }
     }),
-    prisma.jobCard.count({ where }),
+    prisma.productionOrder.count({ where }),
   ])
 
   const totalPages = Math.ceil(total / PAGE_SIZE)
 
   return (
-    <div>
-      <div className="flex items-start justify-between mb-6">
+    <div className="p-6 space-y-6">
+      <div className="flex items-start justify-between">
         <div>
-          <h1 className="font-head text-2xl font-bold">Job cards</h1>
+          <h1 className="font-head text-2xl font-bold">Production orders</h1>
           <p className="text-muted text-sm mt-1">
-            Production orders and manufacturing workflow
+            Manufacturing workflow and job tracking
           </p>
         </div>
-        <Link href="/jobs/new" className="btn btn-primary">
-          + New job card
+        <Link href="/production/new" className="btn btn-primary">
+          + New production order
         </Link>
       </div>
 
       {/* STATUS FILTERS */}
       <div className="flex gap-2 mb-6">
-        {(['open', 'in_progress', 'complete', 'cancelled'] as const).map((statusKey) => (
+        {(['PENDING', 'APPROVED', 'IN_PRODUCTION', 'COMPLETED', 'CANCELLED'] as const).map((statusKey) => (
           <Link
             key={statusKey}
             href={status === statusKey ? '/jobs' : `/jobs?status=${statusKey}`}
@@ -64,7 +72,7 @@ export default async function JobsPage({
               status === statusKey ? 'btn-primary' : 'btn-outline'
             }`}
           >
-            {JOB_STATUS_LABELS[statusKey]}
+            {statusKey.replace('_', ' ')}
           </Link>
         ))}
       </div>
@@ -73,41 +81,39 @@ export default async function JobsPage({
       <div className="space-y-4">
         {jobs.length === 0 ? (
           <div className="text-center py-12 text-muted">
-            <p className="mb-4">No job cards found.</p>
-            <Link href="/jobs/new" className="btn btn-primary">
-              Create your first job card
-            </Link>
+            <p className="mb-4">No production orders found.</p>
+            <p className="text-sm">Production orders will appear here once created.</p>
           </div>
         ) : (
           jobs.map((job) => {
-            const completedStages = job.stages.filter(s => s.completed_at).length
-            const totalStages = job.stages.length
-            const currentStage = job.stages.find(s => !s.completed_at)
+            const completedStages = job.StageLog.filter(s => s.completedAt).length
+            const totalStages = job.StageLog.length
+            const currentStage = job.StageLog.find(s => !s.completedAt)
 
             return (
-              <Link
+              <div
                 key={job.id}
-                href={`/jobs/${job.id}`}
-                className="card p-6 hover:bg-surface2 transition-colors"
+                className="card p-6"
               >
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2">
-                      <h3 className="font-medium">Job {job.id.slice(-6)}</h3>
-                      <span className={`text-xs px-2 py-1 rounded-full ${JOB_STATUS_BADGE_CLASS[job.status]}`}>
-                        {JOB_STATUS_LABELS[job.status]}
+                      <h3 className="font-medium">Order {job.orderNumber}</h3>
+                      <span className={`text-xs px-2 py-1 rounded-full ${PRODUCTION_STATUS_BADGE_CLASS[job.status] || 'bg-gray/15 text-gray'}`}>
+                        {job.status.replace('_', ' ')}
                       </span>
                     </div>
 
                     <div className="text-sm text-muted mb-3">
-                      {job.product.product_code} - {job.product.canonical_name}
+                      {job.Design?.name || 'Unknown Design'}
                     </div>
 
                     <div className="flex items-center gap-4 text-sm">
-                      <span>Ordered: <strong>{job.qty_ordered}</strong> units</span>
+                      <span>Quantity: <strong>{job.quantity}</strong> units</span>
+                      <span>Target: <strong>{job.targetKg}kg</strong></span>
                       <span>Progress: <strong>{completedStages}/{totalStages}</strong> stages</span>
                       {currentStage && (
-                        <span>Current: Stage {currentStage.stage_number} ({currentStage.qty_in} units)</span>
+                        <span>Current: Stage {currentStage.sequence} ({currentStage.kgIn}kg in)</span>
                       )}
                     </div>
                   </div>
@@ -118,7 +124,7 @@ export default async function JobsPage({
                     </div>
                   </div>
                 </div>
-              </Link>
+              </div>
             )
           })
         )}
