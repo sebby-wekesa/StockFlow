@@ -72,7 +72,7 @@ export default async function BranchStockPage({
         const [valuedRawStock, valuedFinishedStock] = await Promise.all([
           prisma.inventoryRawMaterial.findMany({
             where: { branchId: branch, availableKg: { gt: 0 } },
-            include: { RawMaterial: { select: { unitCost: true } } },
+            include: { RawMaterial: { select: { costPerKg: true } } },
           }),
           prisma.inventoryFinishedGoods.findMany({
             where: { branchId: branch, availableQty: { gt: 0 } },
@@ -81,7 +81,7 @@ export default async function BranchStockPage({
         ])
 
         const rawValue = valuedRawStock.reduce(
-          (sum, s) => sum + (Number(s.availableKg) * (Number(s.RawMaterial?.unitCost) || 0)),
+          (sum, s) => sum + (Number(s.availableKg) * (Number(s.RawMaterial?.costPerKg) || 0)),
           0
         )
         const finishedValue = valuedFinishedStock.reduce(

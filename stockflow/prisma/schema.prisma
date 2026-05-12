@@ -617,6 +617,7 @@ model FinishedGoods {
   kgProduced             Decimal                  @db.Decimal(10, 4)
   barcode                String?                  @unique
   batchNumber            String?
+  unitCost               Float?
   createdAt              DateTime                 @default(now())
   Design                 Design                   @relation(fields: [designId], references: [id])
   InventoryFinishedGoods InventoryFinishedGoods[]
@@ -871,6 +872,7 @@ model RawMaterial {
   batchNumber            String?
   availableKg            Decimal                  @default(0) @db.Decimal(10, 4)
   reservedKg             Decimal                  @default(0) @db.Decimal(10, 4)
+  costPerKg             Float?
   createdAt              DateTime                 @default(now())
   updatedAt              DateTime
   BillOfMaterials        BillOfMaterials[]
@@ -903,10 +905,12 @@ model SaleOrder {
   customerName String
   totalAmount  Decimal    @db.Decimal(10, 2)
   status       SaleStatus @default(PENDING)
+  createdBy    String?
   createdAt    DateTime   @default(now())
   updatedAt    DateTime
   SaleItem     SaleItem[]
   Customer     Customer?  @relation(fields: [customerId], references: [id])
+  createdByUser User?     @relation(fields: [createdBy], references: [id])
 
   @@schema("public")
 }
@@ -994,6 +998,7 @@ model User {
   StageLog             StageLog[]
   Branch               Branch?               @relation(fields: [branchId], references: [id])
   Organization         Organization?         @relation(fields: [organizationId], references: [id])
+  SaleOrderCreated     SaleOrder[]
 
   @@schema("public")
 }

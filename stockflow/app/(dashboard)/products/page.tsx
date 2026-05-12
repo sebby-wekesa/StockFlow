@@ -87,11 +87,11 @@ export default async function ProductsPage({
       {/* CATEGORY TABS */}
       <div className="flex flex-wrap gap-1.5 mb-4">
         {tabs.map((tab) => {
-          const isActive = (tab.key || '') === (category || '')
+          const isActive = (tab.key || '') === (origin || '')
           return (
             <Link
               key={tab.key}
-              href={buildHref({ category: tab.key, page: 1 })}
+              href={buildHref({ origin: tab.key, page: 1 })}
               className={`px-3 py-1.5 rounded-full text-xs border transition-colors ${
                 isActive
                   ? 'bg-accent border-accent text-bg font-semibold'
@@ -106,7 +106,7 @@ export default async function ProductsPage({
 
       {/* SEARCH FORM */}
       <form className="mb-4">
-        {category && <input type="hidden" name="category" value={category} />}
+        {origin && <input type="hidden" name="origin" value={origin} />}
         <input
           type="search"
           name="q"
@@ -133,7 +133,7 @@ export default async function ProductsPage({
               {products.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="px-4 py-12 text-center text-muted text-sm">
-                    {q || category ? (
+                    {q || origin ? (
                       <>
                         No products match these filters.{' '}
                         <Link href="/products" className="text-accent hover:underline">
@@ -171,9 +171,7 @@ export default async function ProductsPage({
                         {totalStock.toLocaleString()}
                       </td>
                       <td className="px-4 py-3">
-                        <span className={`text-xs px-2 py-0.5 rounded-full ${
-                          'bg-teal/15 text-teal'
-
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-teal/15 text-teal">
                           Active
                         </span>
                       </td>

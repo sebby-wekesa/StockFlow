@@ -29,24 +29,21 @@ export default async function SalesPage({
     ]
   }
 
-  const [orders, total, summaryByBranch] = await Promise.all([
+  const [orders, total] = await Promise.all([
     prisma.saleOrder.findMany({
       where,
       orderBy: { createdAt: 'desc' },
       take: PAGE_SIZE,
       skip: (page - 1) * PAGE_SIZE,
       include: {
-        lines: { select: { total_amount: true } },
-        created_by_user: { select: { name: true } },
+        SaleItem: { select: { totalPrice: true } },
+        createdByUser: { select: { name: true } },
       },
     }),
     prisma.saleOrder.count({ where }),
-    prisma.saleOrder.groupBy({
-      by: ['branch'],
-      where: { status: { in: ['CONFIRMED', 'SHIPPED'] } },
-      _count: { _all: true },
-    }),
   ])
+
+  const summaryByBranch = []
 
   const totalPages = Math.ceil(total / PAGE_SIZE)
   const branchCounts = Object.fromEntries(
@@ -193,7 +190,7 @@ export default async function SalesPage({
                         </span>
                       </td>
                       <td className="px-4 py-3 text-right font-mono">{formatKES(total)}</td>
-                      <td className="px-4 py-3 text-xs text-muted">{o.created_by_user.name}</td>
+                      <td className="px-4 py-3 text-xs text-muted">{o.createdByUser?.name}</td>
                     </tr>
                   )
                 })
