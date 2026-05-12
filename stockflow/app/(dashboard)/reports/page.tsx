@@ -36,65 +36,75 @@ export default async function ReportsPage({
   ]
 
   return (
-    <div className="p-6 space-y-6">
-      <div>
-        <h1 className="font-head text-2xl font-bold">Reports</h1>
-        <p className="text-muted text-sm mt-1">
-          Export data for analysis and reporting
-        </p>
+    <div>
+      <div className="section-header mb-16">
+        <div className="section-title">Reports</div>
+        <div className="section-sub">Export data for analysis and reporting</div>
       </div>
 
       {/* Date Range Selector */}
-      <div className="card p-6 mb-6">
-        <h3 className="font-bold mb-4">Report period</h3>
-        <div className="flex flex-wrap gap-2">
+      <div className="card mb-16">
+        <div className="section-header mb-6">
+          <div className="section-title">Report Period</div>
+          <div className="section-sub">Select the time range for your reports</div>
+        </div>
+        <div className="flex flex-wrap gap-2 mb-4">
           {(Object.entries(RANGE_LABELS) as [DateRangeKey, string][]).map(([key, label]) => (
             <Link
               key={key}
               href={`/reports?range=${key}`}
-              className={`btn btn-sm ${
+              className={`btn ${
                 currentRange === key
                   ? 'btn-primary'
-                  : 'btn-outline'
+                  : 'btn-secondary'
               }`}
             >
               {label}
             </Link>
           ))}
         </div>
-        <p className="text-sm text-muted mt-2">
-          Current period: {RANGE_LABELS[currentRange]}
-        </p>
+        <div className="text-muted text-sm">
+          Current period: <span className="text-primary font-medium">{RANGE_LABELS[currentRange]}</span>
+        </div>
       </div>
 
       {/* Report Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="section-header mb-8">
+        <div className="section-title">Available Reports</div>
+        <div className="section-sub">Click any report to download as CSV</div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {reportLinks.map((report) => (
-          <div key={report.title} className="card p-6">
-            <div className="text-3xl mb-3">{report.icon}</div>
-            <h3 className="font-bold text-lg mb-2">{report.title}</h3>
-            <p className="text-sm text-muted mb-4">{report.description}</p>
-            <a
-              href={report.href}
-              className="btn btn-primary btn-sm w-full"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Download CSV
-            </a>
+          <div key={report.title} className="card group hover:border-accent transition-colors">
+            <div className="p-6">
+              <div className="text-3xl mb-4">{report.icon}</div>
+              <h3 className="section-title mb-3">{report.title}</h3>
+              <p className="text-muted text-sm mb-6 leading-relaxed">{report.description}</p>
+              <a
+                href={report.href}
+                className="btn btn-primary w-full group-hover:bg-accent-orange transition-colors"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Download CSV
+              </a>
+            </div>
           </div>
         ))}
       </div>
 
-      <div className="card p-4 bg-blue-50/50 border-blue-200">
-        <h4 className="font-medium text-blue-900 mb-2 flex items-center gap-2">
-          <span className="text-lg">💡</span>
-          <span>Pro tip</span>
-        </h4>
-        <p className="text-sm text-blue-800">
-          CSV files open directly in Excel, Google Sheets, or any spreadsheet application.
-          Use the date range selector above to customize the reporting period for all reports.
-        </p>
+      <div className="card bg-accent-amber/5 border-accent-amber/20">
+        <div className="p-6">
+          <h4 className="section-title mb-3 flex items-center gap-2">
+            <span className="text-xl">💡</span>
+            <span>Pro Tip</span>
+          </h4>
+          <p className="text-muted text-sm leading-relaxed">
+            CSV files open directly in Excel, Google Sheets, or any spreadsheet application.
+            Use the date range selector above to customize the reporting period for all reports.
+          </p>
+        </div>
       </div>
     </div>
   )
