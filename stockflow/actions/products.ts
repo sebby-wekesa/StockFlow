@@ -92,7 +92,7 @@ export async function createProduct(formData: FormData) {
 
   // Check for duplicate code
   const existing = await prisma.product.findUnique({
-    where: { product_code: parsed.data.product_code },
+    where: { sku: parsed.data.product_code },
   })
   if (existing) {
     throw new Error(`Product code "${parsed.data.product_code}" already exists`)
@@ -170,7 +170,7 @@ export async function updateProduct(productId: string, formData: FormData) {
 
   if (existing.product_code !== parsed.data.product_code) {
     const conflict = await prisma.product.findUnique({
-      where: { product_code: parsed.data.product_code },
+      where: { sku: parsed.data.product_code },
     })
     if (conflict) {
       throw new Error(`Product code "${parsed.data.product_code}" already exists`)
@@ -213,7 +213,7 @@ export async function toggleProductActive(productId: string) {
 
   await prisma.product.update({
     where: { id: productId },
-    data: { is_active: !existing.is_active },
+    // is_active field removed - products are always active
   })
 
   revalidatePath('/products')

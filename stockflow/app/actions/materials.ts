@@ -31,7 +31,7 @@ export async function getRawMaterial(id: string) {
       },
       bomItems: {
         include: {
-          design: true
+          Design: true
         }
       }
     }

@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 export async function exportYieldToCSV() {
   const orders = await prisma.productionOrder.findMany({
     include: {
-      design: true,
+      Design: true,
       logs: true,
     },
     orderBy: { createdAt: 'desc' }

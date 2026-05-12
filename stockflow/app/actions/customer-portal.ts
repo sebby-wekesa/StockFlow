@@ -60,7 +60,7 @@ export async function getCustomerOrders(customerId: string, accessId: string) {
         include: {
           finishedGoods: {
             include: {
-              design: true
+              Design: true
             }
           }
         }
@@ -108,7 +108,7 @@ export async function getCustomerOrderTracking(customerId: string, accessId: str
         include: {
           finishedGoods: {
             include: {
-              design: true
+              Design: true
             }
           }
         }

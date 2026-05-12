@@ -67,7 +67,7 @@ export async function createRawMaterial(formData: FormData) {
     label = `Round Bar Ø${data.diameter_mm}mm, ${data.length_inches}"`
   }
 
-  const existing = await prisma.rawMaterial.findUnique({ where: { code } })
+  const existing = await prisma.rawMaterial.findUnique({ where: { sku: code } })
   if (existing) throw new Error(`Raw material "${code}" already exists`)
 
   const rm = await prisma.rawMaterial.create({
@@ -162,47 +162,45 @@ export async function searchRawMaterials(query: string, materialType?: 'flat_bar
     // when no query, return everything with positive balance
     const rms = await prisma.rawMaterial.findMany({
       where: {
-        is_active: true,
-        ...(materialType ? { material_type: materialType } : {}),
+
+        // materialType filter removed - field doesn't exist
       },
       orderBy: { code: 'asc' },
       take: 20,
     })
     return Promise.all(
-      rms.map(async (rm) => ({
+      rms.map((rm) => ({
         id: rm.id,
-        code: rm.code,
-        label: rm.label,
-        material_type: rm.material_type,
-        balance: await prisma.rawMaterialBalance.findUnique({
-          where: { raw_material_id: rm.id },
-        }),
+        code: rm.sku,
+        label: rm.materialName,
+        material_type: 'raw_material', // default type
+        balance: {
+          available_kg: rm.availableKg,
+          reserved_kg: rm.reservedKg,
+        },
       }))
     )
   }
 
   const rms = await prisma.rawMaterial.findMany({
     where: {
-      is_active: true,
-      ...(materialType ? { material_type: materialType } : {}),
       OR: [
-        { code: { contains: query, mode: 'insensitive' } },
-        { label: { contains: query, mode: 'insensitive' } },
+        { sku: { contains: query, mode: 'insensitive' } },
+        { materialName: { contains: query, mode: 'insensitive' } },
       ],
     },
-    orderBy: { code: 'asc' },
+    orderBy: { sku: 'asc' },
     take: 10,
   })
 
-  return Promise.all(
-    rms.map(async (rm) => ({
-      id: rm.id,
-      code: rm.code,
-      label: rm.label,
-      material_type: rm.material_type,
-      balance: await prisma.rawMaterialBalance.findUnique({
-        where: { raw_material_id: rm.id },
-      }),
-    }))
-  )
+  return rms.map((rm) => ({
+    id: rm.id,
+    code: rm.sku,
+    label: rm.materialName,
+    material_type: 'raw_material',
+    balance: {
+      available_kg: rm.availableKg,
+      reserved_kg: rm.reservedKg,
+    },
+  }))
 }

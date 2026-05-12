@@ -126,17 +126,12 @@ export async function createSalesOrder(formData: FormData) {
   // Write everything in a single transaction
   const result = await prisma.$transaction(async (tx) => {
     // 1. Create the SalesOrder
-    const order = await tx.salesOrder.create({
+    const order = await tx.saleOrder.create({
       data: {
-        order_number: orderNumber,
-        customer_id: data.customer_id || null,
-        customer_name: data.customer_name,
-        branch: data.branch as Branch,
-        status: action === 'invoice' ? 'invoiced' : 'draft',
-        invoice_date: data.invoice_date,
-        notes: data.notes,
-        source: 'manual',
-        created_by: user.id,
+        customerId: data.customer_id || null,
+        customerName: data.customer_name,
+        totalAmount: 0, // will update later
+        status: action === 'invoice' ? 'SHIPPED' : 'PENDING',
       },
     })
 
@@ -145,16 +140,13 @@ export async function createSalesOrder(formData: FormData) {
       const product = productMap.get(line.product_id)!
       const totalAmount = line.unit_price * line.qty
 
-      await tx.salesOrderLine.create({
+      await tx.saleItem.create({
         data: {
-          sales_order_id: order.id,
-          product_id: line.product_id,
-          product_name: product.canonical_name,
-          qty: line.qty,
-          uom: product.uom,
-          unit_price: line.unit_price,
-          total_amount: totalAmount,
-          notes: line.notes,
+          saleOrderId: order.id,
+          finishedGoodsId: line.product_id,
+          quantity: line.qty,
+          unitPrice: line.unit_price,
+          totalPrice: totalAmount,
         },
       })
 
@@ -179,6 +171,13 @@ export async function createSalesOrder(formData: FormData) {
         })
       }
     }
+
+    // Update total amount
+    const totalAmount = data.lines.reduce((sum, line) => sum + (line.unit_price * line.qty), 0)
+    await tx.saleOrder.update({
+      where: { id: order.id },
+      data: { totalAmount }
+    })
 
     return order
   })
@@ -262,7 +261,7 @@ export async function cancelOrder(orderId: string, reason: string) {
     throw new Error('Cancellation reason is required (at least 3 characters)')
   }
 
-  const order = await prisma.salesOrder.findUnique({
+  const order = await prisma.saleOrder.findUnique({
     where: { id: orderId },
     include: { lines: { include: { product: true } } },
   })
@@ -296,7 +295,7 @@ export async function cancelOrder(orderId: string, reason: string) {
       }
     }
 
-    await tx.salesOrder.update({
+    await tx.saleOrder.update({
       where: { id: orderId },
       data: {
         status: 'cancelled',

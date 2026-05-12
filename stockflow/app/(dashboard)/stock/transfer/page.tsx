@@ -19,7 +19,7 @@ export default async function TransferPage() {
   // Get products with stock in any branch
   const productsWithStock = await prisma.product.findMany({
     where: {
-      is_active: true,
+
       category: { not: 'service' },
       stock_levels: {
         some: { qty: { gt: 0 } }

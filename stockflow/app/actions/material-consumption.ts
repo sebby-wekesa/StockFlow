@@ -109,7 +109,7 @@ export async function getMaterialConsumptionLogs(orderId: string) {
       rawMaterial: true,
       productionOrder: {
         include: {
-          design: true
+          Design: true
         }
       }
     },

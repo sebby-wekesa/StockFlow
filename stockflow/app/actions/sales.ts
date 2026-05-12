@@ -16,7 +16,7 @@ export async function getCatalogue() {
         },
       },
       include: {
-        design: true,
+        Design: true,
       },
       orderBy: {
         createdAt: "desc",
@@ -56,7 +56,7 @@ export async function getMyOrders() {
         include: {
           finishedGoods: {
             include: {
-              design: true,
+              Design: true,
             },
           },
         },

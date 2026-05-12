@@ -30,25 +30,25 @@ async function requireProductionAccess() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 const createJobSchema = z.object({
-  product_id: z.string().min(1),
-  qty_ordered: z.coerce.number().int().positive(),
+  designId: z.string().min(1),
+  quantity: z.coerce.number().int().positive(),
   notes: z.string().max(500).optional().nullable(),
   // Optional raw material issuance
-  raw_material_id: z.string().optional().nullable(),
-  qty_bars: z.coerce.number().int().positive().optional().nullable(),
-  qty_kg: z.coerce.number().positive().optional().nullable(),
+  rawMaterialId: z.string().optional().nullable(),
+  qtyBars: z.coerce.number().int().positive().optional().nullable(),
+  qtyKg: z.coerce.number().positive().optional().nullable(),
 })
 
 export async function createJobCard(formData: FormData) {
   const user = await requireProductionAccess()
 
   const raw = {
-    product_id: formData.get('product_id'),
-    qty_ordered: formData.get('qty_ordered'),
+    designId: formData.get('designId'),
+    quantity: formData.get('quantity'),
     notes: formData.get('notes') || null,
-    raw_material_id: formData.get('raw_material_id') || null,
-    qty_bars: formData.get('qty_bars') || null,
-    qty_kg: formData.get('qty_kg') || null,
+    rawMaterialId: formData.get('rawMaterialId') || null,
+    qtyBars: formData.get('qtyBars') || null,
+    qtyKg: formData.get('qtyKg') || null,
   }
   const parsed = createJobSchema.safeParse(raw)
   if (!parsed.success) throw new Error(parsed.error.issues[0].message)
@@ -78,7 +78,7 @@ export async function createJobCard(formData: FormData) {
 
   await prisma.$transaction(async (tx) => {
     // Create job card
-    const job = await tx.jobCard.create({
+    const job = await tx.productionOrder.create({
       data: {
         product_id: data.product_id,
         qty_ordered: data.qty_ordered,
@@ -90,7 +90,7 @@ export async function createJobCard(formData: FormData) {
 
     // Create stages
     for (const stage of stages) {
-      await tx.jobCardStage.create({
+      await tx.productionOrderStage.create({
         data: {
           job_card_id: job.id,
           stage_number: stage.number,
@@ -102,7 +102,7 @@ export async function createJobCard(formData: FormData) {
 
     // Issue raw material if provided
     if (data.raw_material_id && data.qty_bars && data.qty_kg) {
-      await tx.jobCardRawMaterial.create({
+      await tx.productionOrderRawMaterial.create({
         data: {
           job_card_id: job.id,
           raw_material_id: data.raw_material_id,
@@ -163,7 +163,7 @@ export async function completeStage(formData: FormData) {
   if (!parsed.success) throw new Error(parsed.error.issues[0].message)
   const data = parsed.data
 
-  const stage = await prisma.jobCardStage.findUnique({
+  const stage = await prisma.productionOrderStage.findUnique({
     where: { id: data.stage_id },
     include: { job_card: true },
   })
@@ -177,7 +177,7 @@ export async function completeStage(formData: FormData) {
 
   await prisma.$transaction(async (tx) => {
     // Complete current stage
-    await tx.jobCardStage.update({
+    await tx.productionOrderStage.update({
       where: { id: data.stage_id },
       data: {
         qty_out: data.qty_out,
@@ -189,7 +189,7 @@ export async function completeStage(formData: FormData) {
     })
 
     // Update job status
-    const job = await tx.jobCard.findUnique({
+    const job = await tx.productionOrder.findUnique({
       where: { id: stage.job_card_id },
       include: { stages: true },
     })
@@ -201,7 +201,7 @@ export async function completeStage(formData: FormData) {
 
     if (isFirstCompletion) {
       // First completion - set to in_progress
-      await tx.jobCard.update({
+      await tx.productionOrder.update({
         where: { id: stage.job_card_id },
         data: { status: 'in_progress' },
       })
@@ -210,7 +210,7 @@ export async function completeStage(formData: FormData) {
     // If this was the last stage, complete the job
     const stages = getStagesForCategory(job.product.category as ProductCategory)
     if (stage.stage_number === stages.length) {
-      await tx.jobCard.update({
+      await tx.productionOrder.update({
         where: { id: stage.job_card_id },
         data: {
           status: 'complete',
@@ -250,7 +250,7 @@ export async function completeStage(formData: FormData) {
       // Set next stage qty_in
       const nextStage = allStages.find((s) => s.stage_number === stage.stage_number + 1)
       if (nextStage) {
-        await tx.jobCardStage.update({
+        await tx.productionOrderStage.update({
           where: { id: nextStage.id },
           data: {
             qty_in: data.qty_out,
@@ -275,7 +275,7 @@ export async function cancelJob(jobId: string, reason: string) {
     throw new Error('Cancellation reason must be at least 3 characters')
   }
 
-  const job = await prisma.jobCard.findUnique({
+  const job = await prisma.productionOrder.findUnique({
     where: { id: jobId },
     include: { raw_materials: true },
   })
@@ -284,7 +284,7 @@ export async function cancelJob(jobId: string, reason: string) {
 
   await prisma.$transaction(async (tx) => {
     // Cancel job
-    await tx.jobCard.update({
+    await tx.productionOrder.update({
       where: { id: jobId },
       data: {
         status: 'cancelled',
@@ -330,7 +330,7 @@ export async function searchManufacturedProducts(query: string) {
     // Return all manufactured products
     return prisma.product.findMany({
       where: {
-        is_active: true,
+
         category: { in: ['manufactured_spring', 'manufactured_ubolt'] },
       },
       orderBy: { product_code: 'asc' },

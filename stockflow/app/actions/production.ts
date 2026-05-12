@@ -20,9 +20,9 @@ export async function getOperatorQueue(role?: string, department?: string) {
         ...(effectiveRole !== "ADMIN" && user.branchId ? { branchId: user.branchId } : {}),
       },
       include: {
-        design: {
+        Design: {
           include: {
-            stages: {
+            Stage: {
               orderBy: {
                 sequence: "asc",
               },
@@ -42,13 +42,13 @@ export async function getOperatorQueue(role?: string, department?: string) {
   return orders.map(o => ({
     id: o.id,
     orderNumber: o.orderNumber,
-    designName: o.design.name,
+    designName: o.Design.name,
     currentStage: o.currentStage,
-    totalStages: o.design.stages.length,
+    totalStages: o.Design.Stage.length,
     priority: o.priority,
     targetKg: o.targetKg,
     // Add logic to get the current stage target dims or specific work
-    workDescription: o.design.stages.find((s: { sequence: number; name: string }) => s.sequence === o.currentStage)?.name || "Production",
+    workDescription: o.Design.Stage.find((s: { sequence: number; name: string }) => s.sequence === o.currentStage)?.name || "Production",
     inheritedKg: o.targetKg, // Simplified for now
   }));
 }
@@ -65,7 +65,7 @@ export async function getOperatorHistory() {
       include: {
         order: {
           include: {
-            design: true,
+            Design: true,
         },
       },
     },

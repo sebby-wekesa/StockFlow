@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
     const products = await prisma.product.findMany({
       where: origin ? { origin } : undefined,
       include: {
-        branch: { select: { name: true } },
+        Branch: { select: { name: true } },
         receipts: {
           orderBy: { createdAt: 'desc' },
           take: 50,

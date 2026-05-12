@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
         },
       },
       include: {
-        design: true,
+        Design: true,
       },
       orderBy: { completedAt: 'desc' },
     });

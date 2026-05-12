@@ -163,8 +163,8 @@ function UserTable({ users }: UserTableProps) {
                   )}
                 </td>
                 <td>
-                  <span className={`badge ${user.is_active ? 'badge-success' : 'badge-error'} badge-sm`}>
-                    {user.is_active ? 'Active' : 'Inactive'}
+                  <span className="badge badge-primary badge-sm">
+                    Active
                   </span>
                 </td>
                 <td>

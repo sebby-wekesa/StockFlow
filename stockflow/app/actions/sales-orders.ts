@@ -27,7 +27,7 @@ export async function createSalesOrder(data: {
       const finishedGoods = await tx.finishedGoods.findUnique({
         where: { id: item.finishedGoodsId },
         include: {
-          design: true
+          Design: true
         }
       });
 
@@ -60,7 +60,7 @@ export async function createSalesOrder(data: {
           include: {
             finishedGoods: {
               include: {
-                design: true
+                Design: true
               }
             }
           }
@@ -97,7 +97,7 @@ export async function getSalesOrders(role?: string) {
         include: {
           finishedGoods: {
             include: {
-              design: true
+              Design: true
             }
           }
         }

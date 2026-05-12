@@ -100,7 +100,7 @@ export async function exportCompletedOrdersCSV(startDate: Date, endDate: Date): 
       }
     },
     include: {
-      design: true,
+      Design: true,
       logs: {
         orderBy: {
           sequence: 'asc'

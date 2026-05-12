@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
         currentStage: 1         // Default first stage
       },
       include: {
-        design: true,
+        Design: true,
       },
     })
 

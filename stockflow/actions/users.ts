@@ -103,7 +103,7 @@ export async function inviteUser(formData: FormData) {
       name,
       role: role as UserRole,
       branches: branchList as Branch[],
-      is_active: true,
+
     },
   })
 
@@ -139,7 +139,7 @@ export async function updateUser(userId: string, formData: FormData) {
     const target = await prisma.user.findUnique({ where: { id: userId } })
     if (target?.role === 'admin') {
       const otherAdmins = await prisma.user.count({
-        where: { role: 'admin', is_active: true, id: { not: userId } },
+        where: { role: 'ADMIN', id: { not: userId } },
       })
       if (otherAdmins === 0) {
         throw new Error('Cannot remove admin role: at least one active admin is required')
@@ -178,9 +178,9 @@ export async function toggleUserActive(userId: string) {
   }
 
   // Can't deactivate the last admin
-  if (target.role === 'admin' && target.is_active) {
+  if (target.role === 'ADMIN') {
     const otherActiveAdmins = await prisma.user.count({
-      where: { role: 'admin', is_active: true, id: { not: userId } },
+      where: { role: 'ADMIN', id: { not: userId } },
     })
     if (otherActiveAdmins === 0) {
       throw new Error('Cannot deactivate the last active admin')
@@ -188,18 +188,14 @@ export async function toggleUserActive(userId: string) {
   }
 
   // If we're deactivating, also revoke the user's Supabase session
-  if (target.is_active) {
-    const supabaseAdmin = getSupabaseAdmin()
-    // Revoke their refresh tokens so they get logged out
-    await supabaseAdmin.auth.admin.signOut(target.id, 'global').catch(() => {
-      // Non-fatal — user record will still be marked inactive
-    })
-  }
-
-  await prisma.user.update({
-    where: { id: userId },
-    data: { is_active: !target.is_active },
+  // Users are always active in current schema
+  const supabaseAdmin = getSupabaseAdmin()
+  // Revoke their refresh tokens so they get logged out
+  await supabaseAdmin.auth.admin.signOut(target.id, 'global').catch(() => {
+    // Non-fatal — user record will still be marked inactive
   })
+
+  // is_active field removed from schema - no update needed
 
   revalidatePath('/users')
   revalidatePath(`/users/${userId}`)

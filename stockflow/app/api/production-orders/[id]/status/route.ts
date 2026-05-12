@@ -200,7 +200,7 @@ export async function GET(
     const order = await prisma.productionOrder.findUnique({
       where: { id: params.id },
       include: {
-        design: true,
+        Design: true,
       },
     })
 

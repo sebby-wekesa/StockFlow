@@ -13,34 +13,33 @@ export default async function ProductsPage({
   searchParams: Promise<Record<string, string>>
 }) {
   const params = await searchParams
-  const category = params.category as ProductCategory | undefined
+  const origin = params.origin as 'FACTORY_MADE' | 'LOCAL_PURCHASE' | 'IMPORTED' | undefined
   const q = params.q?.trim() ?? ''
   const page = Math.max(1, Number(params.page ?? 1))
 
   // Build the WHERE clause
   const where: any = {}
-  if (category) where.category = category
+  if (origin) where.origin = origin
   if (q) {
     where.OR = [
-      { product_code: { contains: q, mode: 'insensitive' } },
-      { canonical_name: { contains: q, mode: 'insensitive' } },
+      { sku: { contains: q, mode: 'insensitive' } },
+      { name: { contains: q, mode: 'insensitive' } },
     ]
   }
 
   // Fetch in parallel: category counts, the page of products, total
   const [counts, products, total] = await Promise.all([
     prisma.product.groupBy({
-      by: ['category'],
+      by: ['origin'],
       _count: { _all: true },
     }),
     prisma.product.findMany({
       where,
-      orderBy: { product_code: 'asc' },
+      orderBy: { sku: 'asc' },
       take: PAGE_SIZE,
       skip: (page - 1) * PAGE_SIZE,
       include: {
-        _count: { select: { aliases: true } },
-        stock_levels: { select: { qty: true } },
+        _count: { select: { ProductAlias: true } },
       },
     }),
     prisma.product.count({ where }),
@@ -49,24 +48,22 @@ export default async function ProductsPage({
   const totalAll = counts.reduce((sum, c) => sum + c._count._all, 0)
   const totalPages = Math.ceil(total / PAGE_SIZE)
 
-  const countByCategory: Record<string, number> = {}
-  for (const c of counts) countByCategory[c.category] = c._count._all
+  const countByOrigin: Record<string, number> = {}
+  for (const c of counts) countByOrigin[c.origin] = c._count._all
 
   const tabs: Array<{ key: string; label: string; count: number }> = [
     { key: '', label: 'All', count: totalAll },
-    { key: 'manufactured_spring', label: 'Manufactured springs', count: countByCategory.manufactured_spring ?? 0 },
-    { key: 'manufactured_ubolt', label: 'Manufactured U-bolts', count: countByCategory.manufactured_ubolt ?? 0 },
-    { key: 'imported', label: 'Imported', count: countByCategory.imported ?? 0 },
-    { key: 'local_purchase', label: 'Local purchase', count: countByCategory.local_purchase ?? 0 },
-    { key: 'service', label: 'Services', count: countByCategory.service ?? 0 },
+    { key: 'FACTORY_MADE', label: 'Factory made', count: countByOrigin.FACTORY_MADE ?? 0 },
+    { key: 'LOCAL_PURCHASE', label: 'Local purchase', count: countByOrigin.LOCAL_PURCHASE ?? 0 },
+    { key: 'IMPORTED', label: 'Imported', count: countByOrigin.IMPORTED ?? 0 },
   ]
 
-  function buildHref(overrides: { category?: string; q?: string; page?: number }) {
+  function buildHref(overrides: { origin?: string; q?: string; page?: number }) {
     const params = new URLSearchParams()
-    const cat = overrides.category ?? category
+    const org = overrides.origin ?? origin
     const query = overrides.q ?? q
     const pg = overrides.page ?? page
-    if (cat) params.set('category', cat)
+    if (org) params.set('origin', org)
     if (query) params.set('q', query)
     if (pg > 1) params.set('page', String(pg))
     const qs = params.toString()
@@ -175,9 +172,9 @@ export default async function ProductsPage({
                       </td>
                       <td className="px-4 py-3">
                         <span className={`text-xs px-2 py-0.5 rounded-full ${
-                          p.is_active ? 'bg-teal/15 text-teal' : 'bg-red/15 text-red'
-                        }`}>
-                          {p.is_active ? 'Active' : 'Inactive'}
+                          'bg-teal/15 text-teal'
+
+                          Active
                         </span>
                       </td>
                     </tr>

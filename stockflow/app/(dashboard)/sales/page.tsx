@@ -30,9 +30,9 @@ export default async function SalesPage({
   }
 
   const [orders, total, summaryByBranch] = await Promise.all([
-    prisma.salesOrder.findMany({
+    prisma.saleOrder.findMany({
       where,
-      orderBy: { invoice_date: 'desc' },
+      orderBy: { createdAt: 'desc' },
       take: PAGE_SIZE,
       skip: (page - 1) * PAGE_SIZE,
       include: {
@@ -40,8 +40,8 @@ export default async function SalesPage({
         created_by_user: { select: { name: true } },
       },
     }),
-    prisma.salesOrder.count({ where }),
-    prisma.salesOrder.groupBy({
+    prisma.saleOrder.count({ where }),
+    prisma.saleOrder.groupBy({
       by: ['branch'],
       where: { status: { in: ['CONFIRMED', 'SHIPPED'] } },
       _count: { _all: true },

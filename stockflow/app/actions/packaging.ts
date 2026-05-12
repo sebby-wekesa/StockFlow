@@ -23,7 +23,7 @@ export async function getPackagingQueue() {
         include: {
           finishedGoods: {
             include: {
-              design: true
+              Design: true
             }
           }
         }
@@ -79,7 +79,7 @@ export async function fulfillOrder(orderId: string) {
           include: {
             finishedGoods: {
               include: {
-                design: true
+                Design: true
               }
             }
           }

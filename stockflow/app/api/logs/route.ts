@@ -114,7 +114,7 @@ export async function GET(request: NextRequest) {
           select: { 
             id: true, 
             quantity: true,
-            design: { select: { name: true } }
+            Design: { select: { name: true } }
           },
         },
       },
