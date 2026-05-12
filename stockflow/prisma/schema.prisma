@@ -635,8 +635,8 @@ model ImportBatch {
   status        ImportStatus @default(uploaded)
   row_count     Int
   created_by    String
-  created_at    DateTime     @default(now())
-  updated_at    DateTime
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
   User          User         @relation(fields: [created_by], references: [id])
   ImportRow     ImportRow[]
 
