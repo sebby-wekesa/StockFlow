@@ -6,13 +6,14 @@ export const dynamic = 'force-dynamic';
 
 const PAGE_SIZE = 20
 
+// Use the design system badge classes
 const PRODUCTION_STATUS_BADGE_CLASS: Record<string, string> = {
-  PENDING: 'bg-surface2 text-muted',
-  APPROVED: 'bg-blue/15 text-blue',
-  IN_PRODUCTION: 'bg-purple/15 text-purple',
-  COMPLETED: 'bg-teal/15 text-teal',
-  REJECTED: 'bg-red/15 text-red',
-  CANCELLED: 'bg-red/15 text-red',
+  PENDING: 'badge-amber',
+  APPROVED: 'badge-blue',
+  IN_PRODUCTION: 'badge-purple',
+  COMPLETED: 'badge-teal',
+  REJECTED: 'badge-red',
+  CANCELLED: 'badge-red',
 }
 
 export default async function JobsPage({
@@ -49,13 +50,11 @@ export default async function JobsPage({
   const totalPages = Math.ceil(total / PAGE_SIZE)
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-start justify-between">
+    <div>
+      <div className="section-header mb-16">
         <div>
-          <h1 className="font-head text-2xl font-bold">Production orders</h1>
-          <p className="text-muted text-sm mt-1">
-            Manufacturing workflow and job tracking
-          </p>
+          <div className="section-title">Production Orders</div>
+          <div className="section-sub">Manufacturing workflow and job tracking</div>
         </div>
         <Link href="/production/new" className="btn btn-primary">
           + New production order
@@ -63,14 +62,18 @@ export default async function JobsPage({
       </div>
 
       {/* STATUS FILTERS */}
-      <div className="flex gap-2 mb-6">
+      <div className="flex flex-wrap gap-2 mb-16">
+        <Link
+          href="/jobs"
+          className={`btn ${!status ? 'btn-primary' : 'btn-secondary'}`}
+        >
+          All Orders
+        </Link>
         {(['PENDING', 'APPROVED', 'IN_PRODUCTION', 'COMPLETED', 'CANCELLED'] as const).map((statusKey) => (
           <Link
             key={statusKey}
-            href={status === statusKey ? '/jobs' : `/jobs?status=${statusKey}`}
-            className={`btn btn-sm ${
-              status === statusKey ? 'btn-primary' : 'btn-outline'
-            }`}
+            href={`/jobs?status=${statusKey}`}
+            className={`btn ${status === statusKey ? 'btn-primary' : 'btn-secondary'}`}
           >
             {statusKey.replace('_', ' ')}
           </Link>
@@ -78,11 +81,20 @@ export default async function JobsPage({
       </div>
 
       {/* JOBS LIST */}
+      <div className="section-header mb-16">
+        <div className="section-title">
+          {status ? `${status.replace('_', ' ')} Orders` : 'All Production Orders'}
+        </div>
+        <div className="section-sub">{total} orders found</div>
+      </div>
+
       <div className="space-y-4">
         {jobs.length === 0 ? (
-          <div className="text-center py-12 text-muted">
-            <p className="mb-4">No production orders found.</p>
-            <p className="text-sm">Production orders will appear here once created.</p>
+          <div className="card text-center py-12">
+            <div className="text-muted">
+              <p className="mb-4">No production orders found.</p>
+              <p className="text-sm">Production orders will appear here once created.</p>
+            </div>
           </div>
         ) : (
           jobs.map((job) => {
@@ -93,35 +105,53 @@ export default async function JobsPage({
             return (
               <div
                 key={job.id}
-                className="card p-6"
+                className="card"
               >
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
-                      <h3 className="font-medium">Order {job.orderNumber}</h3>
-                      <span className={`text-xs px-2 py-1 rounded-full ${PRODUCTION_STATUS_BADGE_CLASS[job.status] || 'bg-gray/15 text-gray'}`}>
+                    <div className="flex items-center gap-3 mb-3">
+                      <h3 className="font-medium text-lg">Order {job.orderNumber}</h3>
+                      <span className={`badge ${PRODUCTION_STATUS_BADGE_CLASS[job.status] || 'badge-muted'}`}>
                         {job.status.replace('_', ' ')}
                       </span>
                     </div>
 
-                    <div className="text-sm text-muted mb-3">
+                    <div className="text-muted mb-4">
                       {job.Design?.name || 'Unknown Design'}
                     </div>
 
-                    <div className="flex items-center gap-4 text-sm">
-                      <span>Quantity: <strong>{job.quantity}</strong> units</span>
-                      <span>Target: <strong>{job.targetKg}kg</strong></span>
-                      <span>Progress: <strong>{completedStages}/{totalStages}</strong> stages</span>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                      <div>
+                        <div className="text-muted">Quantity</div>
+                        <div className="font-medium">{job.quantity} units</div>
+                      </div>
+                      <div>
+                        <div className="text-muted">Target</div>
+                        <div className="font-medium font-mono">{job.targetKg}kg</div>
+                      </div>
+                      <div>
+                        <div className="text-muted">Progress</div>
+                        <div className="font-medium">{completedStages}/{totalStages} stages</div>
+                      </div>
                       {currentStage && (
-                        <span>Current: Stage {currentStage.sequence} ({currentStage.kgIn}kg in)</span>
+                        <div>
+                          <div className="text-muted">Current Stage</div>
+                          <div className="font-medium">Stage {currentStage.sequence}</div>
+                        </div>
                       )}
                     </div>
                   </div>
 
-                  <div className="text-right">
-                    <div className="text-sm text-muted">
+                  <div className="text-right ml-6">
+                    <div className="text-muted text-sm">
                       {new Date(job.createdAt).toLocaleDateString()}
                     </div>
+                    <Link
+                      href={`/jobs/${job.id}`}
+                      className="btn btn-secondary btn-sm mt-2"
+                    >
+                      View Details
+                    </Link>
                   </div>
                 </div>
               </div>
@@ -132,24 +162,24 @@ export default async function JobsPage({
 
       {/* PAGINATION */}
       {totalPages > 1 && (
-        <div className="flex justify-center mt-8 gap-2">
+        <div className="flex justify-center mt-16 gap-2">
           {page > 1 && (
             <Link
-              href={`/jobs?${new URLSearchParams({ status: status || '', page: String(page - 1) })}`}
-              className="btn btn-sm btn-outline"
+              href={`/jobs?${new URLSearchParams({ ...(status && { status }), page: String(page - 1) })}`}
+              className="btn btn-secondary"
             >
               Previous
             </Link>
           )}
 
-          <span className="btn btn-sm btn-disabled">
+          <div className="px-4 py-2 bg-surface-secondary border border-border rounded-md text-muted text-sm">
             Page {page} of {totalPages}
-          </span>
+          </div>
 
           {page < totalPages && (
             <Link
-              href={`/jobs?${new URLSearchParams({ status: status || '', page: String(page + 1) })}`}
-              className="btn btn-sm btn-outline"
+              href={`/jobs?${new URLSearchParams({ ...(status && { status }), page: String(page + 1) })}`}
+              className="btn btn-secondary"
             >
               Next
             </Link>
