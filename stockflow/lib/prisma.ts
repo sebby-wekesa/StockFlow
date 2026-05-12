@@ -12,6 +12,16 @@ function getConnectionString(url: string) {
     parsed.searchParams.set('uselibpqcompat', 'true')
   }
 
+  // Enable connection pooling for Supabase
+  if (!parsed.searchParams.has('pgbouncer')) {
+    parsed.searchParams.set('pgbouncer', 'true')
+  }
+
+  // Set reasonable connection limits to prevent pool exhaustion
+  if (!parsed.searchParams.has('connection_limit')) {
+    parsed.searchParams.set('connection_limit', '5')
+  }
+
   return parsed.toString()
 }
 
