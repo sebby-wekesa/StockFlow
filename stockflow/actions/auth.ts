@@ -27,10 +27,13 @@ function getAuthErrorMessage(error: unknown) {
   const message = readErrorMessage(error);
 
   if (message.includes('Invalid login credentials')) {
-    return "Invalid email or password. Please try again.";
+    return "Invalid email or password. Please check your credentials and try again.";
   }
   if (message.includes('Email not confirmed')) {
-    return "Please check your email and confirm your account.";
+    return "Please check your email and click the confirmation link before signing in.";
+  }
+  if (message.includes('User not found') || message.includes('user_not_found')) {
+    return "No account found with this email address. Please sign up first.";
   }
   return "Authentication failed. Please try again.";
 }
@@ -213,8 +216,12 @@ export async function signUp(formData: FormData) {
 
     if (error) {
       console.error("Supabase signup error:", error);
-      if (error.message.includes('already registered')) {
-        return { error: "User with this email already exists." };
+      // Check for various forms of "user already exists" error
+      if (error.message.includes('already registered') ||
+          error.message.includes('User already registered') ||
+          error.message.includes('user_already_exists') ||
+          (error as any).status === 422) {
+        return { error: "An account with this email already exists. Please sign in instead." };
       }
       return { error: getAuthErrorMessage(error) };
     }

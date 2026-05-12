@@ -41,7 +41,7 @@ export default function LoginPage() {
     <div style={{
       minHeight: '100vh',
       background: 'var(--bg)',
-      color: 'var(--text)',
+      color: 'var(--text-primary)',
       fontFamily: 'var(--font-body)',
       display: 'flex',
       alignItems: 'center',
@@ -51,17 +51,17 @@ export default function LoginPage() {
       <div style={{
         background: 'var(--surface)',
         border: '1px solid var(--border)',
-        borderRadius: 'var(--radius)',
+        borderRadius: 'var(--radius-main)',
         padding: '40px',
         width: '100%',
         maxWidth: '400px'
       }}>
         <div style={{ textAlign: 'center', marginBottom: '32px' }}>
           <div style={{
-            fontFamily: 'var(--font-head)',
+            fontFamily: 'var(--font-headings)',
             fontSize: '24px',
             fontWeight: '800',
-            color: 'var(--accent)',
+            color: 'var(--accent-amber)',
             letterSpacing: '-0.5px',
             marginBottom: '4px'
           }}>
@@ -69,7 +69,7 @@ export default function LoginPage() {
           </div>
           <div style={{
             fontSize: '12px',
-            color: 'var(--muted)',
+            color: 'var(--text-muted)',
             letterSpacing: '1.5px',
             textTransform: 'uppercase'
           }}>
@@ -79,13 +79,14 @@ export default function LoginPage() {
 
         <form action={handleSubmit}>
           {error && (
-            <div style={{ 
-              background: 'rgba(239, 68, 68, 0.1)', 
-              color: '#ef4444', 
-              padding: '12px', 
-              borderRadius: 'var(--radius)', 
+            <div style={{
+              background: 'rgba(224, 85, 85, 0.15)',
+              color: 'var(--red)',
+              padding: '12px',
+              borderRadius: 'var(--radius-small)',
               marginBottom: '16px',
-              fontSize: '14px'
+              fontSize: '14px',
+              border: '1px solid rgba(224, 85, 85, 0.3)'
             }}>
               {error}
             </div>
@@ -93,32 +94,29 @@ export default function LoginPage() {
 
           {message && (
             <div style={{
-              background: 'rgba(16, 185, 129, 0.12)',
-              color: '#10b981',
+              background: 'rgba(46, 196, 160, 0.15)',
+              color: 'var(--teal)',
               padding: '12px',
-              borderRadius: 'var(--radius)',
+              borderRadius: 'var(--radius-small)',
               marginBottom: '16px',
-              fontSize: '14px'
+              fontSize: '14px',
+              border: '1px solid rgba(46, 196, 160, 0.3)'
             }}>
               {message}
             </div>
           )}
 
           {!isLogin && (
-            <>
-              <div className="form-group" style={{ marginBottom: '16px' }}>
-                <label className="form-label">Full Name</label>
-                <input
-                  type="text"
-                  name="name"
-                  className="form-input"
-                  placeholder="e.g. Jane Doe"
-                  required
-                />
-              </div>
-
-
-            </>
+            <div className="form-group" style={{ marginBottom: '16px' }}>
+              <label className="form-label">Full Name</label>
+              <input
+                type="text"
+                name="name"
+                className="form-input"
+                placeholder="e.g. Jane Doe"
+                required
+              />
+            </div>
           )}
 
           <div className="form-group" style={{ marginBottom: '16px' }}>
@@ -131,7 +129,7 @@ export default function LoginPage() {
               required
             />
           </div>
-          
+
           <div className="form-group" style={{ marginBottom: '24px' }}>
             <label className="form-label">Password</label>
             <input
@@ -160,18 +158,16 @@ export default function LoginPage() {
               setError(null);
               setMessage(null);
             }}
+            className="btn btn-secondary"
             style={{
-              background: 'none',
+              background: 'transparent',
               border: 'none',
-              color: 'var(--accent)',
-              cursor: 'pointer',
-              fontSize: '14px',
-              fontFamily: 'var(--font-body)',
-              textDecoration: 'none'
+              padding: '8px 16px',
+              fontSize: '14px'
             }}
           >
-            {isLogin 
-              ? "Don't have an account? Sign up" 
+            {isLogin
+              ? "Don't have an account? Sign up"
               : "Already have an account? Sign in"}
           </button>
         </div>
