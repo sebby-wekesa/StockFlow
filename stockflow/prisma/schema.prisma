@@ -627,7 +627,7 @@ model FinishedGoods {
 }
 
 model ImportBatch {
-  id            String       @id
+  id            String       @id @default(uuid())
   file_name     String
   sheet_type    String
   import_mode   ImportMode   @default(update)
