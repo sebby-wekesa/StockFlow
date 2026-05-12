@@ -72,125 +72,151 @@ export default async function ProductsPage({
 
   return (
     <div>
-      <div className="flex items-start justify-between mb-6">
+      <div className="section-header mb-16">
         <div>
-          <h1 className="font-head text-2xl font-bold">Product master</h1>
-          <p className="text-muted text-sm mt-1">
-            {totalAll} canonical products across 5 categories
-          </p>
+          <div className="section-title">Products</div>
+          <div className="section-sub">
+            {totalAll} products across all categories and branches
+          </div>
         </div>
         <Link href="/products/new" className="btn btn-primary">
-          + Add product
+          + Add Product
         </Link>
       </div>
 
       {/* CATEGORY TABS */}
-      <div className="flex flex-wrap gap-1.5 mb-4">
+      <div className="section-header mb-8">
+        <div className="section-title">Filter by Origin</div>
+        <div className="section-sub">Click any category to filter the product list</div>
+      </div>
+
+      <div className="flex flex-wrap gap-2 mb-16">
         {tabs.map((tab) => {
           const isActive = (tab.key || '') === (origin || '')
           return (
             <Link
               key={tab.key}
               href={buildHref({ origin: tab.key, page: 1 })}
-              className={`px-3 py-1.5 rounded-full text-xs border transition-colors ${
-                isActive
-                  ? 'bg-accent border-accent text-bg font-semibold'
-                  : 'bg-surface border-border text-muted hover:border-accent hover:text-text'
-              }`}
+              className={`btn ${isActive ? 'btn-primary' : 'btn-secondary'}`}
             >
-              {tab.label} · {tab.count}
+              {tab.label} ({tab.count})
             </Link>
           )
         })}
       </div>
 
       {/* SEARCH FORM */}
-      <form className="mb-4">
+      <div className="section-header mb-8">
+        <div className="section-title">Search Products</div>
+        <div className="section-sub">Find products by SKU or name</div>
+      </div>
+
+      <form className="mb-16">
         {origin && <input type="hidden" name="origin" value={origin} />}
-        <input
-          type="search"
-          name="q"
-          defaultValue={q}
-          placeholder="Search by product code or name..."
-          className="input max-w-md"
-        />
+        <div className="form-group max-w-md">
+          <label className="form-label">Search</label>
+          <input
+            type="search"
+            name="q"
+            defaultValue={q}
+            placeholder="Search by SKU or product name..."
+            className="form-input"
+          />
+        </div>
       </form>
 
+      <div className="section-header mb-8">
+        <div className="section-title">
+          {origin ? `${tabs.find(t => t.key === origin)?.label} Products` : 'All Products'}
+        </div>
+        <div className="section-sub">
+          {q ? `Search results for "${q}"` : `${total} products found`}
+        </div>
+      </div>
+
       <div className="card">
-        <div className="overflow-x-auto">
-          <table className="w-full">
+        <div className="table-wrap">
+          <table>
             <thead>
-              <tr className="text-xs uppercase tracking-wider text-muted text-left border-b border-border">
-                <th className="px-4 py-3 font-medium">Code</th>
-                <th className="px-4 py-3 font-medium">Canonical name</th>
-                <th className="px-4 py-3 font-medium">Category</th>
-                <th className="px-4 py-3 font-medium">UOM</th>
-                <th className="px-4 py-3 font-medium">Stock</th>
-                <th className="px-4 py-3 font-medium">Status</th>
+              <tr>
+                <th>SKU</th>
+                <th>Product Name</th>
+                <th>Origin</th>
+                <th>UOM</th>
+                <th>Current Stock</th>
+                <th>Status</th>
               </tr>
             </thead>
             <tbody>
               {products.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-12 text-center text-muted text-sm">
+                  <td colSpan={6} className="py-12 text-center text-muted text-sm">
                     {q || origin ? (
-                      <>
-                        No products match these filters.{' '}
-                        <Link href="/products" className="text-accent hover:underline">
+                      <div>
+                        No products match your search criteria.{' '}
+                        <Link href="/products" className="text-accent-amber hover:underline">
                           Clear filters
                         </Link>
-                      </>
+                      </div>
                     ) : (
-                      <>
-                        No products yet.{' '}
-                        <Link href="/products/new" className="text-accent hover:underline">
+                      <div>
+                        No products found.{' '}
+                        <Link href="/products/new" className="text-accent-amber hover:underline">
                           Add your first product
                         </Link>
-                      </>
+                      </div>
                     )}
                   </td>
                 </tr>
               ) : (
-                products.map((p) => {
-                  const totalStock = p.stock_levels.reduce((sum, s) => sum + s.qty, 0)
-                  return (
-                    <tr key={p.id} className="border-b border-border hover:bg-surface2">
-                      <td className="px-4 py-3">
-                        <Link href={`/products/${p.id}`} className="font-mono text-accent hover:underline">
-                          {p.product_code}
-                        </Link>
-                      </td>
-                      <td className="px-4 py-3 truncate max-w-xs">{p.canonical_name}</td>
-                      <td className="px-4 py-3">
-                        <span className={`text-xs px-2 py-0.5 rounded-full ${CATEGORY_BADGE_CLASS[p.category]}`}>
-                          {CATEGORY_SHORT[p.category]}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-xs uppercase">{p.uom}</td>
-                      <td className="px-4 py-3 font-mono text-sm">
-                        {totalStock.toLocaleString()}
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className="text-xs px-2 py-0.5 rounded-full bg-teal/15 text-teal">
-                          Active
-                        </span>
-                      </td>
-                    </tr>
-                  )
-                })
+                products.map((p) => (
+                  <tr key={p.id}>
+                    <td>
+                      <Link href={`/products/${p.id}`} className="font-mono text-accent-amber hover:underline">
+                        {p.sku}
+                      </Link>
+                    </td>
+                    <td className="truncate max-w-xs">{p.name}</td>
+                    <td>
+                      <span className={`badge ${CATEGORY_BADGE_CLASS[p.origin] || 'badge-muted'}`}>
+                        {CATEGORY_SHORT[p.origin] || p.origin}
+                      </span>
+                    </td>
+                    <td className="text-sm uppercase">{p.uom}</td>
+                    <td className="font-mono text-sm">
+                      {p.currentStock.toLocaleString()}
+                    </td>
+                    <td>
+                      <span className="badge badge-teal">
+                        Active
+                      </span>
+                    </td>
+                  </tr>
+                ))
               )}
             </tbody>
           </table>
         </div>
 
         {totalPages > 1 && (
-          <div className="flex items-center justify-between px-4 py-3 border-t border-border text-sm">
-            <div className="text-muted">
+          <div className="flex items-center justify-between p-4 border-t border-border">
+            <div className="text-muted text-sm">
               Showing {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, total)} of {total} products
             </div>
             <div className="flex gap-2">
-              {page > 1 && <Link href={buildHref({ page: page - 1 })} className="btn btn-ghost btn-sm">← Previous</Link>}
-              {page < totalPages && <Link href={buildHref({ page: page + 1 })} className="btn btn-ghost btn-sm">Next →</Link>}
+              {page > 1 && (
+                <Link href={buildHref({ page: page - 1 })} className="btn btn-secondary">
+                  Previous
+                </Link>
+              )}
+              <span className="px-4 py-2 bg-surface-secondary border border-border rounded-md text-muted text-sm">
+                Page {page} of {totalPages}
+              </span>
+              {page < totalPages && (
+                <Link href={buildHref({ page: page + 1 })} className="btn btn-secondary">
+                  Next
+                </Link>
+              )}
             </div>
           </div>
         )}
