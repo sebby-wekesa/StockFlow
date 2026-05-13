@@ -101,5 +101,4 @@ function normalizeBranch(branchName: string): string {
   }
 
   return 'mombasa' // default
-}</content>
-<parameter name="filePath">C:\Users\sebby\Desktop\StockFlow\stockflow\lib\import\column-mappings.ts
+}

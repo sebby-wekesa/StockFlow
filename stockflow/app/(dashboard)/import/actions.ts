@@ -476,38 +476,6 @@ async function processInventoryImport(batch: any, userId: string) {
   return results
 }
 
-      // Create stock movement record for history
-      await tx.stockMovement.create({
-        data: {
-          productId: product.id,
-          branchId: branchCode,
-          movementType: 'adjustment',
-          quantity: balance,
-          reference: `IMPORT-${batch.id}`,
-          notes: `Mombasa inventory import - ${batch.sheet_type}`,
-        },
-      })
-
-      // Create audit log
-      await tx.auditLog.create({
-        data: {
-          userId,
-          action: 'IMPORT_INVENTORY',
-          entityType: 'Product',
-          entityId: product.id,
-          details: `Inventory import: ${name} - ${balance} units`,
-        },
-      })
-    }
-  })
-}
-function determineStockStatus(quantity: number, reorderLevel?: number): any {
-  if (quantity <= 0) return 'OUT_OF_STOCK'
-  if (reorderLevel && quantity <= reorderLevel) return 'REORDER_NEEDED'
-  if (reorderLevel && quantity <= reorderLevel * 1.5) return 'LOW_STOCK'
-  return 'AVAILABLE'
-}
-
 async function processStockMovementImport(batch: any, userId: string) {
   await prisma.$transaction(async (tx) => {
     for (const row of batch.rows) {
@@ -523,13 +491,14 @@ async function processStockMovementImport(batch: any, userId: string) {
 
       if (branch) {
         // Calculate quantity change based on movement type
-        const quantityChange = movementType === 'stock_in' ? quantity : -quantity
+        const quantityChange = movementType === 'stock_in' ? quantity : -quantity;
+        const quantityChangeNum = Number(quantityChange);
 
         // Update product current stock
         await tx.product.update({
           where: { id: row.resolved_product },
           data: {
-            currentStock: { increment: quantityChange },
+            currentStock: { increment: quantityChangeNum },
             updatedAt: new Date(),
           },
         })

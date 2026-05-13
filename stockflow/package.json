@@ -7,6 +7,9 @@
     "build": "cross-env NODE_OPTIONS=--max-old-space-size=16384 TURBOPACK=false prisma generate --schema=./prisma/schema.prisma && next build",
     "start": "next start",
     "lint": "eslint . --ext .js,.jsx,.ts,.tsx --ignore-pattern .next --ignore-pattern node_modules",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
     "migrate:users": "tsx --env-file .env migrate-users-to-supabase.ts"
   },
   "dependencies": {
