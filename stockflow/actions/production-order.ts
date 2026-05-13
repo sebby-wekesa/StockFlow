@@ -4,6 +4,8 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireRole, getUser } from "@/lib/auth";
 import { productionOrderSchema, ProductionOrderInput } from "@/lib/validations";
+import type { PrismaClient } from "@prisma/client";
+type TransactionClient = Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'>;
 
 export async function createProductionOrder(formData: FormData) {
   await requireRole("ADMIN");
@@ -100,7 +102,7 @@ export async function approveProductionOrder(orderId: string) {
   }
 
   // Perform the transaction to approve order and consume materials
-  await prisma.$transaction(async (tx) => {
+  await prisma.$transaction(async (tx: TransactionClient) => {
     // 1. Consume materials from BOM
     const consumptionLogs = [];
 
