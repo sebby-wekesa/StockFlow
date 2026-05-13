@@ -763,6 +763,7 @@ model Product {
   id             String           @id
   name           String
   sku            String?          @unique
+  category       ProductCategory  @default(manufactured_spring)
   origin         StockOrigin      @default(FACTORY_MADE)
   uom            String
   currentStock   Float            @default(0)
@@ -1161,6 +1162,52 @@ enum StockOrigin {
   FACTORY_MADE
   LOCAL_PURCHASE
   IMPORTED
+
+  @@schema("public")
+}
+
+enum ProductCategory {
+  manufactured_spring
+  manufactured_ubolt
+  imported
+  local_purchase
+  service
+
+  @@schema("public")
+}
+
+enum ProductType {
+  leaf_spring
+  spring_assembly
+  helper_spring
+  auxiliary_spring
+  u_bolt
+  body_bolt
+  centre_bolt
+  bearing
+  seal
+  assembly
+  bush
+  hub
+  brake_lining
+  brake_pad
+  brake_shoe
+  clamp
+  equalizer
+  hardware
+  repair
+  retention
+  rebonding
+  riveting
+  straightening
+  other_service
+
+  @@schema("public")
+}
+
+enum UOM {
+  PCS
+  KGS
 
   @@schema("public")
 }

@@ -19,8 +19,7 @@ export default async function TransferPage() {
   // Get products with stock in any branch
   const productsWithStock = await prisma.product.findMany({
     where: {
-
-      category: { not: 'service' },
+      category: { not: 'service' }, // Exclude service products from transfers
       stock_levels: {
         some: { qty: { gt: 0 } }
       }
@@ -28,7 +27,7 @@ export default async function TransferPage() {
     include: {
       stock_levels: true
     },
-    orderBy: { product_code: 'asc' }
+    orderBy: { sku: 'asc' }
   })
 
   return (
