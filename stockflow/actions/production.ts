@@ -54,20 +54,22 @@ export async function createJobCard(formData: FormData) {
   if (!parsed.success) throw new Error(parsed.error.issues[0].message)
   const data = parsed.data
 
-  // Get the product to determine stages
-  const product = await prisma.product.findUnique({
-    where: { id: data.product_id },
+  // Get the design to determine stages
+  const design = await prisma.design.findUnique({
+    where: { id: data.designId },
   })
-  if (!product) throw new Error('Product not found')
-  if (!['manufactured_spring', 'manufactured_ubolt'].includes(product.category)) {
-    throw new Error('Only manufactured products can be produced')
+  if (!design) throw new Error('Design not found')
+
+  // Validate that the design has production stages
+  if (!design.stages || design.stages.length === 0) {
+    throw new Error('Design must have production stages defined')
   }
 
   // Validate raw material if provided
   let rmBalance = null
-  if (data.raw_material_id) {
+  if (data.rawMaterialId) {
     rmBalance = await prisma.rawMaterialBalance.findUnique({
-      where: { raw_material_id: data.raw_material_id },
+      where: { raw_material_id: data.rawMaterialId },
     })
     if (!rmBalance || rmBalance.qty_bars < (data.qty_bars || 0) || rmBalance.qty_kg < (data.qty_kg || 0)) {
       throw new Error('Insufficient raw material stock')
@@ -101,23 +103,23 @@ export async function createJobCard(formData: FormData) {
     }
 
     // Issue raw material if provided
-    if (data.raw_material_id && data.qty_bars && data.qty_kg) {
+    if (data.rawMaterialId && data.qtyBars && data.qtyKg) {
       await tx.productionOrderRawMaterial.create({
         data: {
           job_card_id: job.id,
-          raw_material_id: data.raw_material_id,
-          qty_bars: data.qty_bars,
-          qty_kg: data.qty_kg,
+          raw_material_id: data.rawMaterialId,
+          qty_bars: data.qtyBars,
+          qty_kg: data.qtyKg,
         },
       })
 
       // Decrement RM balance
       await tx.rawMaterialMovement.create({
         data: {
-          raw_material_id: data.raw_material_id,
+          raw_material_id: data.rawMaterialId,
           movement_type: 'production_issue',
-          qty_bars: -data.qty_bars,
-          qty_kg: -data.qty_kg,
+          qty_bars: -data.qtyBars,
+          qty_kg: -data.qtyKg,
           reference: `Job ${job.id}`,
           notes: `Issued for job card ${job.id}`,
           movement_date: new Date(),
@@ -126,10 +128,10 @@ export async function createJobCard(formData: FormData) {
       })
 
       await tx.rawMaterialBalance.update({
-        where: { raw_material_id: data.raw_material_id },
+        where: { raw_material_id: data.rawMaterialId },
         data: {
-          qty_bars: { decrement: data.qty_bars },
-          qty_kg: { decrement: data.qty_kg },
+          qty_bars: { decrement: data.qtyBars },
+          qty_kg: { decrement: data.qtyKg },
         },
       })
     }
