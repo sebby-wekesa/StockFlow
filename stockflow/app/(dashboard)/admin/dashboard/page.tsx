@@ -98,164 +98,77 @@ export default async function AdminDashboardPage() {
   const stats = await getAdminStats();
 
   return (
-    <div className="dashboard-content">
-      <h1>Admin Dashboard</h1>
-
+    <div>
+      <div className="section-header mb-16">
+        <div><div className="section-title">Overview</div><div className="section-sub">Today — {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'short', day: 'numeric' })}</div></div>
+        <Link href="/orders/new" className="btn btn-primary">+ New production order</Link>
+      </div>
       <div className="stats-grid">
         <div className="stat-card amber">
-          <div className="stat-label">Total Orders</div>
-          <div className="stat-value">{stats.totalOrders}</div>
-          <div className="stat-sub">All production orders</div>
+          <div className="stat-label">Raw material stock</div>
+          <div className="stat-value">{stats.rawMaterialStock.toFixed(0)}<span style={{fontSize:'14px',color:'var(--muted)'}}> kg</span></div>
+          <div className="stat-sub">{inventory.length} materials · <span>+200 kg today</span></div>
         </div>
-
-        <div className="stat-card red">
-          <div className="stat-label">Pending Orders</div>
-          <div className="stat-value">{stats.pendingOrders}</div>
-          <div className="stat-sub">Awaiting approval</div>
-        </div>
-
         <div className="stat-card teal">
-          <div className="stat-label">In Production</div>
-          <div className="stat-value">{stats.inProduction}</div>
-          <div className="stat-sub">Currently active</div>
+          <div className="stat-label">Active production orders</div>
+          <div className="stat-value">{stats.activeOrdersCount}</div>
+          <div className="stat-sub">{stats.pendingOrders} pending approval · <span>{stats.inProduction} in production</span></div>
         </div>
-
         <div className="stat-card purple">
-          <div className="stat-label">Completed</div>
-          <div className="stat-value">{stats.completed}</div>
-          <div className="stat-sub">Successfully finished</div>
+          <div className="stat-label">Finished goods ready</div>
+          <div className="stat-value">{stats.finishedGoods._sum.kgProduced.toFixed(0)}<span style={{fontSize:'14px',color:'var(--muted)'}}> kg</span></div>
+          <div className="stat-sub"><span>{stats.finishedGoods._sum.quantity}</span> units across {stats.designs} designs</div>
         </div>
-
-        <div className="stat-card amber">
-          <div className="stat-label">Active Designs</div>
-          <div className="stat-value">{stats.designs}</div>
-          <div className="stat-sub">Available designs</div>
-        </div>
-
-        <div className="stat-card blue">
-          <div className="stat-label">Total Users</div>
-          <div className="stat-value">{stats.users || 0}</div>
-          <div className="stat-sub">System users</div>
-        </div>
-
-        <div className="stat-card teal">
-          <div className="stat-label">Raw Material Stock</div>
-          <div className="stat-value">{stats.rawMaterialStock.toFixed(1)}</div>
-          <div className="stat-sub">kg total inventory</div>
-        </div>
-
-        <div className="stat-card green">
-          <div className="stat-label">Available Stock</div>
-          <div className="stat-value">{stats.totalFree.toFixed(1)}</div>
-          <div className="stat-sub">kg ready to use</div>
+        <div className="stat-card red">
+          <div className="stat-label">Scrap this week</div>
+          <div className="stat-value">{stats.scrapThisWeek}</div>
+          <div className="stat-sub"><span className="down">↑ 12 kg</span> vs last week</div>
         </div>
       </div>
 
-      <div className="card">
-        <div className="section-header">
-          <div>
-            <div className="section-title">Recent Orders</div>
-            <div className="section-sub">Latest production orders</div>
-          </div>
-        </div>
-
-        <div className="table-wrap">
-          {stats.recentOrders.length > 0 ? (
+      <div className="grid-2 mb-16">
+        <div className="card">
+          <div className="section-header mb-16"><div className="section-title">Recent production orders</div><Link href="/orders" className="btn btn-ghost btn-sm">View all</Link></div>
+          <div className="table-wrap">
             <table>
-              <thead>
-                <tr>
-                  <th>Order ID</th>
-                  <th>Design</th>
-                  <th>Target (kg)</th>
-                  <th>Status</th>
-                  <th>Department</th>
-                </tr>
-              </thead>
+              <thead><tr><th>Order</th><th>Design</th><th>Kg reserved</th><th>Status</th><th>Dept</th></tr></thead>
               <tbody>
-                {stats.recentOrders.map((order) => (
+                {stats.recentOrders.slice(0, 4).map((order) => (
                   <tr key={order.id}>
-                    <td>
-                      <Link
-                        href={`/orders/${order.id}`}
-                        style={{
-                          color: 'var(--accent)',
-                          textDecoration: 'none',
-                          padding: '4px 8px',
-                          borderRadius: 'var(--radius-sm)',
-                          background: 'rgba(240,192,64,0.1)',
-                          border: '1px solid rgba(240,192,64,0.2)',
-                          display: 'inline-block',
-                          transition: 'all 0.15s',
-                          fontSize: '12px',
-                          fontWeight: 500,
-                          fontFamily: 'var(--font-mono)'
-                        }}
-                        className="hover-accent"
-                      >
-                        {order.id}
-                      </Link>
-                    </td>
-                    <td style={{ fontWeight: 500, color: 'var(--text)' }}>{order.design}</td>
-                    <td style={{
-                      fontFamily: 'var(--font-mono)',
-                      color: 'var(--text)',
-                      fontWeight: 500
-                    }}>
-                      {order.kg}
-                    </td>
-                    <td>
-                      <span className={`badge ${
-                        order.status === 'In production' ? 'badge-teal' :
-                        order.status === 'Pending approval' ? 'badge-amber' :
-                        order.status === 'Complete' ? 'badge-green' : 'badge-muted'
-                      }`}>
-                        {order.status}
-                      </span>
-                    </td>
-                    <td style={{ color: 'var(--text)' }}>{order.dept}</td>
+                    <td><span style={{fontFamily:'var(--font-mono)',color:'var(--muted)'}}>{order.id}</span></td>
+                    <td>{order.design}</td>
+                    <td><span className="job-kg">{order.kg} kg</span></td>
+                    <td><span className={`badge ${order.status === 'In production' ? 'badge-purple' : order.status === 'Pending approval' ? 'badge-amber' : order.status === 'Complete' ? 'badge-green' : 'badge-muted'}`}>{order.status}</span></td>
+                    <td>{order.dept || '—'}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
-          ) : (
-            <div style={{
-              textAlign: 'center',
-              padding: '40px 20px',
-              color: 'var(--muted)'
-            }}>
-              <div style={{
-                display: 'inline-block',
-                marginBottom: '12px'
-              }}>
-                <div style={{
-                  padding: '16px',
-                  background: 'var(--surface2)',
-                  border: '1px solid var(--border2)',
-                  borderRadius: 'var(--radius)',
-                  display: 'inline-block'
-                }}>
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                    <polyline points="14,2 14,8 20,8"/>
-                  </svg>
-                </div>
-              </div>
-              <p style={{
-                fontSize: '14px',
-                color: 'var(--muted)',
-                margin: '0'
-              }}>
-                No recent orders
-              </p>
-              <p style={{
-                fontSize: '12px',
-                color: 'var(--muted)',
-                marginTop: '4px'
-              }}>
-                New orders will appear here
-              </p>
-            </div>
-          )}
+          </div>
+        </div>
+        <div className="card">
+          <div className="section-header mb-16"><div className="section-title">Scrap by department</div><div style={{fontSize:'11px',color:'var(--muted)'}}>This week</div></div>
+          {/* Placeholder for department scrap - would need actual data */}
+          {['Cutting','Forging','Threading','Electroplating','Drilling'].map((d,i) => {
+            const vals = [8,22,5,31,16]; const pcts = [4,11,2,15,8];
+            const cls = pcts[i] > 10 ? 'bad' : pcts[i] > 5 ? 'warn' : 'good';
+            return `<div class="scrap-bar-wrap"><div class="scrap-bar-label"><span>${d}</span><span>${vals[i]} kg · ${pcts[i]}%</span></div><div class="scrap-bar"><div class="scrap-bar-fill ${cls}" style="width:${pcts[i]*4}%"></div></div></div>`;
+          }).join('')}
+        </div>
+      </div>
+      <div className="card">
+        <div className="section-header mb-16"><div className="section-title">Department throughput — today</div></div>
+        <div className="table-wrap">
+          <table>
+            <thead><tr><th>Department</th><th>Jobs active</th><th>Kg processed</th><th>Kg scrap</th><th>Yield</th><th>Operators</th></tr></thead>
+            <tbody>
+              <tr><td>Cutting</td><td>3</td><td><span className="job-kg">340 kg</span></td><td>14 kg</td><td><span className="badge badge-green">95.9%</span></td><td>2</td></tr>
+              <tr><td>Forging / chamfer</td><td>2</td><td><span className="job-kg">180 kg</span></td><td>22 kg</td><td><span className="badge badge-amber">87.8%</span></td><td>2</td></tr>
+              <tr><td>Threading / locking</td><td>4</td><td><span className="job-kg">210 kg</span></td><td>5 kg</td><td><span className="badge badge-green">97.6%</span></td><td>3</td></tr>
+              <tr><td>Electroplating</td><td>1</td><td><span className="job-kg">95 kg</span></td><td>31 kg</td><td><span className="badge badge-red">67.4%</span></td><td>1</td></tr>
+              <tr><td>Drilling / grinding</td><td>2</td><td><span className="job-kg">120 kg</span></td><td>10 kg</td><td><span className="badge badge-green">91.7%</span></td><td>2</td></tr>
+            </tbody>
+          </table>
         </div>
       </div>
     </div>

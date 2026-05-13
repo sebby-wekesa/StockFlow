@@ -61,6 +61,56 @@ export default async function SalesPage({
     return qs ? `/sales?${qs}` : '/sales'
   }
 
+  // Show dashboard view when no filters
+  const isDashboardView = !branch && !status && !q
+
+  if (isDashboardView) {
+    return (
+      <div>
+        <div className="section-header mb-16">
+          <div><div className="section-title">Sales Team Dashboard</div><div className="section-sub">Manage orders and view available stock</div></div>
+        </div>
+
+        <div className="grid-2 mb-16">
+          <div className="card">
+            <div className="section-header mb-16"><div className="section-title">Available stock</div><Link href="/catalogue" className="btn btn-ghost btn-sm">View catalogue</Link></div>
+            <div style={{display:'grid',gridTemplateColumns:'repeat(2,1fr)',gap:'12px'}}>
+              <div style={{background:'var(--surface2)',border:'1px solid var(--border)',borderRadius:'var(--radius)',padding:'14px',textAlign:'center'}}>
+                <div style={{fontFamily:'var(--font-mono)',fontSize:'20px',color:'var(--teal)',marginBottom:'4px'}}>1,340 kg</div>
+                <div style={{fontSize:'11px',color:'var(--muted)'}}>Finished goods ready</div>
+              </div>
+              <div style={{background:'var(--surface2)',border:'1px solid var(--border)',borderRadius:'var(--radius)',padding:'14px',textAlign:'center'}}>
+                <div style={{fontFamily:'var(--font-mono)',fontSize:'20px',color:'var(--teal)',marginBottom:'4px'}}>247 units</div>
+                <div style={{fontSize:'11px',color:'var(--muted)'}}>Across 6 designs</div>
+              </div>
+            </div>
+          </div>
+          <div className="card">
+            <div className="section-header mb-16"><div className="section-title">Recent orders</div><Link href="/sales" className="btn btn-ghost btn-sm">View all</Link></div>
+            <div className="table-wrap">
+              <table>
+                <thead><tr><th>Order ID</th><th>Customer</th><th>Amount</th><th>Status</th></tr></thead>
+                <tbody>
+                  {orders.slice(0, 4).map((o) => {
+                    const total = o.SaleItem.reduce((sum, item) => sum + Number(item.totalPrice), 0)
+                    return (
+                      <tr key={o.id}>
+                        <td><Link href={`/sales/${o.id}`} style={{fontFamily:'var(--font-mono)',color:'var(--accent)'}}>{o.id.slice(-8)}</Link></td>
+                        <td>{o.customerName}</td>
+                        <td style={{fontFamily:'var(--font-mono)'}}>{formatKES(Number(total))}</td>
+                        <td><span className={`badge ${STATUS_BADGE_CLASS[o.status] || 'badge-muted'}`}>{STATUS_LABELS[o.status] || o.status}</span></td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div>
       <div className="section-header mb-16">

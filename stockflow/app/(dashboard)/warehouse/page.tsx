@@ -82,49 +82,59 @@ export default function WarehousePage() {
   };
 
   return (
-    <div className="dashboard-content">
-      {/* Header */}
-      <div className="section-header">
-        <div>
-          <h1>Warehouse Dashboard</h1>
-          <div className="section-sub">Manage inventory, track deliveries, and monitor stock levels</div>
-        </div>
-        <div className="flex gap-3">
-          <button className="btn btn-primary" onClick={handleReceiveStock}>
-            <Truck className="h-4 w-4 mr-2" />
-            Receive Stock
-          </button>
-          <button className="btn btn-ghost" onClick={handleViewInventory}>
-            <Package className="h-4 w-4 mr-2" />
-            View Inventory
-          </button>
-        </div>
+    <div>
+      <div className="section-header mb-16">
+        <div><div className="section-title">Warehouse Team Dashboard</div><div className="section-sub">Manage inventory and track stock levels</div></div>
       </div>
 
       {/* Stats Cards */}
       <div className="stats-grid">
-        <div className="stat-card blue">
-          <div className="stat-label">Total Materials</div>
+        <div className="stat-card teal">
+          <div className="stat-label">Total materials</div>
           <div className="stat-value">{isLoading ? '...' : stats.totalRawMaterials}</div>
           <div className="stat-sub">Active inventory</div>
         </div>
-
-        <div className="stat-card red">
-          <div className="stat-label">Low Stock Alerts</div>
+        <div className="stat-card amber">
+          <div className="stat-label">Low stock alerts</div>
           <div className="stat-value">{isLoading ? '...' : stats.lowStockItems}</div>
           <div className="stat-sub">Need attention</div>
         </div>
+      </div>
 
-        <div className="stat-card teal">
-          <div className="stat-label">Recent Deliveries</div>
-          <div className="stat-value">{isLoading ? '...' : stats.recentDeliveries}</div>
-          <div className="stat-sub">This week</div>
+      <div className="grid-2 mb-16">
+        <div className="card">
+          <div className="section-header mb-16"><div className="section-title">Receiving</div><Link href="/receive" className="btn btn-ghost btn-sm">Receive stock</Link></div>
+          <div className="table-wrap">
+            <table>
+              <thead><tr><th>Material</th><th>Kg received</th><th>Date</th></tr></thead>
+              <tbody>
+                {recentDeliveries.slice(0, 4).map((delivery) => (
+                  <tr key={delivery.id}>
+                    <td>{delivery.material.materialName} {delivery.material.diameter}</td>
+                    <td><span className="job-kg">{delivery.kgReceived} kg</span></td>
+                    <td>{new Date(delivery.createdAt).toLocaleDateString()}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
-
-        <div className="stat-card amber">
-          <div className="stat-label">Pending Orders</div>
-          <div className="stat-value">{isLoading ? '...' : stats.pendingOrders}</div>
-          <div className="stat-sub">Awaiting stock</div>
+        <div className="card">
+          <div className="section-header mb-16"><div className="section-title">Stock levels</div><Link href="/rawmaterials" className="btn btn-ghost btn-sm">View all</Link></div>
+          <div className="table-wrap">
+            <table>
+              <thead><tr><th>Material</th><th>Available</th><th>Status</th></tr></thead>
+              <tbody>
+                {lowStockAlerts.slice(0, 4).map((item) => (
+                  <tr key={item.id}>
+                    <td>{item.materialName} {item.diameter}</td>
+                    <td><span className="job-kg">{item.availableKg} kg</span></td>
+                    <td><span className={`badge ${item.availableKg < 100 ? 'badge-red' : 'badge-teal'}`}>{item.availableKg < 100 ? 'Low' : 'Good'}</span></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
 

@@ -19,7 +19,7 @@ async function requireAdmin() {
 
   const user = await prisma.user.findUnique({ where: { id: authUser.id } })
   if (!user) throw new Error('User not provisioned')
-  if (user.role !== 'admin') {
+  if (user.role !== 'ADMIN') {
     throw new Error('Only admins can manage users')
   }
   return user
@@ -117,27 +117,25 @@ export async function inviteUser(formData: FormData) {
 
 const updateSchema = z.object({
   name: z.string().min(1).max(200),
-  role: z.enum(['admin', 'manager', 'warehouse', 'sales', 'accountant']),
-  branches: z.array(z.enum(['mombasa', 'nairobi', 'bonje'])).min(1),
+  role: z.enum(['ADMIN', 'MANAGER', 'OPERATOR', 'WAREHOUSE', 'SALES', 'PACKAGING']),
+  branchId: z.string().min(1),
 })
 
 export async function updateUser(userId: string, formData: FormData) {
   const adminUser = await requireAdmin()
 
-  const branches = formData.getAll('branches').filter(Boolean) as string[]
-
   const raw = {
     name: formData.get('name'),
     role: formData.get('role'),
-    branches,
+    branchId: formData.get('branchId'),
   }
   const parsed = updateSchema.safeParse(raw)
   if (!parsed.success) throw new Error(parsed.error.issues[0].message)
 
   // Cannot demote the last active admin
-  if (parsed.data.role !== 'admin') {
+  if (parsed.data.role !== 'ADMIN') {
     const target = await prisma.user.findUnique({ where: { id: userId } })
-    if (target?.role === 'admin') {
+    if (target?.role === 'ADMIN') {
       const otherAdmins = await prisma.user.count({
         where: { role: 'ADMIN', id: { not: userId } },
       })
@@ -152,7 +150,7 @@ export async function updateUser(userId: string, formData: FormData) {
     data: {
       name: parsed.data.name,
       role: parsed.data.role as UserRole,
-      branches: parsed.data.branches as Branch[],
+      branchId: parsed.data.branchId,
     },
   })
 

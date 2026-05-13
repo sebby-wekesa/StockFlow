@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { getOperatorData } from "./actions";
 import { DepartmentQueue } from "@/components/DepartmentQueue";
 import { Factory, Terminal, Activity, Info } from "lucide-react";
@@ -22,71 +23,39 @@ export default function OperatorDashboard() {
   }, []);
 
   return (
-    <div className="dashboard-content">
-      <div className="section-header">
-        <div>
-          <h1>Station Terminal: {userDept}</h1>
-          <div className="section-sub">
-            Process active jobs - {designs.length} products in registry
-          </div>
-        </div>
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-          background: 'var(--surface2)',
-          border: '1px solid var(--border2)',
-          borderRadius: 'var(--radius-sm)',
-          padding: '6px 12px'
-        }}>
-          <div style={{
-            width: '8px',
-            height: '8px',
-            borderRadius: '50%',
-            background: 'var(--green)',
-            animation: 'pulse 2s infinite'
-          }}></div>
-          <span style={{
-            fontSize: '11px',
-            fontWeight: 700,
-            color: 'var(--muted)',
-            textTransform: 'uppercase',
-            letterSpacing: '1px'
-          }}>
-            System Online
-          </span>
-        </div>
+    <div>
+      <div className="section-header mb-16">
+        <div><div className="section-title">Operator — {userDept} Department</div><div className="section-sub">Process jobs and log production output</div></div>
       </div>
 
       {/* Dashboard Stats */}
       <div className="stats-grid">
         <div className="stat-card purple">
-          <div className="stat-label">Station Efficiency</div>
-          <div className="stat-value">98.2%</div>
-          <div className="stat-sub">Current performance</div>
+          <div className="stat-label">Jobs in queue</div>
+          <div className="stat-value">3</div>
+          <div className="stat-sub">Ready for processing</div>
         </div>
-        <div className="stat-card blue">
-          <div className="stat-label">Queue Health</div>
-          <div className="stat-value">Optimal</div>
-          <div className="stat-sub">System status</div>
-        </div>
-        <div className="stat-card amber">
-          <div className="stat-label">Pending Handoffs</div>
-          <div className="stat-value">Live Sync</div>
-          <div className="stat-sub">Real-time updates</div>
+        <div className="stat-card teal">
+          <div className="stat-label">Today's output</div>
+          <div className="stat-value">340<span style={{fontSize:'14px',color:'var(--muted)'}}> kg</span></div>
+          <div className="stat-sub">Processed so far</div>
         </div>
       </div>
 
       {/* Active Queue */}
       <div className="card">
-        <div className="section-header">
-          <div>
-            <div className="section-title">Active Production Queue</div>
-            <div className="section-sub">Orders currently staged for {userDept}</div>
-          </div>
-        </div>
-
+        <div className="section-header mb-16"><div className="section-title">Job queue</div><div className="section-sub">Jobs ready for your department</div></div>
         <DepartmentQueue userDept={userDept} />
+      </div>
+
+      {/* Log Output */}
+      <div className="card">
+        <div className="section-header mb-16"><div className="section-title">Log output</div><Link href="/operator_log" className="btn btn-ghost btn-sm">View full log</Link></div>
+        <div style={{background:'var(--surface2)',border:'1px solid var(--border)',borderRadius:'var(--radius)',padding:'18px'}}>
+          <div style={{fontSize:'13px',fontWeight:'600',marginBottom:'4px'}}>No active job</div>
+          <div style={{fontSize:'12px',color:'var(--muted)',marginBottom:'14px'}}>Select a job from the queue above to begin logging output</div>
+          <button className="btn btn-primary">Start new job</button>
+        </div>
       </div>
 
       {/* Operational Tip */}

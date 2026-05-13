@@ -54,6 +54,7 @@ function getRoleNavItems(role: UserRole): any[] {
         { section: "Inventory" },
         { label: "Stock overview", href: "/stock" },
         { section: "Sales" },
+        { label: "New order", href: "/sales/new" },
         { label: "Sales orders", href: "/sales" },
         { section: "Reports" },
         { label: "Reports", href: "/reports" },

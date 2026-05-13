@@ -20,6 +20,7 @@ export default async function UsersPage() {
   const usersWithBranches = users.map(user => ({
     ...user,
     branches: user.Branch ? [user.Branch.name] : [],
+    branchId: user.Branch?.id || '',
   }))
 
   return (
