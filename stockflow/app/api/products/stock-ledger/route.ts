@@ -48,5 +48,4 @@ export async function GET(request: NextRequest) {
     console.error('Stock ledger API error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
-}</content>
-<parameter name="filePath">C:\Users\sebby\Desktop\StockFlow\stockflow\app\api\products\stock-ledger\route.ts
+}

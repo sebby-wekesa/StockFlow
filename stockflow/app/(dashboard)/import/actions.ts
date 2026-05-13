@@ -501,12 +501,6 @@ async function processInventoryImport(batch: any, userId: string) {
     }
   })
 }
-
-// Helper functions removed - now handled by mombasa-processors
-    }
-  })
-}
-
 function determineStockStatus(quantity: number, reorderLevel?: number): any {
   if (quantity <= 0) return 'OUT_OF_STOCK'
   if (reorderLevel && quantity <= reorderLevel) return 'REORDER_NEEDED'

@@ -159,5 +159,4 @@ export function StockLedger({ productId }: StockLedgerProps) {
       )}
     </div>
   )
-}</content>
-<parameter name="filePath">C:\Users\sebby\Desktop\StockFlow\stockflow\components\stock\StockLedger.tsx
+}

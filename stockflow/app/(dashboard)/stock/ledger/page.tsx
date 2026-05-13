@@ -22,5 +22,4 @@ export default async function StockLedgerPage({ searchParams }: PageProps) {
       <StockLedger productId={productId} />
     </div>
   )
-}</content>
-<parameter name="filePath">C:\Users\sebby\Desktop\StockFlow\stockflow\app\(dashboard)\stock\ledger\page.tsx
+}
