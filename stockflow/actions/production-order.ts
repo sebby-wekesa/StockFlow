@@ -135,6 +135,7 @@ export async function approveProductionOrder(orderId: string) {
       // Create consumption log
       const log = await tx.materialConsumptionLog.create({
         data: {
+          id: crypto.randomUUID(),
           productionOrderId: orderId,
           rawMaterialId: bomItem.rawMaterialId,
           quantityConsumed: requiredQuantity,
