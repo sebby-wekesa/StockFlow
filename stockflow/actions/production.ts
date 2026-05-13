@@ -57,6 +57,11 @@ export async function createJobCard(formData: FormData) {
   // Get the design to determine stages
   const design = await prisma.design.findUnique({
     where: { id: data.designId },
+    include: {
+      stages: {
+        orderBy: { sequence: 'asc' },
+      },
+    },
   })
   if (!design) throw new Error('Design not found')
 
@@ -71,12 +76,12 @@ export async function createJobCard(formData: FormData) {
     rmBalance = await prisma.rawMaterialBalance.findUnique({
       where: { raw_material_id: data.rawMaterialId },
     })
-    if (!rmBalance || rmBalance.qty_bars < (data.qty_bars || 0) || rmBalance.qty_kg < (data.qty_kg || 0)) {
+    if (!rmBalance || rmBalance.qty_bars < (data.qtyBars || 0) || rmBalance.qty_kg < (data.qtyKg || 0)) {
       throw new Error('Insufficient raw material stock')
     }
   }
 
-  const stages = getStagesForCategory(product.category as ProductCategory)
+  const stages = design.stages.sort((a, b) => a.sequence - b.sequence)
 
   await prisma.$transaction(async (tx) => {
     // Create job card
