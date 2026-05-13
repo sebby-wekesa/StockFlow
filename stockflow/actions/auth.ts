@@ -7,6 +7,7 @@ import { supabaseAdmin } from "@/lib/supabase-admin";
 import { clearAuthCookies } from "@/lib/auth-session";
 import { prisma } from "@/lib/prisma";
 import { loginSchema } from "@/lib/validations";
+import { ALL_BRANCHES } from "@/lib/branches";
 
 const ROLE_PATHS = {
   ADMIN: "/admin/dashboard",
@@ -176,9 +177,18 @@ export async function signUp(formData: FormData) {
   const email = formData.get("email") as string;
   const password = formData.get("password") as string;
   const name = formData.get("name") as string;
+  const branch = formData.get("branch") as string;
 
   if (!email || !password) {
     return { error: "Email and password are required" };
+  }
+
+  if (!name || !branch) {
+    return { error: "Name and branch are required" };
+  }
+
+  if (!ALL_BRANCHES.includes(branch as any)) {
+    return { error: "Invalid branch selected" };
   }
 
   try {
@@ -209,7 +219,8 @@ export async function signUp(formData: FormData) {
       options: {
         data: {
           name: name || '',
-          role: 'OPERATOR', // Default role for new signups
+          role: 'PENDING', // Default role for new signups
+          branch: branch,
         }
       }
     });
@@ -257,6 +268,8 @@ export async function signUp(formData: FormData) {
         email: data.user.email!,
         name: data.user.user_metadata?.name || name || '',
         role: 'PENDING', // Default role
+        branchId: branch as any, // Cast to Branch type
+        organizationId: 'org-stockflow-001', // Default organization
       },
     });
 
