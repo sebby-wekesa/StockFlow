@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { resolveConflict, commitImport } from '../../actions'
+import { resolveConflict, approveAndSyncImport } from '../../actions'
 import type { ImportBatch, ImportRow } from '@prisma/client'
 
 interface MatchResultsProps {
@@ -32,9 +32,9 @@ export function MatchResults({ batch }: MatchResultsProps) {
     })
   }
 
-  function handleCommit() {
+  function handleApproveAndSync() {
     startTransition(async () => {
-      await commitImport(batch.id)
+      await approveAndSyncImport(batch.id)
     })
   }
 
@@ -131,23 +131,23 @@ export function MatchResults({ batch }: MatchResultsProps) {
         </div>
       )}
 
-      {/* Commit Section */}
+      {/* Sync Section */}
       <div className="card p-6">
-        <h3 className="font-head text-lg font-bold mb-4">Ready to Commit</h3>
+        <h3 className="font-head text-lg font-bold mb-4">Approve & Sync</h3>
         <div className="bg-blue/10 border border-blue/30 p-4 rounded-md mb-4">
           <p className="text-sm text-blue">
-            <strong>For sales imports:</strong> Committing will create SalesOrder + SalesOrderLine records grouped by invoice number,
-            plus sales_out stock movements that decrement branch inventory.
+            <strong>Review your data:</strong> {autoResolved} rows auto-matched, {needsReview} need review, {errors} have errors.
+            Click "Approve & Sync" to process this data into your live inventory and create sales records.
           </p>
         </div>
 
         <div className="flex justify-end gap-2">
           <button
-            onClick={handleCommit}
+            onClick={handleApproveAndSync}
             disabled={isPending || conflicts.length > 0}
             className="btn btn-primary"
           >
-            {isPending ? 'Committing...' : 'Commit Import'}
+            {isPending ? 'Processing...' : 'Approve & Sync'}
           </button>
         </div>
       </div>

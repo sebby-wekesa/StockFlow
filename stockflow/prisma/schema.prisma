@@ -544,6 +544,7 @@ model Branch {
   MaterialReceipt        MaterialReceipt[]
   Product                Product[]
   ProductReceipt         ProductReceipt[]
+  StockMovement          StockMovement[]
   User                   User[]
 
   @@schema("public")
@@ -765,17 +766,20 @@ model Product {
   sku            String?          @unique
   category       ProductCategory  @default(manufactured_spring)
   origin         StockOrigin      @default(FACTORY_MADE)
-  uom            String
+  uom            String           @default("PCS")
   currentStock   Float            @default(0)
   unitCost       Float?
   landingCost    Float?
   vendor         String?
   branchId       String?
+  reorderLevel   Int?             // Minimum stock level before reorder
+  stockStatus    StockStatus?     @default(AVAILABLE)
   createdAt      DateTime         @default(now())
   updatedAt      DateTime
   Branch         Branch?          @relation(fields: [branchId], references: [id])
   ProductAlias   ProductAlias[]
   ProductReceipt ProductReceipt[]
+  StockMovement  StockMovement[]
 
   @@schema("public")
 }
@@ -1208,6 +1212,30 @@ enum ProductType {
 enum UOM {
   PCS
   KGS
+
+  @@schema("public")
+}
+
+enum StockStatus {
+  AVAILABLE
+  LOW_STOCK
+  OUT_OF_STOCK
+  REORDER_NEEDED
+
+  @@schema("public")
+}
+
+model StockMovement {
+  id            String      @id @default(uuid())
+  productId     String
+  branchId      String?
+  movementType  String      // 'stock_in', 'stock_out', 'adjustment', 'sale', 'return'
+  quantity      Float
+  reference     String?     // Order number, import batch, etc.
+  notes         String?
+  createdAt     DateTime    @default(now())
+  Product       Product     @relation(fields: [productId], references: [id])
+  Branch        Branch?     @relation(fields: [branchId], references: [id])
 
   @@schema("public")
 }

@@ -6,22 +6,59 @@ import { ALL_BRANCHES, BRANCH_LABELS, BRANCH_SUB, formatKES } from '@/lib/branch
 import { CATEGORY_BADGE_CLASS, CATEGORY_SHORT } from '@/lib/products'
 import type { Branch, ProductCategory } from '@prisma/client'
 
+// Status badge component
+function StatusBadge({ status }: { status: string }) {
+  const variants = {
+    AVAILABLE: 'badge-green',
+    LOW_STOCK: 'badge-amber',
+    OUT_OF_STOCK: 'badge-red',
+    REORDER_NEEDED: 'badge-red',
+  }
+
+  const labels = {
+    AVAILABLE: 'Available',
+    LOW_STOCK: 'Low Stock',
+    OUT_OF_STOCK: 'Out of Stock',
+    REORDER_NEEDED: 'Re-Order',
+  }
+
+  return (
+    <span className={`badge ${variants[status as keyof typeof variants] || 'badge-muted'}`}>
+      {labels[status as keyof typeof labels] || status}
+    </span>
+  )
+}
+
 const PAGE_SIZE = 50
 
 export default async function BranchStockPage({
   searchParams,
 }: {
-  searchParams: Promise<{ branch?: string; page?: string }>
+  searchParams: Promise<{ branch?: string; page?: string; search?: string; category?: string; status?: string }>
 }) {
   const params = await searchParams;
   const focusedBranch = params.branch as Branch | undefined
   const page = Math.max(1, Number(params.page ?? 1))
 
   // Build product filter
-  const productWhere: any = {
-    currentStock: {
-      gt: 0,
-    },
+  const productWhere: any = {}
+
+  // Add search filter if provided
+  if (params.search) {
+    productWhere.OR = [
+      { name: { contains: params.search, mode: 'insensitive' } },
+      { sku: { contains: params.search, mode: 'insensitive' } },
+    ]
+  }
+
+  // Add category filter if provided
+  if (params.category) {
+    productWhere.category = params.category
+  }
+
+  // Add status filter if provided
+  if (params.status) {
+    productWhere.stockStatus = params.status
   }
 
    // Fetch all the dashboard data in parallel
@@ -167,6 +204,85 @@ export default async function BranchStockPage({
         </Link>
       </div>
 
+      {/* Inventory Dashboard */}
+      <div className="section-header mb-16">
+        <div><div className="section-title">Mombasa Inventory Dashboard</div><div className="section-sub">Real-time stock levels and status monitoring</div></div>
+        <Link href="/import" className="btn btn-primary">Import Stock Data</Link>
+      </div>
+
+      {/* Metric Cards */}
+      <div className="stats-grid mb-16">
+        <div className="stat-card teal">
+          <div className="stat-label">Total Items</div>
+          <div className="stat-value">{total}</div>
+          <div className="stat-sub">Products in inventory</div>
+        </div>
+        <div className="stat-card amber">
+          <div className="stat-label">Low Stock Alerts</div>
+          <div className="stat-value">{lowStockCount}</div>
+          <div className="stat-sub">Items below reorder level</div>
+        </div>
+        <div className="stat-card red">
+          <div className="stat-label">Out of Stock</div>
+          <div className="stat-value">{products.filter(p => (p.currentStock || 0) <= 0).length}</div>
+          <div className="stat-sub">Items unavailable</div>
+        </div>
+        <div className="stat-card purple">
+          <div className="stat-label">Total Valuation</div>
+          <div className="stat-value">
+            {formatKES(products.reduce((sum, p) => sum + ((p.currentStock || 0) * (p.unitCost || 0)), 0))}
+          </div>
+          <div className="stat-sub">Estimated value</div>
+        </div>
+      </div>
+
+      {/* Search and Filters */}
+      <div className="card mb-16">
+        <div className="section-header mb-16">
+          <div className="section-title">Search & Filter Inventory</div>
+        </div>
+
+        <form className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="form-group">
+            <label className="form-label">Search</label>
+            <input
+              type="text"
+              name="search"
+              defaultValue={params.search}
+              placeholder="Product name or SKU..."
+              className="form-input"
+            />
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">Category</label>
+            <select name="category" defaultValue={params.category} className="form-input">
+              <option value="">All Categories</option>
+              <option value="manufactured_spring">Spring</option>
+              <option value="manufactured_ubolt">U-bolt</option>
+              <option value="imported">Imported</option>
+              <option value="local_purchase">Local Purchase</option>
+              <option value="service">Service</option>
+            </select>
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">Status</label>
+            <select name="status" defaultValue={params.status} className="form-input">
+              <option value="">All Status</option>
+              <option value="AVAILABLE">Available</option>
+              <option value="LOW_STOCK">Low Stock</option>
+              <option value="REORDER_NEEDED">Re-Order</option>
+              <option value="OUT_OF_STOCK">Out of Stock</option>
+            </select>
+          </div>
+
+          <div className="form-group flex items-end">
+            <button type="submit" className="btn btn-primary w-full">Search</button>
+          </div>
+        </form>
+      </div>
+
       {/* BRANCH SUMMARY CARDS */}
       <div className="section-header mb-8">
         <div className="section-title">Branch Overview</div>
@@ -230,11 +346,20 @@ export default async function BranchStockPage({
       {/* PRODUCT TABLE */}
       <div className="section-header mb-8">
         <div className="section-title">
-          {focusedBranch ? `${BRANCH_LABELS[focusedBranch]} Products` : 'All Products'}
+          Mombasa Inventory Items
         </div>
         <div className="section-sub">
-          {focusedBranch ? `Showing products available at ${BRANCH_LABELS[focusedBranch]}` : 'Products with stock across all branches'}
+          {total} products in stock · Real-time inventory from imported data
         </div>
+      </div>
+      <div className="flex gap-2 mb-4">
+        <Link href="/stock/transfer" className="btn btn-primary">
+          Transfer stock
+        </Link>
+        <Link href="/import" className="btn btn-ghost">
+          Import Data
+        </Link>
+        <button className="btn btn-ghost">Export CSV</button>
       </div>
 
       <div className="card overflow-hidden">
@@ -244,24 +369,22 @@ export default async function BranchStockPage({
               <tr>
                 <th>Product</th>
                 <th>Category</th>
-                <th className="text-right">Mombasa</th>
-                <th className="text-right">Nairobi</th>
-                <th className="text-right">Bonje</th>
-                <th className="text-right">Total</th>
+                <th>Balance</th>
+                <th>UOM</th>
+                <th>Status</th>
+                <th className="text-right">Value</th>
+                <th>History</th>
               </tr>
             </thead>
             <tbody>
               {products.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="py-12 text-center text-muted text-sm">
+                  <td colSpan={7} className="py-12 text-center text-muted text-sm">
                     No products found.
                   </td>
                 </tr>
               ) : (
-                 products.map((p) => {
-                    const stockByBranch = getStockByBranch(p.id)
-                    const totalStock = Object.values(stockByBranch).reduce((sum, qty) => sum + qty, 0)
-
+                  products.map((p) => {
                     return (
                       <tr key={p.id}>
                         <td>
@@ -269,21 +392,29 @@ export default async function BranchStockPage({
                           <div className="text-muted text-sm truncate max-w-xs">{p.name}</div>
                         </td>
                         <td>
-                          <span className={`badge ${CATEGORY_BADGE_CLASS[p.origin] || 'badge-muted'}`}>
-                            {CATEGORY_SHORT[p.origin] || p.origin}
+                          <span className={`badge ${CATEGORY_BADGE_CLASS[p.category] || 'badge-muted'}`}>
+                            {CATEGORY_SHORT[p.category] || p.category}
                           </span>
                         </td>
-                        <td className="text-right font-mono">
-                          <StockCell qty={stockByBranch.mombasa} branch="mombasa" focused={focusedBranch === 'mombasa'} />
+                        <td>
+                          <Link
+                            href={`/stock/ledger?productId=${p.id}`}
+                            className="text-accent-amber hover:underline text-sm"
+                          >
+                            View History
+                          </Link>
+                        </td>
+                        <td className="font-mono">
+                          {p.currentStock?.toFixed(1) || '0'}
+                        </td>
+                        <td>
+                          <span className="text-muted text-sm">{p.uom}</span>
+                        </td>
+                        <td>
+                          <StatusBadge status={p.stockStatus || 'AVAILABLE'} />
                         </td>
                         <td className="text-right font-mono">
-                          <StockCell qty={stockByBranch.nairobi} branch="nairobi" focused={focusedBranch === 'nairobi'} />
-                        </td>
-                        <td className="text-right font-mono">
-                          <StockCell qty={stockByBranch.bonje} branch="bonje" focused={focusedBranch === 'bonje'} />
-                        </td>
-                        <td className="text-right font-mono font-medium">
-                          {totalStock.toLocaleString()}
+                          {formatKES((p.currentStock || 0) * (p.unitCost || 0))}
                         </td>
                       </tr>
                     )
