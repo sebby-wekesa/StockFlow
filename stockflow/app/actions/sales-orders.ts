@@ -32,7 +32,7 @@ export async function createSalesOrder(data: {
       });
 
       if (!finishedGoods || finishedGoods.quantity < item.quantity) {
-        throw new Error(`Insufficient stock for item ${finishedGoods?.design?.name || 'unknown'}`);
+        throw new Error(`Insufficient stock for item ${finishedGoods?.Design?.name || 'unknown'}`);
       }
     }
 
@@ -46,7 +46,7 @@ export async function createSalesOrder(data: {
         customerName: data.customerName,
         totalAmount,
         status: 'PENDING', // Orders start as pending and need confirmation
-        items: {
+        SaleItem: {
           create: data.items.map(item => ({
             finishedGoodsId: item.finishedGoodsId,
             quantity: item.quantity,
@@ -55,17 +55,17 @@ export async function createSalesOrder(data: {
           }))
         }
       },
-      include: {
-        items: {
-          include: {
-            finishedGoods: {
-              include: {
-                Design: true
+        include: {
+          SaleItem: {
+            include: {
+              FinishedGoods: {
+                include: {
+                  Design: true
+                }
               }
             }
           }
         }
-      }
     });
 
     revalidatePath('/catalogue');
@@ -92,10 +92,10 @@ export async function getSalesOrders(role?: string) {
   const orders = await prisma.saleOrder.findMany({
     where: whereClause,
     include: {
-      customer: true,
-      items: {
+      Customer: true,
+      SaleItem: {
         include: {
-          finishedGoods: {
+          FinishedGoods: {
             include: {
               Design: true
             }
@@ -109,16 +109,16 @@ export async function getSalesOrders(role?: string) {
   return orders.map(order => ({
     id: order.id,
     orderNumber: `SO-${order.id.slice(-6).toUpperCase()}`,
-    customerName: order.customer?.name || order.customerName,
+    customerName: order.Customer?.name || order.customerName,
     status: order.status,
     amount: Number(order.totalAmount),
-    itemCount: order.items.length,
-    totalQuantity: order.items.reduce((sum, item) => sum + item.quantity, 0),
+    itemCount: order.SaleItem.length,
+    totalQuantity: order.SaleItem.reduce((sum, item) => sum + item.quantity, 0),
     createdAt: order.createdAt,
-    items: order.items.map(item => ({
+    items: order.SaleItem.map(item => ({
       id: item.id,
-      designName: item.finishedGoods?.design?.name || 'Unknown',
-      designCode: item.finishedGoods?.design?.code || 'N/A',
+      designName: item.FinishedGoods?.Design?.name || 'Unknown',
+      designCode: item.FinishedGoods?.Design?.code || 'N/A',
       quantity: item.quantity,
       unitPrice: Number(item.unitPrice),
       totalPrice: Number(item.totalPrice)

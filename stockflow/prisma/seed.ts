@@ -23,16 +23,19 @@ function hashPassword(password: string): string {
 async function seedDesigns() {
   const designs = [
     {
+      id: "design-sg-001",
       name: "Industrial Steel Gear",
       code: "SG-001",
       description: "High-grade carbon steel gear for heavy machinery.",
     },
     {
+      id: "design-ah-x2",
       name: "Aluminum Housing Unit",
       code: "AH-X2",
       description: "Lightweight aerospace-grade aluminum casing.",
     },
     {
+      id: "design-bv-pro",
       name: "Reinforced Brass Valve",
       code: "BV-PRO",
       description: "Corrosion-resistant brass valve for fluid control.",
@@ -45,7 +48,10 @@ async function seedDesigns() {
     await prisma.design.upsert({
       where: { code: design.code },
       update: {}, // Don't change if it already exists
-      create: design,
+      create: {
+        ...design,
+        updatedAt: new Date(),
+      },
     });
   }
 
@@ -60,16 +66,18 @@ async function main() {
     where: { code: 'SF' },
     update: {},
     create: {
+      id: 'org-stockflow-001',
       name: 'StockFlow Manufacturing',
       code: 'SF',
+      updatedAt: new Date(),
     }
   });
 
   // 2. Create Branches
   const branches = [
-    { name: 'Mombasa Branch', code: 'MSA', location: 'Mombasa', organizationId: org.id },
-    { name: 'Nairobi Branch', code: 'NBO', location: 'Nairobi', organizationId: org.id },
-    { name: 'Bunje Branch', code: 'BNJ', location: 'Bunje', organizationId: org.id },
+    { id: 'branch-mombasa', name: 'Mombasa Branch', code: 'MSA', location: 'Mombasa', organizationId: org.id },
+    { id: 'branch-nairobi', name: 'Nairobi Branch', code: 'NBO', location: 'Nairobi', organizationId: org.id },
+    { id: 'branch-bunje', name: 'Bunje Branch', code: 'BNJ', location: 'Bunje', organizationId: org.id },
   ];
 
   const seededBranches = [];
@@ -77,7 +85,10 @@ async function main() {
     const b = await prisma.branch.upsert({
       where: { code: branch.code },
       update: { location: branch.location },
-      create: branch,
+      create: {
+        ...branch,
+        updatedAt: new Date(),
+      },
     });
     seededBranches.push(b);
   }
@@ -132,6 +143,7 @@ async function main() {
         name: userData.name,
         organizationId: userData.organizationId,
         branchId: userData.branchId,
+        updatedAt: new Date(),
       },
       create: {
         id: userId,
@@ -141,6 +153,7 @@ async function main() {
         role: userData.role,
         organizationId: userData.organizationId,
         branchId: userData.branchId,
+        updatedAt: new Date(),
       },
     });
 
