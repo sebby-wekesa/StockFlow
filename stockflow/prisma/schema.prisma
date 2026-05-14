@@ -520,7 +520,7 @@ model BillOfMaterials {
   unitOfMeasure String      @default("kg")
   createdAt     DateTime    @default(now())
   updatedAt     DateTime
-  Design        Design      @relation(fields: [designId], references: [id], onDelete: Cascade)
+  design        Design      @relation(fields: [designId], references: [id], onDelete: Cascade)
   RawMaterial   RawMaterial @relation(fields: [rawMaterialId], references: [id])
 
   @@unique([designId, rawMaterialId])
@@ -602,10 +602,10 @@ model Design {
   targetWeight     Decimal?          @db.Decimal(10, 4)
   createdAt        DateTime          @default(now())
   updatedAt        DateTime
-  BillOfMaterials  BillOfMaterials[]
-  FinishedGoods    FinishedGoods[]
-  ProductionOrder  ProductionOrder[]
-  Stage            Stage[]
+  billOfMaterials  BillOfMaterials[]
+  finishedGoods    FinishedGoods[]
+  productionOrders ProductionOrder[]
+  stages           Stage[]
 
   @@schema("public")
 }
@@ -620,7 +620,7 @@ model FinishedGoods {
   batchNumber            String?
   unitCost               Float?
   createdAt              DateTime                 @default(now())
-  Design                 Design                   @relation(fields: [designId], references: [id])
+  design                 Design                   @relation(fields: [designId], references: [id])
   InventoryFinishedGoods InventoryFinishedGoods[]
   SaleItem               SaleItem[]
 
@@ -830,7 +830,7 @@ model ProductionOrder {
   createdAt              DateTime                 @default(now())
   updatedAt              DateTime
   MaterialConsumptionLog MaterialConsumptionLog[]
-  Design                 Design                   @relation(fields: [designId], references: [id])
+  design                 Design                   @relation(fields: [designId], references: [id])
   StageLog               StageLog[]
 
   @@schema("public")
@@ -929,7 +929,7 @@ model Stage {
   createdAt              DateTime                 @default(now())
   updatedAt              DateTime
   MaterialConsumptionLog MaterialConsumptionLog[]
-  Design                 Design                   @relation(fields: [designId], references: [id], onDelete: Cascade)
+  design                 Design                   @relation(fields: [designId], references: [id], onDelete: Cascade)
   StageLog               StageLog[]
 
   @@unique([designId, sequence])
@@ -1018,7 +1018,7 @@ model Profile {
   users      users     @relation(fields: [id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@map("profiles")
-  @@schema("public")
+  @@schema("auth")
 }
 
 enum aal_level {

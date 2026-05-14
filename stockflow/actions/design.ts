@@ -52,7 +52,7 @@ export async function createDesign(formData: FormData) {
       description: input.description,
       targetDimensions: input.targetDimensions,
       targetWeight: input.targetWeight,
-      Stage: {
+      stages: {
         create: input.stages,
       },
     },

@@ -15,7 +15,7 @@ export async function completeStage(input: StageCompletionInput) {
     const order = await tx.productionOrder.findUnique({
       where: { id: validated.orderId },
       include: {
-        Design: { include: { Stage: true } },
+        design: { include: { stages: true } },
         StageLog: { orderBy: { sequence: "desc" }, take: 1 },
       },
     });
@@ -28,7 +28,7 @@ export async function completeStage(input: StageCompletionInput) {
       throw new Error("Order must be approved or in production");
     }
 
-    const currentStageIndex = order.Design.Stage.findIndex(
+    const currentStageIndex = order.design.stages.findIndex(
       (s) => s.sequence === validated.sequence
     );
 
@@ -41,7 +41,7 @@ export async function completeStage(input: StageCompletionInput) {
       throw new Error(`Must complete stages in order. Expected sequence ${expectedSequence}, got ${validated.sequence}`);
     }
 
-    const stage = order.Design.Stage[currentStageIndex];
+    const stage = order.design.stages[currentStageIndex];
 
     if (!stage) {
       throw new Error("Stage not found for the given sequence");
@@ -63,9 +63,9 @@ export async function completeStage(input: StageCompletionInput) {
       },
     });
 
-    const isLastStage = currentStageIndex === order.Design.Stage.length - 1;
+    const isLastStage = currentStageIndex === order.design.stages.length - 1;
     const newStatus = isLastStage ? "COMPLETED" : "IN_PRODUCTION";
-    const nextStage = isLastStage ? null : order.Design.Stage[currentStageIndex + 1].sequence;
+    const nextStage = isLastStage ? null : order.design.stages[currentStageIndex + 1].sequence;
 
     // Update production order status and stage
     await tx.productionOrder.update({

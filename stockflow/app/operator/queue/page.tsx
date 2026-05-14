@@ -14,7 +14,7 @@ async function getOperatorStats(department: string | null) {
       currentDept: department,
     },
     include: {
-      Design: { include: { Stage: true } },
+      design: { include: { stages: true } },
       StageLog: { orderBy: { sequence: "desc" }, take: 1 },
     },
     orderBy: { updatedAt: "desc" },
@@ -71,16 +71,16 @@ export default async function OperatorQueuePage() {
 }
 
 function JobCard({ order }: { order: PendingJob }) {
-  const currentStage = order.Design.Stage.find((stage) => stage.sequence === order.currentStage);
+  const currentStage = order.design.stages.find((stage) => stage.sequence === order.currentStage);
 
   return (
     <div className="job-card inprog" style={{ marginBottom: "10px" }}>
       <Link href={`/jobs/${order.id}`} className="block">
         <div className="job-header">
-          <span className="job-id">{order.id.slice(0, 8)} · Stage {order.currentStage}/{order.Design.Stage.length}</span>
+          <span className="job-id">{order.id.slice(0, 8)} · Stage {order.currentStage}/{order.design.stages.length}</span>
           <span className="badge badge-amber">In progress</span>
         </div>
-        <div className="job-design">{order.Design.name} — {currentStage?.name || "Unknown"}</div>
+        <div className="job-design">{order.design.name} — {currentStage?.name || "Unknown"}</div>
         <div className="job-meta" style={{ marginTop: "8px" }}>
           <span>Target: <span className="job-kg">{order.targetKg.toString()} kg</span></span>
           <span>Qty: {order.quantity} units</span>
