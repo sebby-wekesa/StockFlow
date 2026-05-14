@@ -266,10 +266,12 @@ export async function signUp(formData: FormData) {
       create: {
         id: data.user.id,
         email: data.user.email!,
+        password: '', // Password handled by Supabase
         name: data.user.user_metadata?.name || name || '',
         role: 'PENDING', // Default role
         branchId: branch as any, // Cast to Branch type
         organizationId: 'org-stockflow-001', // Default organization
+        updatedAt: new Date(),
       },
     });
 
