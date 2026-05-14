@@ -39,7 +39,7 @@ const prismaClientSingleton = () => {
         return createProxy(); // Recursive proxy for nested properties
       }
     });
-    return createProxy() as any;
+    return createProxy() as PrismaClient;
   }
 
   try {
@@ -60,7 +60,7 @@ const prismaClientSingleton = () => {
         return createProxy(); // Recursive proxy for nested properties
       }
     });
-    return createProxy() as any;
+    return createProxy() as PrismaClient;
   }
 }
 

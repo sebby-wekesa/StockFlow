@@ -60,11 +60,11 @@ export async function PATCH(
         const design = await tx.design.findUnique({
           where: { id: order.designId },
           include: {
-            stages: {
+            Stage: {
               orderBy: { sequence: 'asc' }
             },
-            bomItems: {
-              include: { rawMaterial: true }
+            BillOfMaterials: {
+              include: { RawMaterial: true }
             }
           }
         });
@@ -73,17 +73,17 @@ export async function PATCH(
           throw new Error('Design not found');
         }
 
-        if (!design.bomItems || design.bomItems.length === 0) {
+        if (!design.BillOfMaterials || design.BillOfMaterials.length === 0) {
           throw new Error('Design does not have any BOM items');
         }
 
-        const firstStage = design.stages[0];
+        const firstStage = design.Stage[0];
         if (!firstStage) {
           throw new Error('Design has no production stages configured');
         }
 
         // For now, assume single raw material per design (take first BOM item)
-        const primaryBomItem = design.bomItems[0];
+        const primaryBomItem = design.BillOfMaterials[0];
 
         // 2. Calculate the required quantity for this BOM item
         const plannedUnits =
@@ -116,7 +116,7 @@ export async function PATCH(
             currentDept: firstStage.department,
           },
           include: {
-            design: {
+            Design: {
               select: { name: true },
             },
           },
@@ -136,7 +136,7 @@ export async function PATCH(
           }),
         },
         include: {
-          design: {
+          Design: {
             select: { name: true },
           },
         },

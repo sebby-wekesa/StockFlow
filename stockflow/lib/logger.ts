@@ -8,7 +8,7 @@ interface LogEntry {
   timestamp: string;
   level: LogLevel;
   message: string;
-  data?: any;
+  data?: Record<string, unknown>;
   userId?: string;
   sessionId?: string;
 }
@@ -25,7 +25,7 @@ class Logger {
     return levels.indexOf(level) >= levels.indexOf(this.logLevel);
   }
 
-  private formatMessage(level: LogLevel, message: string, data?: any): string {
+  private formatMessage(level: LogLevel, message: string, data?: Record<string, unknown>): string {
     const timestamp = new Date().toISOString();
     const baseMessage = `[${timestamp}] ${level.toUpperCase()}: ${message}`;
 
@@ -36,25 +36,25 @@ class Logger {
     return baseMessage;
   }
 
-  debug(message: string, data?: any) {
+  debug(message: string, data?: Record<string, unknown>) {
     if (this.shouldLog('debug')) {
       console.debug(this.formatMessage('debug', message, data));
     }
   }
 
-  info(message: string, data?: any) {
+  info(message: string, data?: Record<string, unknown>) {
     if (this.shouldLog('info')) {
       console.info(this.formatMessage('info', message, data));
     }
   }
 
-  warn(message: string, data?: any) {
+  warn(message: string, data?: Record<string, unknown>) {
     if (this.shouldLog('warn')) {
       console.warn(this.formatMessage('warn', message, data));
     }
   }
 
-  error(message: string, error?: Error | any, data?: any) {
+  error(message: string, error?: Error | unknown, data?: Record<string, unknown>) {
     if (this.shouldLog('error')) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       const errorData = {
@@ -66,15 +66,15 @@ class Logger {
   }
 
   // Specialized logging methods
-  audit(userId: string, action: string, details?: any) {
+  audit(userId: string, action: string, details?: Record<string, unknown>) {
     this.info(`AUDIT: User ${userId} performed ${action}`, { userId, action, details });
   }
 
-  security(message: string, data?: any) {
+  security(message: string, data?: Record<string, unknown>) {
     this.warn(`SECURITY: ${message}`, data);
   }
 
-  performance(operation: string, duration: number, data?: any) {
+  performance(operation: string, duration: number, data?: Record<string, unknown>) {
     this.info(`PERFORMANCE: ${operation} took ${duration}ms`, { operation, duration, ...data });
   }
 }

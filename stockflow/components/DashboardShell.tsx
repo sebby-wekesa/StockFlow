@@ -1,17 +1,21 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useSearchParams } from "next/navigation";
 import { Sidebar } from "@/components/Sidebar";
 import { ToastProvider } from "@/components/Toast";
 import { Role } from "@/lib/auth";
+
+interface User {
+  name?: string;
+}
 
 export function DashboardShell({
   user,
   role,
   children,
 }: {
-  user: any;
+  user: User;
   role: Role;
   children: React.ReactNode;
 }) {

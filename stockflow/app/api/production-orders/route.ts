@@ -189,7 +189,7 @@ export async function GET(request: NextRequest) {
           quantity: true,
           priority: true,
           status: true,
-          design: {
+          Design: {
             select: {
               name: true,
               targetDimensions: true,
@@ -210,11 +210,11 @@ export async function GET(request: NextRequest) {
     const transformedOrders = orders.map((order) => ({
       id: order.id,
       orderNumber: order.orderNumber,
-      designName: order.design?.name || 'Unknown Design',
+      designName: order.Design?.name || 'Unknown Design',
       targetKg: order.targetKg,
       quantity: order.quantity,
       priority: order.priority,
-      specs: `${order.design?.targetDimensions || ''}`,
+      specs: `${order.Design?.targetDimensions || ''}`,
       status: order.status,
     }))
 

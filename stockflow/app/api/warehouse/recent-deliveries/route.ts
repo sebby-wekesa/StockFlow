@@ -7,7 +7,7 @@ export async function GET() {
       take: 5,
       orderBy: { createdAt: 'desc' },
       include: {
-        material: {
+        RawMaterial: {
           select: { materialName: true, diameter: true }
         }
       }
@@ -16,8 +16,8 @@ export async function GET() {
     const transformedDeliveries = recentDeliveries.map(delivery => ({
       id: delivery.id,
       material: {
-        materialName: delivery.material.materialName,
-        diameter: delivery.material.diameter
+        materialName: delivery.RawMaterial.materialName,
+        diameter: delivery.RawMaterial.diameter
       },
       kgReceived: delivery.kgReceived,
       createdAt: delivery.createdAt.toISOString()

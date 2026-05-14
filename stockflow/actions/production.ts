@@ -6,11 +6,12 @@ import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
 import { createServerSupabase } from '@/lib/supabase/server'
 import { getStagesForCategory } from '@/lib/production'
-import type { ProductCategory } from '@prisma/client'
+import type { ProductCategory, Stage, PrismaClient } from '@prisma/client'
+import type { User } from '@supabase/supabase-js'
 
 async function requireUser() {
   const supabase = await createServerSupabase()
-  const { data: { user: authUser } } = await supabase.auth.getUser()
+  const { data: { user: authUser } }: { data: { user: User | null } } = await supabase.auth.getUser()
   if (!authUser) throw new Error('Not authenticated')
   const user = await prisma.user.findUnique({ where: { id: authUser.id } })
   if (!user) throw new Error('User not provisioned')
@@ -81,14 +82,14 @@ export async function createJobCard(formData: FormData) {
     }
   }
 
-  const stages = design.stages.sort((a, b) => a.sequence - b.sequence)
+  const stages = design.stages.sort((a: Stage, b: Stage) => a.sequence - b.sequence)
 
-  await prisma.$transaction(async (tx) => {
+  await prisma.$transaction(async (tx: PrismaClient) => {
     // Create job card
     const job = await tx.productionOrder.create({
       data: {
-        product_id: data.product_id,
-        qty_ordered: data.qty_ordered,
+        designId: data.designId,
+        quantity: data.quantity,
         notes: data.notes,
         status: 'open',
         created_by: user.id,
@@ -102,7 +103,7 @@ export async function createJobCard(formData: FormData) {
           job_card_id: job.id,
           stage_number: stage.number,
           stage_name: stage.label,
-          qty_in: stage.number === 1 ? data.qty_ordered : 0, // First stage gets the full quantity
+          qty_in: stage.number === 1 ? data.quantity : 0, // First stage gets the full quantity
         },
       })
     }
@@ -143,7 +144,7 @@ export async function createJobCard(formData: FormData) {
   })
 
   revalidatePath('/jobs')
-  redirect(`/jobs/${jobId}`)
+  redirect(`/jobs/${job.id}`)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -180,10 +181,10 @@ export async function completeStage(formData: FormData) {
   const totalAccounted = data.qty_out + data.qty_rejected
   if (totalAccounted !== stage.qty_in) {
     throw new Error(`Quantity mismatch: ${totalAccounted} accounted vs ${stage.qty_in} input`)
-  }
+   }
 
-  await prisma.$transaction(async (tx) => {
-    // Complete current stage
+   await prisma.$transaction(async (tx: typeof prisma) => {
+     // Complete current stage
     await tx.productionOrderStage.update({
       where: { id: data.stage_id },
       data: {
@@ -287,10 +288,10 @@ export async function cancelJob(jobId: string, reason: string) {
     include: { raw_materials: true },
   })
   if (!job) throw new Error('Job not found')
-  if (job.status === 'complete') throw new Error('Cannot cancel completed job')
+   if (job.status === 'complete') throw new Error('Cannot cancel completed job')
 
-  await prisma.$transaction(async (tx) => {
-    // Cancel job
+   await prisma.$transaction(async (tx: typeof prisma) => {
+     // Cancel job
     await tx.productionOrder.update({
       where: { id: jobId },
       data: {

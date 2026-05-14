@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
         completedAt: new Date(timestamp),
       },
       include: {
-        operator: {
+        User: {
           select: { name: true, email: true },
         },
       },
@@ -107,12 +107,12 @@ export async function GET(request: NextRequest) {
     const logs = await prisma.stageLog.findMany({
       where: query,
       include: {
-        operator: {
+        User: {
           select: { name: true, email: true, department: true },
         },
-        order: {
-          select: { 
-            id: true, 
+        ProductionOrder: {
+          select: {
+            id: true,
             quantity: true,
             Design: { select: { name: true } }
           },

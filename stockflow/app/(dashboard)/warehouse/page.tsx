@@ -2,7 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
-import { Package, Truck, AlertTriangle, CheckCircle } from "lucide-react";
+import Link from "next/link";
+import { Truck, AlertTriangle, CheckCircle } from "lucide-react";
 
 interface WarehouseStats {
   totalRawMaterials: number;
@@ -72,14 +73,6 @@ export default function WarehousePage() {
 
     fetchWarehouseData();
   }, []);
-
-  const handleReceiveStock = () => {
-    router.push('/receive');
-  };
-
-  const handleViewInventory = () => {
-    router.push('/rawmaterials');
-  };
 
   return (
     <div>

@@ -73,7 +73,7 @@ export async function GET(request: NextRequest) {
     const csvRows = completedOrders.map(order =>
       [
         order.id,
-        `"${order.design.name}"`,
+        `"${order.Design.name}"`,
         order.targetKg,
         order.completedAt?.toISOString().split('T')[0] || '',
         order.currentDept || ''

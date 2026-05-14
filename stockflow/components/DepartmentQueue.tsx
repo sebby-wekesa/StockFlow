@@ -1,20 +1,35 @@
 "use client";
 
 import { Clock, Box, Scale, ChevronRight, Hash } from "lucide-react";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { StageLogForm } from './operator/StageLogForm';
 
 // Define proper TypeScript interfaces
+interface ApiOrder {
+  id: string;
+  code: string;
+  designName: string;
+  targetDimensions?: string;
+  targetKg: number;
+  currentStage?: number;
+  status: string;
+  currentStageId: string;
+  currentDept: string;
+}
+
 interface ProductionOrder {
   id: string;
   orderNumber: string;
   design: {
     name: string;
+    targetDim: string;
   };
   inheritedKg: number;
   targetKg: number;
   currentStage: number;
   status: string;
+  currentStageId: string;
+  currentDept: string;
 }
 
 interface DepartmentQueueProps {
@@ -26,40 +41,40 @@ export function DepartmentQueue({ userDept }: DepartmentQueueProps) {
   const [activeJob, setActiveJob] = useState<ProductionOrder | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchJobs = useCallback(async () => {
-    try {
-      const response = await fetch(`/api/production-orders?dept=${userDept}&status=IN_PRODUCTION`);
-      if (response.ok) {
-        const result = await response.json();
-        // Transform API response to match our interface
-        const transformedJobs = result.data.map((order: any) => ({
-          id: order.id,
-          orderNumber: order.code,
-          design: {
-            name: order.designName,
-            targetDim: order.targetDimensions || "Standard"
-          },
-          inheritedKg: order.targetKg,
-          targetKg: order.targetKg,
-          currentStage: order.currentStage || 1,
-          status: order.status,
-          currentStageId: order.currentStageId,
-          currentDept: order.currentDept,
-        }));
-        setJobs(transformedJobs);
-      }
-    } catch (error) {
-      console.error('Failed to fetch jobs:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, [userDept]);
+
 
   useEffect(() => {
     if (userDept) {
-      fetchJobs();
+      (async () => {
+        try {
+          const response = await fetch(`/api/production-orders?dept=${userDept}&status=IN_PRODUCTION`);
+          if (response.ok) {
+            const result = await response.json();
+            // Transform API response to match our interface
+            const transformedJobs = result.data.map((order: ApiOrder) => ({
+              id: order.id,
+              orderNumber: order.code,
+              design: {
+                name: order.designName,
+                targetDim: order.targetDimensions || "Standard"
+              },
+              inheritedKg: order.targetKg,
+              targetKg: order.targetKg,
+              currentStage: order.currentStage || 1,
+              status: order.status,
+              currentStageId: order.currentStageId,
+              currentDept: order.currentDept,
+            }));
+            setJobs(transformedJobs);
+          }
+        } catch (error) {
+          console.error('Failed to fetch jobs:', error);
+        } finally {
+          setLoading(false);
+        }
+      })();
     }
-  }, [userDept, fetchJobs]);
+  }, [userDept]);
 
   if (loading) {
     return (

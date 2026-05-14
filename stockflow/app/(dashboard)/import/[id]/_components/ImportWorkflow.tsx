@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { ImportStepper } from './ImportStepper'
 import { ColumnMapper } from './ColumnMapper'
 import { MatchResults } from './MatchResults'
+import { SpecializedPreview } from './SpecializedPreview'
 import { SuccessView } from './SuccessView'
 import type { ImportBatch, ImportRow } from '@prisma/client'
 
@@ -14,14 +15,18 @@ interface ImportWorkflowProps {
 
 export function ImportWorkflow({ batch }: ImportWorkflowProps) {
   const renderStep = () => {
+    // Handle specialized imports
+    const isSpecialized = ['sales_quickbooks', 'springs_stock', 'consumables'].includes(batch.sheet_type)
+
     switch (batch.status) {
       case 'uploaded':
+        return isSpecialized ? <SpecializedPreview batch={batch} /> : <ColumnMapper batch={batch} />
       case 'mapping':
         return <ColumnMapper batch={batch} />
       case 'validating':
         return <div className="text-center py-8">Validating and matching products...</div>
       case 'preview':
-        return <MatchResults batch={batch} />
+        return isSpecialized ? <SpecializedPreview batch={batch} /> : <MatchResults batch={batch} />
       case 'committing':
         return <div className="text-center py-8">Committing import...</div>
       case 'imported':

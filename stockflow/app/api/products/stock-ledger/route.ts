@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
       const product = await prisma.product.findUnique({
         where: { id: productId },
         include: {
-          stockMovements: {
+          StockMovement: {
             orderBy: { createdAt: 'desc' },
             take: 50, // Limit to recent movements
           },
@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
           name: true,
           sku: true,
           currentStock: true,
-          stockMovements: {
+          StockMovement: {
             orderBy: { createdAt: 'desc' },
             take: 10, // Just a few recent movements for preview
           },

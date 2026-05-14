@@ -2,12 +2,13 @@
 
 import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth";
+import type { FinishedGoods, Design } from "@prisma/client";
 
 export async function getCatalogue() {
-  const user = await requireAuth();
+  await requireAuth();
 
   // Get finished goods that are available for sale
-  let finishedGoods: any[] = []
+  let finishedGoods: (FinishedGoods & { Design: Design })[] = []
   try {
     finishedGoods = await prisma.finishedGoods.findMany({
       where: {
@@ -39,7 +40,7 @@ export async function getCatalogue() {
 }
 
 export async function getMyOrders() {
-  const user = await requireAuth();
+  await requireAuth();
 
   // This would need to be implemented based on your sales order schema
   // For now, return empty array since the schema shows SaleOrder but no user relation
