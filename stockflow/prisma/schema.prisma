@@ -513,7 +513,7 @@ model AuditLog {
 }
 
 model BillOfMaterials {
-  id            String      @id
+  id            String      @id @default(uuid())
   designId      String
   rawMaterialId String
   quantity      Decimal     @db.Decimal(10, 4)
@@ -528,7 +528,7 @@ model BillOfMaterials {
 }
 
 model Branch {
-  id                     String                   @id
+  id                     String                   @id @default(uuid())
   organizationId         String
   name                   String                   @unique
   location               String?
@@ -537,7 +537,7 @@ model Branch {
   phone                  String?
   managerId              String?
   createdAt              DateTime                 @default(now())
-  updatedAt              DateTime
+  updatedAt              DateTime              @updatedAt
   Organization           Organization             @relation(fields: [organizationId], references: [id])
   InventoryFinishedGoods InventoryFinishedGoods[]
   InventoryRawMaterial   InventoryRawMaterial[]
@@ -551,7 +551,7 @@ model Branch {
 }
 
 model Customer {
-  id                   String                @id
+  id                   String                @id @default(uuid())
   name                 String
   code                 String                @unique
   contactName          String?
@@ -580,7 +580,7 @@ model CustomerPortalAccess {
 }
 
 model DemandForecast {
-  id               String      @id
+  id               String      @id @default(uuid())
   rawMaterialId    String
   forecastDate     DateTime
   forecastedDemand Decimal     @db.Decimal(10, 4)
@@ -594,14 +594,14 @@ model DemandForecast {
 }
 
 model Design {
-  id               String            @id
+  id               String            @id @default(uuid())
   name             String
   code             String            @unique
   description      String?
   targetDimensions String?
   targetWeight     Decimal?          @db.Decimal(10, 4)
   createdAt        DateTime          @default(now())
-  updatedAt        DateTime
+  updatedAt        DateTime          @updatedAt
   billOfMaterials  BillOfMaterials[]
   finishedGoods    FinishedGoods[]
   productionOrders ProductionOrder[]
@@ -611,7 +611,7 @@ model Design {
 }
 
 model FinishedGoods {
-  id                     String                   @id
+  id                     String                   @id @default(uuid())
   sku                    String                   @unique
   designId               String
   quantity               Int
@@ -669,7 +669,7 @@ model ImportRow {
 }
 
 model InventoryFinishedGoods {
-  id              String        @id
+  id              String        @id @default(uuid())
   branchId        String
   finishedGoodsId String
   availableQty    Int           @default(0)
@@ -684,7 +684,7 @@ model InventoryFinishedGoods {
 }
 
 model InventoryRawMaterial {
-  id            String      @id
+  id            String      @id @default(uuid())
   branchId      String
   rawMaterialId String
   availableKg   Decimal     @default(0) @db.Decimal(10, 4)
@@ -699,7 +699,7 @@ model InventoryRawMaterial {
 }
 
 model MaterialConsumptionLog {
-  id                String          @id
+  id                String          @id @default(uuid())
   productionOrderId String
   rawMaterialId     String
   quantityConsumed  Decimal         @db.Decimal(10, 4)
@@ -714,7 +714,7 @@ model MaterialConsumptionLog {
 }
 
 model MaterialReceipt {
-  id          String      @id
+  id          String      @id @default(uuid())
   materialId  String
   kgReceived  Decimal     @db.Decimal(10, 4)
   reference   String?
@@ -730,7 +730,7 @@ model MaterialReceipt {
 }
 
 model NotificationSettings {
-  id              String   @id
+  id              String   @id @default(uuid())
   userId          String   @unique
   emailEnabled    Boolean  @default(true)
   whatsappEnabled Boolean  @default(false)
@@ -746,7 +746,7 @@ model NotificationSettings {
 }
 
 model Organization {
-  id        String   @id
+  id        String   @id @default(uuid())
   name      String
   code      String   @unique
   address   String?
@@ -761,7 +761,7 @@ model Organization {
 }
 
 model Product {
-  id             String           @id
+  id             String           @id @default(uuid())
   name           String
   sku            String?          @unique
   category       ProductCategory  @default(manufactured_spring)
@@ -785,7 +785,7 @@ model Product {
 }
 
 model ProductAlias {
-  id         String   @id
+  id         String   @id @default(uuid())
   product_id String
   alias      String
   created_at DateTime @default(now())
@@ -797,7 +797,7 @@ model ProductAlias {
 }
 
 model ProductReceipt {
-  id          String   @id
+  id          String   @id @default(uuid())
   productId   String
   qtyReceived Float
   unitCost    Float?
@@ -814,7 +814,7 @@ model ProductReceipt {
 }
 
 model ProductionOrder {
-  id                     String                   @id
+  id                     String                   @id @default(uuid())
   orderNumber            String                   @unique
   designId               String
   quantity               Int                      @default(1)
@@ -828,7 +828,7 @@ model ProductionOrder {
   approvedAt             DateTime?
   completedAt            DateTime?
   createdAt              DateTime                 @default(now())
-  updatedAt              DateTime
+  updatedAt              DateTime              @updatedAt
   MaterialConsumptionLog MaterialConsumptionLog[]
   design                 Design                   @relation(fields: [designId], references: [id])
   StageLog               StageLog[]
@@ -837,7 +837,7 @@ model ProductionOrder {
 }
 
 model PurchaseOrder {
-  id                String              @id
+  id                String              @id @default(uuid())
   poNumber          String              @unique
   supplierId        String
   status            PurchaseStatus      @default(DRAFT)
@@ -855,7 +855,7 @@ model PurchaseOrder {
 }
 
 model PurchaseOrderItem {
-  id              String        @id
+  id              String        @id @default(uuid())
   purchaseOrderId String
   rawMaterialId   String
   quantity        Decimal       @db.Decimal(10, 4)
@@ -868,7 +868,7 @@ model PurchaseOrderItem {
 }
 
 model RawMaterial {
-  id                     String                   @id
+  id                     String                   @id @default(uuid())
   sku                    String                   @unique
   materialName           String
   diameter               String
@@ -879,7 +879,7 @@ model RawMaterial {
   reservedKg             Decimal                  @default(0) @db.Decimal(10, 4)
   costPerKg             Float?
   createdAt              DateTime                 @default(now())
-  updatedAt              DateTime
+  updatedAt              DateTime              @updatedAt
   BillOfMaterials        BillOfMaterials[]
   DemandForecast         DemandForecast[]
   InventoryRawMaterial   InventoryRawMaterial[]
@@ -892,7 +892,7 @@ model RawMaterial {
 }
 
 model SaleItem {
-  id              String        @id
+  id              String        @id @default(uuid())
   saleOrderId     String
   finishedGoodsId String
   quantity        Int
@@ -905,7 +905,7 @@ model SaleItem {
 }
 
 model SaleOrder {
-  id           String     @id
+  id           String     @id @default(uuid())
   customerId   String?
   customerName String
   totalAmount  Decimal    @db.Decimal(10, 2)
@@ -937,7 +937,7 @@ model Stage {
 }
 
 model StageLog {
-  id              String          @id
+  id              String          @id @default(uuid())
   orderId         String
   stageId         String?
   stageName       String
@@ -958,7 +958,7 @@ model StageLog {
 }
 
 model Supplier {
-  id              String            @id
+  id              String            @id @default(uuid())
   name            String
   code            String            @unique
   contactName     String?
@@ -976,7 +976,7 @@ model Supplier {
 }
 
 model UnitOfMeasure {
-  id        String   @id
+  id        String   @id @default(uuid())
   name      String
   symbol    String
   category  String
@@ -987,7 +987,7 @@ model UnitOfMeasure {
 }
 
 model User {
-  id                   String                @id
+  id                   String                @id @default(uuid())
   email                String                @unique
   password             String
   name                 String?
