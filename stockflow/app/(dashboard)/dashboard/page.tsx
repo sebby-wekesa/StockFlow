@@ -50,10 +50,10 @@ function PendingView({ user }: { user: any }) {
 // Operator Dashboard - Shows "My jobs" and "History"
 async function OperatorQueue({ user, role }: { user: any; role: TeamRole }) {
   // Import the existing operator components
-  const { getOperatorQueue } = await import('@/app/actions/production')
+  const { getOperatorQueue } = await import('@/actions/production')
   const orders = await getOperatorQueue(role.toUpperCase(), user.department)
 
-  const { getOperatorHistory } = await import('@/app/actions/production')
+  const { getOperatorHistory } = await import('@/actions/production')
   const history = await getOperatorHistory()
 
   return (
@@ -146,8 +146,8 @@ async function OperatorQueue({ user, role }: { user: any; role: TeamRole }) {
 // Sales Dashboard - Shows "Catalogue" and "My Orders"
 async function SalesView({ user, role }: { user: any; role: TeamRole }) {
   // Import sales-specific data
-  const { getCatalogue } = await import('@/app/actions/sales')
-  const { getSalesOrders } = await import('@/app/actions/sales-orders')
+  const { getCatalogue } = await import('@/actions/sales')
+  const { getSalesOrders } = await import('@/actions/sales-orders')
 
   const products = await getCatalogue()
   const orders = await getSalesOrders(role.toUpperCase())
@@ -307,7 +307,7 @@ async function WarehouseView({ user, role }: { user: any; role: TeamRole }) {
 
 // Manager Dashboard - Shows production management overview
 async function ManagerOverview({ user, role }: { user: any; role: TeamRole }) {
-  const data = await import('@/app/actions/dashboard').then(m => m.getDashboardStats(user, role.toUpperCase() as Role))
+  const data = await import('@/actions/dashboard').then(m => m.getDashboardStats(user, role.toUpperCase() as Role))
   const { stats, recentOrders, departmentScrap, throughput } = data
 
   return (
@@ -474,7 +474,7 @@ const TeamDashboard = ({ role, user }: { role: TeamRole; user: any }) => {
 async function PackagingView({ user, role }: { user: any; role: TeamRole }) {
   // For now, show basic packaging-focused stats
   // TODO: Implement proper packaging dashboard data
-  const data = await import('@/app/actions/dashboard').then(m => m.getDashboardStats(user, role.toUpperCase() as Role))
+  const data = await import('@/actions/dashboard').then(m => m.getDashboardStats(user, role.toUpperCase() as Role))
   const { stats } = data
 
   return (
@@ -533,7 +533,7 @@ async function PackagingView({ user, role }: { user: any; role: TeamRole }) {
 
 // Admin Dashboard - Shows the full overview
 async function AdminView({ user, role }: { user: any; role: TeamRole }) {
-  const data = await import('@/app/actions/dashboard').then(m => m.getDashboardStats(user, role.toUpperCase() as Role))
+  const data = await import('@/actions/dashboard').then(m => m.getDashboardStats(user, role.toUpperCase() as Role))
   const { stats, recentOrders, departmentScrap, throughput } = data
 
   return (

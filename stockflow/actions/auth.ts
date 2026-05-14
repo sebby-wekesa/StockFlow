@@ -248,7 +248,7 @@ export async function signUp(formData: FormData) {
     }
 
     // Create profile record in database if it doesn't exist
-    await prisma.profiles.upsert({
+    await prisma.profile.upsert({
       where: { id: data.user.id },
       update: {},
       create: {
