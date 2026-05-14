@@ -32,12 +32,12 @@ import type { Branch } from '@prisma/client'
 // ─────────────────────────────────────────────────────────────────────────────
 
 async function requireImporter() {
-  const supabase = createServerSupabase()
+  const supabase = await createServerSupabase()
   const { data: { user: authUser } } = await supabase.auth.getUser()
   if (!authUser) throw new Error('Not authenticated')
   const user = await prisma.user.findUnique({ where: { id: authUser.id } })
   if (!user) throw new Error('User not provisioned')
-  if (user.role !== 'admin' && user.role !== 'manager') {
+  if (user.role !== 'ADMIN' && user.role !== 'MANAGER') {
     throw new Error('Only admins and managers can import data')
   }
   return user
