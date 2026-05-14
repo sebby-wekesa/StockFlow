@@ -921,13 +921,13 @@ model SaleOrder {
 }
 
 model Stage {
-  id                     String                   @id
+  id                     String                   @id @default(uuid())
   name                   String
   department             String
   sequence               Int
   designId               String
   createdAt              DateTime                 @default(now())
-  updatedAt              DateTime
+  updatedAt              DateTime                 @updatedAt
   MaterialConsumptionLog MaterialConsumptionLog[]
   design                 Design                   @relation(fields: [designId], references: [id], onDelete: Cascade)
   StageLog               StageLog[]
