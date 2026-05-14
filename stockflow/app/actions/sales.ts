@@ -8,7 +8,7 @@ export async function getCatalogue() {
   await requireAuth();
 
   // Get finished goods that are available for sale
-  let finishedGoods: (FinishedGoods & { Design: Design })[] = []
+  let finishedGoods: (FinishedGoods & { design: Design })[] = []
   try {
     finishedGoods = await prisma.finishedGoods.findMany({
       where: {
@@ -17,7 +17,7 @@ export async function getCatalogue() {
         },
       },
       include: {
-        Design: true,
+        design: true,
       },
       orderBy: {
         createdAt: "desc",
@@ -57,7 +57,7 @@ export async function getMyOrders() {
         include: {
           finishedGoods: {
             include: {
-              Design: true,
+              design: true,
             },
           },
         },

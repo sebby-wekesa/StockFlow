@@ -177,7 +177,7 @@ export async function getDashboardStats(user?: AuthUser, role?: Role) {
     recentOrdersWhere = {}; // Will return empty array below
   }
 
-  let recentOrders: (ProductionOrder & { Design: Design })[] = []
+  let recentOrders: (ProductionOrder & { design: Design })[] = []
   if (!(isWarehouse || isSales)) {
     try {
       recentOrders = await prisma.productionOrder.findMany({
@@ -187,7 +187,7 @@ export async function getDashboardStats(user?: AuthUser, role?: Role) {
           updatedAt: "desc",
         },
         include: {
-          Design: true,
+          design: true,
         },
       });
     } catch (error) {
@@ -364,7 +364,7 @@ export async function getDashboardStats(user?: AuthUser, role?: Role) {
     stats,
     recentOrders: recentOrders.map(o => ({
       id: o.orderNumber,
-      design: o.Design.name,
+      design: o.design.name,
       kg: toNumber(o.targetKg),
       status: o.status === "PENDING" ? "Pending approval" :
               o.status === "APPROVED" || o.status === "IN_PRODUCTION" ? "In production" : "Complete",
@@ -486,19 +486,19 @@ export async function approveOrder(orderId: string) {
     throw new Error('Invalid order');
   }
 
-  if (!order.Design.bomItems || order.Design.bomItems.length === 0) {
+  if (!order.design.bomItems || order.design.bomItems.length === 0) {
     throw new Error('No raw materials assigned to design');
   }
 
-  const firstStage = order.Design.stages[0];
+  const firstStage = order.design.stages[0];
   if (!firstStage) {
     throw new Error('Design has no production stages configured');
   }
 
   // For now, assume single raw material per design (take first BOM item)
-  const primaryBomItem = order.Design.bomItems[0];
+  const primaryBomItem = order.design.bomItems[0];
   const plannedUnits =
-    order.Design.targetWeight && order.Design.targetWeight.gt(0)
+    order.design.targetWeight && order.design.targetWeight.gt(0)
       ? order.targetKg.toNumber() / order.Design.targetWeight.toNumber()
       : order.quantity;
   const reserveQuantity = plannedUnits * primaryBomItem.quantity.toNumber();
