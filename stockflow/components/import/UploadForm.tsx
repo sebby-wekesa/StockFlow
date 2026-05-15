@@ -62,8 +62,8 @@ export function UploadForm() {
   return (
     <div className="card">
       <div className="section-header mb-6">
-        <div className="section-title">Upload Excel File</div>
-        <div className="section-sub">Configure import settings and upload your data</div>
+        <div className="section-title">Quick Import</div>
+        <div className="section-sub">Upload Excel files for bulk data import</div>
       </div>
 
       {error && (
@@ -88,19 +88,34 @@ export function UploadForm() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="form-group">
-            <label className="form-label">File Type</label>
-            <select name="sheet_type" className="form-input" defaultValue="auto" disabled={isPending}>
-              <option value="auto">Auto-detect</option>
-              {(Object.entries(SHEET_TYPE_LABELS) as [SheetType, string][]).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-            </select>
+        <div className="form-group">
+          <label className="form-label">File Type</label>
+          <div className="space-y-2">
+            {[
+              { value: 'sales_quickbooks', label: 'QuickBooks sales export', desc: 'Sales invoices from QuickBooks' },
+              { value: 'springs_stock', label: 'Springs master list', desc: 'SPRINGS LIST sheet with vehicle makes' },
+              { value: 'consumables', label: 'Branch consumables stock', desc: 'Mombasa/Nairobi stock movements' },
+              { value: 'auto', label: 'Auto-detect', desc: 'Automatically detect file type' },
+            ].map(({ value, label, desc }) => (
+              <label key={value} className="flex items-center space-x-3 p-3 border border-border rounded-md hover:bg-surface-secondary cursor-pointer">
+                <input
+                  type="radio"
+                  name="sheet_type"
+                  value={value}
+                  defaultChecked={value === 'auto'}
+                  disabled={isPending}
+                  className="form-radio"
+                />
+                <div>
+                  <div className="font-medium text-sm">{label}</div>
+                  <div className="text-muted text-xs">{desc}</div>
+                </div>
+              </label>
+            ))}
           </div>
+        </div>
 
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="form-group">
             <label className="form-label">Import Mode</label>
             <select name="import_mode" defaultValue="update" className="form-input" disabled={isPending}>
@@ -108,18 +123,18 @@ export function UploadForm() {
               <option value="ignore">Only import new products</option>
             </select>
           </div>
-        </div>
 
-        <div className="form-group">
-          <label className="form-label">Target Branch</label>
-          <select name="target_branch" className="form-input" disabled={isPending}>
-            <option value="">All branches</option>
-            {ALL_BRANCHES.map((branch) => (
-              <option key={branch} value={branch}>
-                {branch.charAt(0).toUpperCase() + branch.slice(1)}
-              </option>
-            ))}
-          </select>
+          <div className="form-group">
+            <label className="form-label">Target Branch</label>
+            <select name="target_branch" className="form-input" disabled={isPending}>
+              <option value="">All branches</option>
+              {ALL_BRANCHES.map((branch) => (
+                <option key={branch} value={branch}>
+                  {branch.charAt(0).toUpperCase() + branch.slice(1)}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
 
         <div className="flex justify-end">

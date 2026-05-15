@@ -38,7 +38,7 @@ export default async function JobsPage({
       take: PAGE_SIZE,
       skip: (page - 1) * PAGE_SIZE,
       include: {
-        Design: { select: { name: true } },
+        design: { select: { name: true } },
         StageLog: {
           select: { completedAt: true, kgIn: true, kgOut: true, sequence: true }
         }
@@ -117,7 +117,7 @@ export default async function JobsPage({
                     </div>
 
                     <div className="text-muted mb-4">
-                      {job.Design?.name || 'Unknown Design'}
+                      {job.design?.name || 'Unknown Design'}
                     </div>
 
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">

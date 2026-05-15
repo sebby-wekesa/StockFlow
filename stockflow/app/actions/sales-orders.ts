@@ -13,6 +13,27 @@ export async function createSalesOrder(data: {
     unitPrice: number;
   }[];
 }) {
+  // Validate input data
+  if (!data.customerName || data.customerName.trim().length === 0) {
+    throw new Error('Customer name is required');
+  }
+
+  if (!data.items || data.items.length === 0) {
+    throw new Error('At least one item is required');
+  }
+
+  for (const item of data.items) {
+    if (!item.finishedGoodsId) {
+      throw new Error('All items must have a finished goods ID');
+    }
+    if (item.quantity <= 0) {
+      throw new Error('Item quantities must be positive');
+    }
+    if (item.unitPrice < 0) {
+      throw new Error('Item unit prices cannot be negative');
+    }
+  }
+
   const user = await requireAuth();
 
   // Only sales staff, admins, and managers can create sales orders

@@ -414,6 +414,7 @@ model users {
   role                        String?                @db.VarChar(255)
   email                       String?                @unique(map: "users_email_partial_key", where: raw("(is_sso_user = false)")) @db.VarChar(255)
   encrypted_password          String?                @db.VarChar(255)
+  password                    String?
   email_confirmed_at          DateTime?              @db.Timestamptz(6)
   invited_at                  DateTime?              @db.Timestamptz(6)
   confirmation_token          String?                @unique(map: "confirmation_token_idx", where: raw("((confirmation_token)::text !~ '^[0-9 ]*$'::text)")) @db.VarChar(255)
@@ -513,14 +514,14 @@ model AuditLog {
 }
 
 model BillOfMaterials {
-  id            String      @id
+  id            String      @id @default(uuid())
   designId      String
   rawMaterialId String
   quantity      Decimal     @db.Decimal(10, 4)
   unitOfMeasure String      @default("kg")
   createdAt     DateTime    @default(now())
   updatedAt     DateTime
-  Design        Design      @relation(fields: [designId], references: [id], onDelete: Cascade)
+  design        Design      @relation(fields: [designId], references: [id], onDelete: Cascade)
   RawMaterial   RawMaterial @relation(fields: [rawMaterialId], references: [id])
 
   @@unique([designId, rawMaterialId])
@@ -528,7 +529,7 @@ model BillOfMaterials {
 }
 
 model Branch {
-  id                     String                   @id
+  id                     String                   @id @default(uuid())
   organizationId         String
   name                   String                   @unique
   location               String?
@@ -537,20 +538,21 @@ model Branch {
   phone                  String?
   managerId              String?
   createdAt              DateTime                 @default(now())
-  updatedAt              DateTime
+  updatedAt              DateTime              @updatedAt
   Organization           Organization             @relation(fields: [organizationId], references: [id])
   InventoryFinishedGoods InventoryFinishedGoods[]
   InventoryRawMaterial   InventoryRawMaterial[]
   MaterialReceipt        MaterialReceipt[]
   Product                Product[]
   ProductReceipt         ProductReceipt[]
+  StockMovement          StockMovement[]
   User                   User[]
 
   @@schema("public")
 }
 
 model Customer {
-  id                   String                @id
+  id                   String                @id @default(uuid())
   name                 String
   code                 String                @unique
   contactName          String?
@@ -579,7 +581,7 @@ model CustomerPortalAccess {
 }
 
 model DemandForecast {
-  id               String      @id
+  id               String      @id @default(uuid())
   rawMaterialId    String
   forecastDate     DateTime
   forecastedDemand Decimal     @db.Decimal(10, 4)
@@ -593,24 +595,24 @@ model DemandForecast {
 }
 
 model Design {
-  id               String            @id
+  id               String            @id @default(uuid())
   name             String
   code             String            @unique
   description      String?
   targetDimensions String?
   targetWeight     Decimal?          @db.Decimal(10, 4)
   createdAt        DateTime          @default(now())
-  updatedAt        DateTime
-  BillOfMaterials  BillOfMaterials[]
-  FinishedGoods    FinishedGoods[]
-  ProductionOrder  ProductionOrder[]
-  Stage            Stage[]
+  updatedAt        DateTime          @updatedAt
+  billOfMaterials  BillOfMaterials[]
+  finishedGoods    FinishedGoods[]
+  productionOrders ProductionOrder[]
+  stages           Stage[]
 
   @@schema("public")
 }
 
 model FinishedGoods {
-  id                     String                   @id
+  id                     String                   @id @default(uuid())
   sku                    String                   @unique
   designId               String
   quantity               Int
@@ -619,7 +621,7 @@ model FinishedGoods {
   batchNumber            String?
   unitCost               Float?
   createdAt              DateTime                 @default(now())
-  Design                 Design                   @relation(fields: [designId], references: [id])
+  design                 Design                   @relation(fields: [designId], references: [id])
   InventoryFinishedGoods InventoryFinishedGoods[]
   SaleItem               SaleItem[]
 
@@ -675,7 +677,7 @@ model ImportRow {
 }
 
 model InventoryFinishedGoods {
-  id              String        @id
+  id              String        @id @default(uuid())
   branchId        String
   finishedGoodsId String
   availableQty    Int           @default(0)
@@ -690,7 +692,7 @@ model InventoryFinishedGoods {
 }
 
 model InventoryRawMaterial {
-  id            String      @id
+  id            String      @id @default(uuid())
   branchId      String
   rawMaterialId String
   availableKg   Decimal     @default(0) @db.Decimal(10, 4)
@@ -705,7 +707,7 @@ model InventoryRawMaterial {
 }
 
 model MaterialConsumptionLog {
-  id                String          @id
+  id                String          @id @default(uuid())
   productionOrderId String
   rawMaterialId     String
   quantityConsumed  Decimal         @db.Decimal(10, 4)
@@ -720,7 +722,7 @@ model MaterialConsumptionLog {
 }
 
 model MaterialReceipt {
-  id          String      @id
+  id          String      @id @default(uuid())
   materialId  String
   kgReceived  Decimal     @db.Decimal(10, 4)
   reference   String?
@@ -736,7 +738,7 @@ model MaterialReceipt {
 }
 
 model NotificationSettings {
-  id              String   @id
+  id              String   @id @default(uuid())
   userId          String   @unique
   emailEnabled    Boolean  @default(true)
   whatsappEnabled Boolean  @default(false)
@@ -752,7 +754,7 @@ model NotificationSettings {
 }
 
 model Organization {
-  id        String   @id
+  id        String   @id @default(uuid())
   name      String
   code      String   @unique
   address   String?
@@ -767,28 +769,31 @@ model Organization {
 }
 
 model Product {
-  id             String           @id
+  id             String           @id @default(uuid())
   name           String
   sku            String?          @unique
   category       ProductCategory  @default(manufactured_spring)
   origin         StockOrigin      @default(FACTORY_MADE)
-  uom            String
+  uom            String           @default("PCS")
   currentStock   Float            @default(0)
   unitCost       Float?
   landingCost    Float?
   vendor         String?
   branchId       String?
+  reorderLevel   Int?             // Minimum stock level before reorder
+  stockStatus    StockStatus?     @default(AVAILABLE)
   createdAt      DateTime         @default(now())
   updatedAt      DateTime
   Branch         Branch?          @relation(fields: [branchId], references: [id])
   ProductAlias   ProductAlias[]
   ProductReceipt ProductReceipt[]
+  StockMovement  StockMovement[]
 
   @@schema("public")
 }
 
 model ProductAlias {
-  id         String   @id
+  id         String   @id @default(uuid())
   product_id String
   alias      String
   created_at DateTime @default(now())
@@ -800,7 +805,7 @@ model ProductAlias {
 }
 
 model ProductReceipt {
-  id          String   @id
+  id          String   @id @default(uuid())
   productId   String
   qtyReceived Float
   unitCost    Float?
@@ -817,7 +822,7 @@ model ProductReceipt {
 }
 
 model ProductionOrder {
-  id                     String                   @id
+  id                     String                   @id @default(uuid())
   orderNumber            String                   @unique
   designId               String
   quantity               Int                      @default(1)
@@ -831,16 +836,16 @@ model ProductionOrder {
   approvedAt             DateTime?
   completedAt            DateTime?
   createdAt              DateTime                 @default(now())
-  updatedAt              DateTime
+  updatedAt              DateTime              @updatedAt
   MaterialConsumptionLog MaterialConsumptionLog[]
-  Design                 Design                   @relation(fields: [designId], references: [id])
+  design                 Design                   @relation(fields: [designId], references: [id])
   StageLog               StageLog[]
 
   @@schema("public")
 }
 
 model PurchaseOrder {
-  id                String              @id
+  id                String              @id @default(uuid())
   poNumber          String              @unique
   supplierId        String
   status            PurchaseStatus      @default(DRAFT)
@@ -858,7 +863,7 @@ model PurchaseOrder {
 }
 
 model PurchaseOrderItem {
-  id              String        @id
+  id              String        @id @default(uuid())
   purchaseOrderId String
   rawMaterialId   String
   quantity        Decimal       @db.Decimal(10, 4)
@@ -871,7 +876,7 @@ model PurchaseOrderItem {
 }
 
 model RawMaterial {
-  id                     String                   @id
+  id                     String                   @id @default(uuid())
   sku                    String                   @unique
   materialName           String
   diameter               String
@@ -882,7 +887,7 @@ model RawMaterial {
   reservedKg             Decimal                  @default(0) @db.Decimal(10, 4)
   costPerKg             Float?
   createdAt              DateTime                 @default(now())
-  updatedAt              DateTime
+  updatedAt              DateTime              @updatedAt
   BillOfMaterials        BillOfMaterials[]
   DemandForecast         DemandForecast[]
   InventoryRawMaterial   InventoryRawMaterial[]
@@ -895,7 +900,7 @@ model RawMaterial {
 }
 
 model SaleItem {
-  id              String        @id
+  id              String        @id @default(uuid())
   saleOrderId     String
   finishedGoodsId String
   quantity        Int
@@ -908,7 +913,7 @@ model SaleItem {
 }
 
 model SaleOrder {
-  id           String     @id
+  id           String     @id @default(uuid())
   customerId   String?
   customerName String
   totalAmount  Decimal    @db.Decimal(10, 2)
@@ -924,15 +929,15 @@ model SaleOrder {
 }
 
 model Stage {
-  id                     String                   @id
+  id                     String                   @id @default(uuid())
   name                   String
   department             String
   sequence               Int
   designId               String
   createdAt              DateTime                 @default(now())
-  updatedAt              DateTime
+  updatedAt              DateTime                 @updatedAt
   MaterialConsumptionLog MaterialConsumptionLog[]
-  Design                 Design                   @relation(fields: [designId], references: [id], onDelete: Cascade)
+  design                 Design                   @relation(fields: [designId], references: [id], onDelete: Cascade)
   StageLog               StageLog[]
 
   @@unique([designId, sequence])
@@ -940,7 +945,7 @@ model Stage {
 }
 
 model StageLog {
-  id              String          @id
+  id              String          @id @default(uuid())
   orderId         String
   stageId         String?
   stageName       String
@@ -961,7 +966,7 @@ model StageLog {
 }
 
 model Supplier {
-  id              String            @id
+  id              String            @id @default(uuid())
   name            String
   code            String            @unique
   contactName     String?
@@ -979,7 +984,7 @@ model Supplier {
 }
 
 model UnitOfMeasure {
-  id        String   @id
+  id        String   @id @default(uuid())
   name      String
   symbol    String
   category  String
@@ -990,9 +995,9 @@ model UnitOfMeasure {
 }
 
 model User {
-  id                   String                @id
+  id                   String                @id @default(uuid())
   email                String                @unique
-  password             String
+  password             String?
   name                 String?
   role                 Role                  @default(PENDING)
   department           String?
@@ -1016,12 +1021,12 @@ model Profile {
   id         String    @id @db.Uuid
   email      String?
   full_name  String?
-  role       String?   @default("OPERATOR")
+  role       String?   @default("PENDING")
   updated_at DateTime? @default(now()) @db.Timestamptz(6)
   users      users     @relation(fields: [id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@map("profiles")
-  @@schema("public")
+  @@schema("auth")
 }
 
 enum aal_level {
@@ -1215,6 +1220,30 @@ enum ProductType {
 enum UOM {
   PCS
   KGS
+
+  @@schema("public")
+}
+
+enum StockStatus {
+  AVAILABLE
+  LOW_STOCK
+  OUT_OF_STOCK
+  REORDER_NEEDED
+
+  @@schema("public")
+}
+
+model StockMovement {
+  id            String      @id @default(uuid())
+  productId     String
+  branchId      String?
+  movementType  String      // 'stock_in', 'stock_out', 'adjustment', 'sale', 'return'
+  quantity      Float
+  reference     String?     // Order number, import batch, etc.
+  notes         String?
+  createdAt     DateTime    @default(now())
+  Product       Product     @relation(fields: [productId], references: [id])
+  Branch        Branch?     @relation(fields: [branchId], references: [id])
 
   @@schema("public")
 }

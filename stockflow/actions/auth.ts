@@ -1,6 +1,7 @@
 "use server";
 
 import { cookies } from "next/headers";
+import type { CookieOptions } from "next/headers";
 import { redirect } from "next/navigation";
 import { createServerClient } from '@supabase/ssr'
 import { supabaseAdmin } from "@/lib/supabase-admin";
@@ -19,6 +20,27 @@ const ROLE_PATHS = {
   PACKAGING: "/dashboard",
   PENDING: "/dashboard/setup",
 };
+
+function createSupabaseClient() {
+  const cookieStore = cookies();
+  return createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          return cookieStore.get(name)?.value;
+        },
+        set(name: string, value: string, options: CookieOptions) {
+          cookieStore.set({ name, value, ...options });
+        },
+        remove(name: string, options: CookieOptions) {
+          cookieStore.set({ name, value: '', ...options });
+        },
+      },
+    }
+  );
+}
 
 function readErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : "";
@@ -53,24 +75,7 @@ export async function signIn(formData: FormData) {
   }
 
   // Create Supabase server client
-  const cookieStore = await cookies();
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value
-        },
-        set(name: string, value: string, options: any) {
-          cookieStore.set({ name, value, ...options })
-        },
-        remove(name: string, options: any) {
-          cookieStore.set({ name, value: '', ...options })
-        },
-      },
-    }
-  );
+  const supabase = createSupabaseClient();
 
   const { data, error } = await supabase.auth.signInWithPassword({
     email: validation.data.email,
@@ -101,53 +106,45 @@ export async function signIn(formData: FormData) {
   try {
     // Try to create profile record
     try {
-      if (prisma.profile) {
-        await prisma.profile.upsert({
-          where: { id: data.user.id },
-          update: {},
-          create: {
-            id: data.user.id,
-            email: data.user.email!,
-            full_name: data.user.user_metadata?.name || '',
-            role: data.user.user_metadata?.role || 'PENDING',
-          },
-        });
-        console.log("Profile record created/updated in database");
-      } else {
-        console.error("Profile model not available in Prisma client");
-      }
+      await prisma.profile.upsert({
+        where: { id: data.user.id },
+        update: {},
+        create: {
+          id: data.user.id,
+          email: data.user.email!,
+          full_name: data.user.user_metadata?.name || '',
+          role: data.user.user_metadata?.role || 'PENDING',
+        },
+      });
+      console.log("Profile record created/updated in database");
     } catch (profileError) {
       console.error("Profile creation failed:", profileError);
     }
 
     // Check if User model exists
-    if (prisma.user) {
-      // First try to find existing user
-      const existingUser = await prisma.user.findUnique({
-        where: { id: data.user.id }
-      });
+    // First try to find existing user
+    const existingUser = await prisma.user.findUnique({
+      where: { id: data.user.id }
+    });
 
-      if (!existingUser) {
-        // Create new user record - need to provide password and timestamps for schema
-        // Since this is Supabase auth, we'll use a placeholder password
-        await prisma.user.create({
-          data: {
-            id: data.user.id,
-            email: data.user.email!,
-            name: data.user.user_metadata?.name || '',
-            role: (data.user.user_metadata?.role as any) || 'PENDING',
-            password: 'SUPABASE_AUTH', // Placeholder since auth is handled by Supabase
-            createdAt: new Date(),
-            updatedAt: new Date(),
-          },
-        });
-        console.log("Created new user record in database");
-      } else {
-        // Update existing user if needed
-        console.log("User record already exists in database");
-      }
+    if (!existingUser) {
+      // Create new user record - need to provide password and timestamps for schema
+      // Since this is Supabase auth, we'll use a placeholder password
+      await prisma.user.create({
+        data: {
+          id: data.user.id,
+          email: data.user.email!,
+          name: data.user.user_metadata?.name || '',
+          role: (data.user.user_metadata?.role as any) || 'PENDING',
+          password: 'SUPABASE_AUTH', // Placeholder since auth is handled by Supabase
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      });
+      console.log("Created new user record in database");
     } else {
-      console.error("User model not available in Prisma client");
+      // Update existing user if needed
+      console.log("User record already exists in database");
     }
   } catch (dbError) {
     console.error("Database user creation failed:", dbError);
@@ -160,8 +157,8 @@ export async function signIn(formData: FormData) {
 
 export async function signOut() {
   try {
-    // Sign out from Supabase
-    await supabaseAdmin.auth.signOut();
+    const supabase = createSupabaseClient();
+    await supabase.auth.signOut();
   } catch (error) {
     console.error("Supabase signout error:", error);
   }
@@ -193,24 +190,7 @@ export async function signUp(formData: FormData) {
 
   try {
     // Create Supabase server client
-    const cookieStore = await cookies();
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          get(name: string) {
-            return cookieStore.get(name)?.value
-          },
-          set(name: string, value: string, options: any) {
-            cookieStore.set({ name, value, ...options })
-          },
-          remove(name: string, options: any) {
-            cookieStore.set({ name, value: '', ...options })
-          },
-        },
-      }
-    );
+    const supabase = createSupabaseClient();
 
     // Create user with Supabase Auth
     const { data, error } = await supabase.auth.signUp({
@@ -248,7 +228,7 @@ export async function signUp(formData: FormData) {
     }
 
     // Create profile record in database if it doesn't exist
-    await prisma.profiles.upsert({
+    await prisma.profile.upsert({
       where: { id: data.user.id },
       update: {},
       create: {
@@ -263,14 +243,16 @@ export async function signUp(formData: FormData) {
     await prisma.user.upsert({
       where: { email: data.user.email! },
       update: {},
-      create: {
-        id: data.user.id,
-        email: data.user.email!,
-        name: data.user.user_metadata?.name || name || '',
-        role: 'PENDING', // Default role
-        branchId: branch as any, // Cast to Branch type
-        organizationId: 'org-stockflow-001', // Default organization
-      },
+        create: {
+          id: data.user.id,
+          email: data.user.email!,
+          password: '', // Password handled by Supabase
+          name: data.user.user_metadata?.name || name || '',
+          role: 'PENDING', // Default role
+          branchId: branch,
+          organizationId: 'org-stockflow-001', // Default organization
+          updatedAt: new Date(),
+        },
     });
 
     // Middleware will handle cookie setting and redirects

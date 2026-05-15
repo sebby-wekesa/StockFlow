@@ -4,11 +4,11 @@ import { QuickImportForm } from './_components/QuickImportForm'
 
 export const dynamic = 'force-dynamic'
 
-export default async function ImportPage() {
-  // Show recent in-progress and preview imports
+export default async function ImportCentrePage() {
+  // Recent batches across both flows
   const recentBatches = await prisma.importBatch.findMany({
     orderBy: { created_at: 'desc' },
-    take: 10,
+    take: 5,
     include: { created_by_user: { select: { full_name: true, name: true } } },
   })
 

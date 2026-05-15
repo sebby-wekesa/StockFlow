@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { getOrderForLogging } from "@/app/actions/production";
+
 import { useToast } from "@/components/Toast";
 
 export default function OperatorLogPage() {
@@ -21,7 +21,9 @@ export default function OperatorLogPage() {
     async function load() {
       if (!id) return;
       try {
-        const data = await getOrderForLogging(id);
+        const response = await fetch(`/api/production-orders/${id}`);
+        if (!response.ok) throw new Error("Failed to fetch");
+        const data = await response.json();
         setOrder(data);
       } catch (e) {
         console.error(e);

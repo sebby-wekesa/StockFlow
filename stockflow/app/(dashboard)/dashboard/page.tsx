@@ -50,10 +50,10 @@ function PendingView({ user }: { user: any }) {
 // Operator Dashboard - Shows "My jobs" and "History"
 async function OperatorQueue({ user, role }: { user: any; role: TeamRole }) {
   // Import the existing operator components
-  const { getOperatorQueue } = await import('@/app/actions/production')
+  const { getOperatorQueue } = await import('@/actions/production')
   const orders = await getOperatorQueue(role.toUpperCase(), user.department)
 
-  const { getOperatorHistory } = await import('@/app/actions/production')
+  const { getOperatorHistory } = await import('@/actions/production')
   const history = await getOperatorHistory()
 
   return (
@@ -146,7 +146,7 @@ async function OperatorQueue({ user, role }: { user: any; role: TeamRole }) {
 // Sales Dashboard - Shows "Catalogue" and "My Orders"
 async function SalesView({ user, role }: { user: any; role: TeamRole }) {
   // Import sales-specific data
-  const { getCatalogue } = await import('@/app/actions/sales')
+  const { getCatalogue } = await import('@/actions/sales')
   const { getSalesOrders } = await import('@/app/actions/sales-orders')
 
   const products = await getCatalogue()

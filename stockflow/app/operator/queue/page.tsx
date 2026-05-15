@@ -14,7 +14,7 @@ async function getOperatorStats(department: string | null) {
       currentDept: department,
     },
     include: {
-      Design: { include: { Stage: true } },
+      design: { include: { stages: true } },
       StageLog: { orderBy: { sequence: "desc" }, take: 1 },
     },
     orderBy: { updatedAt: "desc" },

@@ -26,10 +26,10 @@ export async function GET(request: Request) {
       completedAt: start ? { gte: start, lte: end } : undefined,
     },
     include: {
-      Design: true,
+      design: true,
       StageLog: {
         include: {
-          Stage: true,
+          stage: true,
           User: true,
         },
       },

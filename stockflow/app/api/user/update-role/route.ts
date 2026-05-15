@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { getUser } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import type { UserRole } from '@/lib/types';
+import { Role } from '@prisma/client';
 
 export async function POST(request: NextRequest) {
   try {
@@ -26,16 +26,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid role' }, { status: 400 });
     }
 
-    // Validate role is a valid UserRole
-    const validRoles: UserRole[] = ['ADMIN', 'MANAGER', 'WAREHOUSE', 'SALES', 'ACCOUNTANT', 'OPERATOR', 'PACKAGING', 'PENDING'];
-    if (!validRoles.includes(role as UserRole)) {
+    // Validate role is a valid Role
+    const validRoles = Object.values(Role);
+    if (!validRoles.includes(role as Role)) {
       return NextResponse.json({ error: 'Invalid role' }, { status: 400 });
     }
 
     // Update role in Prisma User table
     await prisma.user.update({
       where: { id: userId },
-      data: { role: role as UserRole },
+      data: { role: role as Role },
     });
 
     return NextResponse.json({ success: true });

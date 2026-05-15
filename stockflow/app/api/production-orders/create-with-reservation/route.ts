@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
       const design = await tx.design.findUnique({
         where: { id: designId },
         include: {
-          stages: {
+          Stage: {
             orderBy: { sequence: 'asc' },
           },
         },
@@ -39,11 +39,11 @@ export async function POST(request: NextRequest) {
         throw new Error('Design not found')
       }
 
-      if (design.stages.length === 0) {
-        throw new Error(`Design "${design.name}" has no production stages configured.`)
+      if (design.Stage.length === 0) {
+        throw new Error(`Design "${design.name}" has no production stages configured.`);
       }
 
-      const firstStage = design.stages[0]
+      const firstStage = design.Stage[0]
 
       // Check if material exists and has sufficient stock
       const material = await tx.rawMaterial.findUnique({

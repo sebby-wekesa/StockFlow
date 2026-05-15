@@ -22,9 +22,9 @@ export async function POST(req: Request) {
     const order = await prisma.productionOrder.findUnique({
       where: { id: body.orderId },
       include: {
-        design: {
+        Design: {
           include: {
-            stages: {
+            Stage: {
               orderBy: { sequence: "asc" }
             }
           }
@@ -37,7 +37,7 @@ export async function POST(req: Request) {
     }
 
     // 3. Prepare validation input (merging body with order/user info)
-    const stages = order.design.stages;
+    const stages = order.Design.Stage;
     const currentStageIndex = stages.findIndex(s => s.id === body.stageId || s.sequence === order.currentStage);
     const currentStage = stages[currentStageIndex];
     
