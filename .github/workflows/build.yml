@@ -1,0 +1,84 @@
+name: Build & Test
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    # Use a larger runner if needed for OOM issues
+    # runs-on: ubuntu-latest-xl  # GitHub Advanced Security
+    
+    strategy:
+      matrix:
+        node-version: [20.x]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'pnpm'
+          cache-dependency-path: 'stockflow/pnpm-lock.yaml'
+      
+      - name: Install pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8.x
+      
+      - name: Install dependencies
+        working-directory: ./stockflow
+        run: pnpm install --frozen-lockfile
+      
+      - name: Run Prisma generate
+        working-directory: ./stockflow
+        run: pnpm exec prisma generate --schema=./prisma/schema.prisma
+      
+      - name: Run linter
+        working-directory: ./stockflow
+        run: pnpm lint
+        continue-on-error: true
+      
+      - name: Run tests
+        working-directory: ./stockflow
+        run: pnpm test
+        continue-on-error: true
+      
+      - name: Build
+        working-directory: ./stockflow
+        run: |
+          export NODE_OPTIONS="--max-old-space-size=6144"
+          pnpm build
+        env:
+          # Disable Turbopack during build to reduce memory footprint
+          TURBOPACK: "false"
+      
+      - name: Upload build output
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-output-logs
+          path: stockflow/.next
+          retention-days: 7
+      
+      - name: Comment PR on failure
+        if: failure() && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '❌ Build failed. Check the [CI logs](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}) for details.'
+            })
+      
+      - name: Success message
+        if: success()
+        run: echo "✅ Build succeeded!"

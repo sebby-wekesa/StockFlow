@@ -1,0 +1,52 @@
+name: Record Build Errors
+
+on:
+  workflow_run:
+    workflows: ["Build & Test"]
+    types: [completed]
+
+jobs:
+  record-errors:
+    runs-on: ubuntu-latest
+    if: github.event.workflow_run.conclusion == 'failure'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Download build logs
+        uses: dawidd6/action-download-artifact@v3
+        with:
+          workflow: build.yml
+          path: ./build-logs
+          if_no_artifact_found: warn
+      
+      - name: Parse build errors
+        id: parse
+        run: |
+          echo "Build failed. See workflow run: ${{ github.event.workflow_run.html_url }}"
+          if [ -d "./build-logs" ]; then
+            find ./build-logs -type f -name "*.log" -o -name "*.txt" | head -5
+          fi
+      
+      - name: Create issue if critical error
+        uses: actions/github-script@v7
+        with:
+          script: |
+            // Check if this is a repeated failure (comment on existing issue if present)
+            const issues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: ['build-failure']
+            });
+            
+            if (issues.data.length === 0) {
+              github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: '🔴 Build Failed',
+                body: `Build failed in workflow run [${{ github.event.workflow_run.id }}](${{ github.event.workflow_run.html_url }})\n\nCheck logs for details.`,
+                labels: ['build-failure', 'ci']
+              });
+            }
