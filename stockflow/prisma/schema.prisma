@@ -629,11 +629,18 @@ model FinishedGoods {
 model ImportBatch {
   id            String       @id @default(uuid())
   file_name     String
+  file_url      String?      // Base64 encoded file for re-parsing during commit
   sheet_type    String
   import_mode   ImportMode   @default(update)
-  target_branch String?
+  branch        String?      // Branch code for stock imports (mombasa/nairobi/bonje)
   status        ImportStatus @default(uploaded)
   row_count     Int
+  mapping_config Json?       // Specialized import metadata
+  imported_at   DateTime?
+  ok_count      Int?
+  skipped_count Int?
+  error_count   Int?
+  error_summary String?
   created_by    String
   created_at    DateTime @default(now())
   updated_at    DateTime @updatedAt
