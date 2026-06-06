@@ -1,4 +1,5 @@
-import { prisma } from '@/lib/prisma'
+import { getTenantPrisma } from '@/lib/tenant-prisma'
+import { requireActiveAuth } from '@/lib/auth'
 import { Prisma, type Design, type ProductionOrder, type StageLog } from '@prisma/client'
 
 export interface DepartmentBreakdown {
@@ -20,7 +21,7 @@ export interface MonthlyYieldReport {
 
 type CompletedOrder = ProductionOrder & {
   design: Design
-  logs: StageLog[]
+  StageLog: StageLog[]
 }
 
 function toDecimal(value: Prisma.Decimal | number | string | null | undefined) {
@@ -65,7 +66,10 @@ function summarizeByDept(logs: StageLog[]): DepartmentBreakdown[] {
 }
 
 export async function getMonthlyYieldReport(): Promise<MonthlyYieldReport> {
-  const logs = await prisma.stageLog.findMany({
+  const user = await requireActiveAuth();
+  const db = getTenantPrisma(user.organizationId);
+
+  const logs = await db.stageLog.findMany({
     where: {
       completedAt: {
         gte: new Date(new Date().setMonth(new Date().getMonth() - 1)) // Last 30 days
@@ -91,7 +95,10 @@ export async function getMonthlyYieldReport(): Promise<MonthlyYieldReport> {
 }
 
 export async function exportCompletedOrdersCSV(startDate: Date, endDate: Date): Promise<string> {
-  const orders = await prisma.productionOrder.findMany({
+  const user = await requireActiveAuth();
+  const db = getTenantPrisma(user.organizationId);
+
+  const orders = await db.productionOrder.findMany({
     where: {
       status: 'COMPLETED',
       updatedAt: {
@@ -100,8 +107,8 @@ export async function exportCompletedOrdersCSV(startDate: Date, endDate: Date): 
       }
     },
     include: {
-      Design: true,
-      logs: {
+      design: true,
+      StageLog: {
         orderBy: {
           sequence: 'asc'
         }
@@ -113,9 +120,9 @@ export async function exportCompletedOrdersCSV(startDate: Date, endDate: Date): 
   let csv = 'Order Number,Design,Start Weight (kg),End Weight (kg),Total Scrap (kg),Yield %,Completion Date\n'
 
   orders.forEach(order => {
-    const startWeight = order.logs.length > 0 ? order.logs[0].kgIn : new Prisma.Decimal(0)
-    const endWeight = order.logs.length > 0 ? order.logs[order.logs.length - 1].kgOut : new Prisma.Decimal(0)
-    const totalScrap = order.logs.reduce((sum, log) => sum.add(toDecimal(log.kgScrap)), new Prisma.Decimal(0))
+    const startWeight = order.StageLog.length > 0 ? order.StageLog[0].kgIn : new Prisma.Decimal(0)
+    const endWeight = order.StageLog.length > 0 ? order.StageLog[order.StageLog.length - 1].kgOut : new Prisma.Decimal(0)
+    const totalScrap = order.StageLog.reduce((sum, log) => sum.add(toDecimal(log.kgScrap)), new Prisma.Decimal(0))
     const yieldPercent = startWeight.isZero() ? '0.00' : endWeight.div(startWeight).mul(100).toFixed(2)
 
     csv += `${order.orderNumber},${order.design.name},${startWeight.toNumber()},${endWeight.toNumber()},${totalScrap.toNumber()},${yieldPercent},${order.updatedAt.toISOString().split('T')[0]}\n`

@@ -1,12 +1,13 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { prisma } from "@/lib/prisma";
-import { requireRole } from "@/lib/auth";
+import { requireActiveAuth } from "@/lib/auth";
 import { designSchema, DesignInput } from "@/lib/validations";
+import { getTenantPrisma } from "@/lib/tenant-prisma";
 
 export async function createDesign(formData: FormData) {
-  await requireRole("ADMIN");
+  const user = await requireActiveAuth();
+  const db = getTenantPrisma(user.organizationId);
 
   const name = formData.get("name") as string;
   const description = formData.get("description") as string;
@@ -28,7 +29,7 @@ export async function createDesign(formData: FormData) {
       stagesData.push({
         name: stageName,
         sequence: i + 1,
-        department: "Production" // Default department - should be configurable later
+        department: "Production",
       });
     }
     i++;
@@ -45,15 +46,19 @@ export async function createDesign(formData: FormData) {
 
   designSchema.parse(input);
 
-  const design = await prisma.design.create({
+  const design = await db.design.create({
     data: {
       name: input.name,
       code: input.code,
       description: input.description,
       targetDimensions: input.targetDimensions,
       targetWeight: input.targetWeight,
+      organizationId: user.organizationId,
       stages: {
-        create: input.stages,
+        create: input.stages.map((s) => ({
+          ...s,
+          organizationId: user.organizationId,
+        })),
       },
     },
   });
@@ -62,7 +67,8 @@ export async function createDesign(formData: FormData) {
 }
 
 export async function updateDesign(id: string, formData: FormData) {
-  await requireRole("ADMIN");
+  const user = await requireActiveAuth();
+  const db = getTenantPrisma(user.organizationId);
 
   const name = formData.get("name") as string;
   const description = formData.get("description") as string;
@@ -84,7 +90,7 @@ export async function updateDesign(id: string, formData: FormData) {
       stagesData.push({
         name: stageName,
         sequence: i + 1,
-        department: "Production" // Default department - should be configurable later
+        department: "Production",
       });
     }
     i++;
@@ -101,16 +107,21 @@ export async function updateDesign(id: string, formData: FormData) {
 
   designSchema.parse(input);
 
-  await prisma.$transaction([
-    prisma.stage.deleteMany({ where: { designId: id } }),
-    prisma.design.update({
+  await db.$transaction([
+    db.stage.deleteMany({ where: { designId: id } }),
+    db.design.update({
       where: { id },
       data: {
         name: input.name,
         description: input.description,
         targetDimensions: input.targetDimensions,
         targetWeight: input.targetWeight,
-        stages: { create: input.stages },
+        stages: {
+          create: input.stages.map((s) => ({
+            ...s,
+            organizationId: user.organizationId,
+          })),
+        },
       },
     }),
   ]);

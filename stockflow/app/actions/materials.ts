@@ -1,16 +1,18 @@
 "use server";
 
-import { prisma } from "@/lib/prisma";
-import { requireAuth } from "@/lib/auth";
+import { getTenantPrisma } from "@/lib/tenant-prisma";
+import { requireActiveAuth } from "@/lib/auth";
+import { type RawMaterialCategory, normalizeRawMaterialCategory } from "@/lib/raw-materials";
 
 export async function getRawMaterials() {
-  const user = await requireAuth();
+  const user = await requireActiveAuth();
+  const db = getTenantPrisma(user.organizationId);
 
-  // All authenticated users can view raw materials
-  return await prisma.rawMaterial.findMany({
+  // All authenticated users can view raw materials (tenant scoped)
+  return await db.rawMaterial.findMany({
     include: {
-      supplier: true,
-      receipts: {
+      Supplier: true,
+      MaterialReceipt: {
         orderBy: { createdAt: 'desc' },
         take: 1 // Get latest receipt for stock info
       }
@@ -20,18 +22,19 @@ export async function getRawMaterials() {
 }
 
 export async function getRawMaterial(id: string) {
-  const user = await requireAuth();
+  const user = await requireActiveAuth();
+  const db = getTenantPrisma(user.organizationId);
 
-  const material = await prisma.rawMaterial.findUnique({
+  const material = await db.rawMaterial.findUnique({
     where: { id },
     include: {
-      supplier: true,
-      receipts: {
+      Supplier: true,
+      MaterialReceipt: {
         orderBy: { createdAt: 'desc' }
       },
-      bomItems: {
+      BillOfMaterials: {
         include: {
-          Design: true
+          design: true
         }
       }
     }
@@ -46,10 +49,16 @@ export async function getRawMaterial(id: string) {
 
 export async function createRawMaterial(data: {
   materialName: string;
+  category?: RawMaterialCategory;
   diameter: string;
+  length: string;
+  width: string;
+  height: string;
+  availablePieces?: number;
   supplierId?: string;
 }) {
-  const user = await requireAuth();
+  const user = await requireActiveAuth();
+  const db = getTenantPrisma(user.organizationId);
 
   // Only admins and managers can create raw materials
   if (user.role !== 'ADMIN' && user.role !== 'MANAGER' && user.role !== 'WAREHOUSE') {
@@ -59,30 +68,39 @@ export async function createRawMaterial(data: {
   // Generate SKU: MATERIAL-DIAMETER-TIMESTAMP
   const sku = `${data.materialName.replace(/\s+/g, '-').toUpperCase()}-${data.diameter.toUpperCase()}-${Date.now().toString().slice(-6)}`;
 
-  return await prisma.rawMaterial.create({
+  return await db.rawMaterial.create({
     data: {
+      organizationId: user.organizationId,
       sku,
       materialName: data.materialName,
+      category: normalizeRawMaterialCategory(data.category),
       diameter: data.diameter,
+      length: data.length,
+      width: data.width,
+      height: data.height,
+      availablePieces: data.availablePieces ?? 0,
       supplierId: data.supplierId || null
     }
   });
 }
 
-export async function updateRawMaterialStock(id: string, kgReceived: number, reference?: string, supplierId?: string) {
-  const user = await requireAuth();
+export async function updateRawMaterialStock(id: string, kgReceived: number, reference?: string, supplierId?: string, piecesReceived = 0) {
+  const user = await requireActiveAuth();
+  const db = getTenantPrisma(user.organizationId);
 
   // Only warehouse staff, admins, and managers can update stock
   if (user.role !== 'ADMIN' && user.role !== 'MANAGER' && user.role !== 'WAREHOUSE') {
     throw new Error('Unauthorized: Only warehouse staff can update material stock');
   }
 
-  return await prisma.$transaction(async (tx) => {
+  return await db.$transaction(async (tx) => {
     // Create receipt record
     await tx.materialReceipt.create({
       data: {
+        organizationId: user.organizationId,
         materialId: id,
         kgReceived,
+        piecesReceived,
         reference,
         supplierId,
         loggedBy: user.id
@@ -95,7 +113,10 @@ export async function updateRawMaterialStock(id: string, kgReceived: number, ref
       data: {
         availableKg: {
           increment: kgReceived
-        }
+        },
+        availablePieces: {
+          increment: piecesReceived
+        },
       }
     });
 

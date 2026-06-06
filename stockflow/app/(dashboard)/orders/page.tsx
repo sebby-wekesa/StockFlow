@@ -1,38 +1,26 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { prisma } from '@/lib/prisma'
-import { CreateProductionOrderForm } from '@/components/CreateProductionOrderForm'
+import { ProductionOrderTabs } from '@/components/ProductionOrderTabs'
 import { ToastProvider } from '@/components/Toast'
-import { Package, TrendingUp } from 'lucide-react'
-
-interface OrdersPageProps {
-  orders?: any[]
-  designs?: any[]
-}
+import { Package } from 'lucide-react'
 
 export default function OrdersPage() {
   const [orders, setOrders] = useState<any[]>([])
-  const [designs, setDesigns] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
+
+  async function refreshOrders() {
+    const ordersRes = await fetch('/api/production-orders')
+    if (ordersRes.ok) {
+      const ordersData = await ordersRes.json()
+      setOrders(Array.isArray(ordersData) ? ordersData : Array.isArray(ordersData.data) ? ordersData.data : [])
+    }
+  }
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [ordersRes, designsRes] = await Promise.all([
-          fetch('/api/production-orders'),
-          fetch('/api/designs'),
-        ])
-
-        if (ordersRes.ok) {
-          const ordersData = await ordersRes.json()
-          setOrders(Array.isArray(ordersData) ? ordersData : [])
-        }
-
-        if (designsRes.ok) {
-          const designsData = await designsRes.json()
-          setDesigns(Array.isArray(designsData) ? designsData : [])
-        }
+        await refreshOrders()
       } catch (error) {
         console.error('Error fetching data:', error)
       } finally {
@@ -42,14 +30,6 @@ export default function OrdersPage() {
 
     fetchData()
   }, [])
-
-  const statusColors: Record<string, string> = {
-    PENDING: 'bg-amber-900/20 border-amber-500/30 text-amber-100',
-    APPROVED: 'bg-blue-900/20 border-blue-500/30 text-blue-100',
-    IN_PRODUCTION: 'bg-purple-900/20 border-purple-500/30 text-purple-100',
-    COMPLETED: 'bg-emerald-900/20 border-emerald-500/30 text-emerald-100',
-    CANCELLED: 'bg-red-900/20 border-red-500/30 text-red-100',
-  }
 
   const priorityColors: Record<string, string> = {
     LOW: 'text-emerald-400',
@@ -69,15 +49,7 @@ export default function OrdersPage() {
 
         {/* Create Order Form */}
         <div className="mb-6">
-          <CreateProductionOrderForm
-            designs={designs}
-            onSuccess={() => {
-              // Refresh orders list
-              fetch('/api/production-orders')
-                .then((res) => res.json())
-                .then((data) => setOrders(Array.isArray(data) ? data : []))
-            }}
-          />
+          <ProductionOrderTabs onSuccess={refreshOrders} />
         </div>
 
         {/* Orders List */}
@@ -197,7 +169,7 @@ export default function OrdersPage() {
                         </code>
                       </td>
                       <td style={{ fontWeight: 500, color: 'var(--text)' }}>
-                        {order.design?.name || 'Unknown'}
+                        {order.designName || order.design?.name || 'Unknown'}
                       </td>
                       <td style={{
                         fontFamily: 'var(--font-mono)',

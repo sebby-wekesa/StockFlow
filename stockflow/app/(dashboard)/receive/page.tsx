@@ -1,12 +1,18 @@
 "use client";
 
 import { useState } from "react";
+import { RAW_MATERIAL_CATEGORIES, type RawMaterialCategory } from "@/lib/raw-materials";
 
 export default function ReceivePage() {
-  const [materialName, setMaterialName] = useState("Steel rod 16mm");
-  const [diameter, setDiameter] = useState("16mm");
+  const [category, setCategory] = useState<RawMaterialCategory>("Flat Bars");
+  const [materialName, setMaterialName] = useState("");
+  const [diameter, setDiameter] = useState("");
+  const [length, setLength] = useState("");
+  const [width, setWidth] = useState("");
+  const [height, setHeight] = useState("");
   const [kgReceived, setKgReceived] = useState("");
-  const [supplier, setSupplier] = useState("Steel Masters Ltd");
+  const [piecesReceived, setPiecesReceived] = useState("");
+  const [supplier, setSupplier] = useState("");
   const [reference, setReference] = useState("");
   const [notes, setNotes] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -23,9 +29,15 @@ export default function ReceivePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           materialName,
+          category,
           diameter,
+          length,
+          width,
+          height,
           kgReceived: parseFloat(kgReceived),
+          piecesReceived: Number(piecesReceived),
           supplier,
+          reference,
         }),
       });
 
@@ -35,6 +47,10 @@ export default function ReceivePage() {
         setMessage(result.message);
         // Reset form
         setKgReceived("");
+        setPiecesReceived("");
+        setLength("");
+        setWidth("");
+        setHeight("");
         setReference("");
         setNotes("");
       } else {
@@ -56,34 +72,92 @@ export default function ReceivePage() {
         <form onSubmit={handleSubmit}>
           <div className="form-row">
             <div className="form-group">
-              <label className="form-label">Material type</label>
+              <label className="form-label">Category</label>
               <select
                 className="form-input"
-                value={materialName}
-                onChange={(e) => {
-                  setMaterialName(e.target.value);
-                  // Auto-set diameter based on material
-                  if (e.target.value.includes("16mm")) setDiameter("16mm");
-                  else if (e.target.value.includes("20mm")) setDiameter("20mm");
-                  else if (e.target.value.includes("25mm")) setDiameter("25mm");
-                }}
+                value={category}
+                onChange={(e) => setCategory(e.target.value as RawMaterialCategory)}
+                required
               >
-                <option>Steel rod 16mm</option>
-                <option>Steel rod 20mm</option>
-                <option>Steel rod 25mm</option>
+                {RAW_MATERIAL_CATEGORIES.map((item) => (
+                  <option key={item} value={item}>{item}</option>
+                ))}
               </select>
             </div>
+            <div className="form-group">
+              <label className="form-label">Material type</label>
+              <input
+                type="text"
+                className="form-input"
+                list="material-types"
+                value={materialName}
+                onChange={(e) => setMaterialName(e.target.value)}
+                placeholder="Material type from inventory"
+              />
+            </div>
+          </div>
+          <div className="form-row">
             <div className="form-group">
               <label className="form-label">Quantity (kg)</label>
               <input
                 type="number"
                 className="form-input"
-                placeholder="e.g. 200"
+                placeholder="0.00"
                 value={kgReceived}
                 onChange={(e) => setKgReceived(e.target.value)}
                 required
                 min="0.01"
                 step="0.01"
+              />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Amount (pieces)</label>
+              <input
+                type="number"
+                className="form-input"
+                placeholder="0"
+                value={piecesReceived}
+                onChange={(e) => setPiecesReceived(e.target.value)}
+                required
+                min="1"
+                step="1"
+              />
+            </div>
+          </div>
+          <div className="form-row">
+            <div className="form-group">
+              <label className="form-label">Length</label>
+              <input
+                type="text"
+                className="form-input"
+                placeholder="Length"
+                value={length}
+                onChange={(e) => setLength(e.target.value)}
+                required
+              />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Width / Diameter</label>
+              <input
+                type="text"
+                className="form-input"
+                placeholder="Width or diameter"
+                value={width}
+                onChange={(e) => setWidth(e.target.value)}
+                required
+              />
+            </div>
+          </div>
+          <div className="form-row">
+            <div className="form-group">
+              <label className="form-label">Height</label>
+              <input
+                type="text"
+                className="form-input"
+                placeholder="Height"
+                value={height}
+                onChange={(e) => setHeight(e.target.value)}
+                required
               />
             </div>
           </div>
@@ -93,21 +167,21 @@ export default function ReceivePage() {
               <input
                 type="text"
                 className="form-input"
-                placeholder="e.g. GRN-2242"
+                placeholder="GRN or reference"
                 value={reference}
                 onChange={(e) => setReference(e.target.value)}
               />
             </div>
             <div className="form-group">
               <label className="form-label">Supplier</label>
-              <select
+              <input
+                type="text"
                 className="form-input"
+                list="suppliers"
                 value={supplier}
                 onChange={(e) => setSupplier(e.target.value)}
-              >
-                <option>Steel Masters Ltd</option>
-                <option>KenSteel Supply</option>
-              </select>
+                placeholder="Supplier from database"
+              />
             </div>
           </div>
           <div className="form-group mb-16">

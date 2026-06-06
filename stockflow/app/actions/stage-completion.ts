@@ -1,10 +1,11 @@
 "use server";
 
-import { prisma } from "@/lib/prisma";
-import { requireAuth } from "@/lib/auth";
+import { getTenantPrisma, withTenantTransaction } from "@/lib/tenant-prisma";
+import { requireActiveAuth } from "@/lib/auth";
 import { stageLogSchema } from "@/lib/schemas";
 import { revalidatePath } from 'next/cache';
-import { Prisma } from '@prisma/client';
+import { reserveSaleOrder } from '@/lib/order-lifecycle';
+import { assertOperatorDepartment } from '@/lib/operator-access';
 
 export async function completeStage(data: {
   orderId: string;
@@ -14,11 +15,14 @@ export async function completeStage(data: {
   kgIn: number;
   kgOut: number;
   kgScrap: number;
+  piecesIn?: number;
+  piecesOut?: number;
   scrapReason?: string;
   department?: string;
   notes?: string;
 }) {
-  const user = await requireAuth();
+  const user = await requireActiveAuth();
+  const db = getTenantPrisma(user.organizationId);
 
   // Validate user permissions
   if (user.role !== 'OPERATOR' && user.role !== 'ADMIN' && user.role !== 'MANAGER') {
@@ -26,10 +30,10 @@ export async function completeStage(data: {
   }
 
   // Validate input data
-  const validatedData = stageLogSchema.parse(data);
+  const validatedData = stageLogSchema.parse({ ...data, operatorId: user.id });
 
-  // Use database transaction for atomicity
-  return await prisma.$transaction(async (tx) => {
+  // Use database transaction for atomicity (tenant-scoped)
+  return await withTenantTransaction(user.organizationId, async (tx) => {
     // Get the production order
     const order = await tx.productionOrder.findUnique({
       where: { id: validatedData.orderId },
@@ -38,10 +42,16 @@ export async function completeStage(data: {
           include: {
             stages: {
               orderBy: { sequence: 'asc' }
-            }
+            },
+            billOfMaterials: true
           }
         },
-        logs: {
+        saleItem: {
+          include: {
+            FinishedGoods: true,
+          },
+        },
+        StageLog: {
           orderBy: { sequence: 'desc' },
           take: 1
         }
@@ -55,6 +65,7 @@ export async function completeStage(data: {
     if (order.status !== 'IN_PRODUCTION') {
       throw new Error('Order is not in production status');
     }
+    assertOperatorDepartment(user, order.currentDept);
 
     // Verify this is the correct stage sequence
     if (validatedData.sequence !== order.currentStage) {
@@ -62,7 +73,7 @@ export async function completeStage(data: {
     }
 
     // Verify kg_in matches the expected input
-    const expectedKgIn = order.logs.length > 0 ? order.logs[0].kgOut : order.targetKg;
+    const expectedKgIn = order.StageLog.length > 0 ? order.StageLog[0].kgOut : order.targetKg;
     if (Math.abs(Number(expectedKgIn) - validatedData.kgIn) > 0.0001) {
       throw new Error(`KG input mismatch. Expected: ${expectedKgIn}, Got: ${validatedData.kgIn}`);
     }
@@ -70,6 +81,7 @@ export async function completeStage(data: {
     // Create the stage log
     const stageLog = await tx.stageLog.create({
       data: {
+        organizationId: user.organizationId,
         orderId: validatedData.orderId,
         stageId: validatedData.stageId,
         stageName: validatedData.stageName,
@@ -77,6 +89,8 @@ export async function completeStage(data: {
         kgIn: validatedData.kgIn,
         kgOut: validatedData.kgOut,
         kgScrap: validatedData.kgScrap,
+        piecesIn: validatedData.piecesIn ?? null,
+        piecesOut: validatedData.piecesOut ?? null,
         scrapReason: validatedData.scrapReason,
         department: validatedData.department || user.department,
         operatorId: user.id,
@@ -86,7 +100,7 @@ export async function completeStage(data: {
 
     // Determine next stage and update order
     const nextStageSequence = validatedData.sequence + 1;
-    const nextStage = order.design.stages.find(s => s.sequence === nextStageSequence);
+    const nextStage = order.design?.stages?.find((s: any) => s.sequence === nextStageSequence);
 
     if (nextStage) {
       // Move to next stage
@@ -108,23 +122,82 @@ export async function completeStage(data: {
         }
       });
 
-      // Create finished goods entry
-      const sku = `FG-${order.design.code}-${order.quantity}-${Date.now().toString().slice(-6)}`;
-      await tx.finishedGoods.create({
-        data: {
-          sku,
-          designId: order.designId,
-          quantity: order.quantity,
-          kgProduced: validatedData.kgOut
-        }
-      });
-    }
+      for (const bomItem of order.design.billOfMaterials) {
+        const requiredKg = Number(bomItem.quantity) * order.quantity;
+        const material = await tx.rawMaterial.findUnique({
+          where: { id: bomItem.rawMaterialId },
+        });
+        const reservedKg = Number(material?.reservedKg || 0);
 
-    // If this was the final stage, we might want to release reserved materials
-    // For now, we'll keep them reserved in case of returns/rework
+        if (reservedKg > 0) {
+          await tx.rawMaterial.update({
+            where: { id: bomItem.rawMaterialId },
+            data: {
+              reservedKg: { decrement: Math.min(reservedKg, requiredKg) },
+            },
+          });
+        }
+
+        await tx.materialConsumptionLog.create({
+          data: {
+            productionOrderId: order.id,
+            rawMaterialId: bomItem.rawMaterialId,
+            quantityConsumed: requiredKg,
+            notes: 'Consumed from reserved material on final stage completion',
+            organizationId: user.organizationId,
+          },
+        });
+      }
+
+      if (order.saleItem?.FinishedGoods) {
+        await tx.finishedGoods.update({
+          where: { id: order.saleItem.finishedGoodsId },
+          data: {
+            quantity: { increment: order.quantity },
+            kgProduced: { increment: validatedData.kgOut },
+          },
+        });
+
+        if (order.saleOrderId) {
+          const openLinkedOrders = await tx.productionOrder.count({
+            where: {
+              saleOrderId: order.saleOrderId,
+              id: { not: order.id },
+              status: { not: 'COMPLETED' },
+            },
+          });
+
+          if (openLinkedOrders === 0) {
+            const saleOrder = await tx.saleOrder.findUnique({
+              where: { id: order.saleOrderId },
+              include: { SaleItem: { include: { FinishedGoods: true } } },
+            });
+            if (!saleOrder) throw new Error('Linked sales order not found');
+            await reserveSaleOrder(tx, saleOrder);
+          }
+        }
+      } else {
+        // Create finished goods entry for production orders not linked to a sale.
+        const sku = `FG-${order.design.code}-${order.quantity}-${Date.now().toString().slice(-6)}`;
+        await tx.finishedGoods.create({
+          data: {
+            organizationId: user.organizationId,
+            sku,
+            designId: order.design.id,
+            quantity: order.quantity,
+            kgProduced: validatedData.kgOut
+          }
+        });
+      }
+    }
 
     revalidatePath('/dashboard');
     revalidatePath('/production');
+    revalidatePath('/jobs');
+    revalidatePath('/operator');
+    revalidatePath('/operator_queue');
+    revalidatePath('/packaging');
+    revalidatePath('/sales');
 
     return {
       success: true,
@@ -140,9 +213,10 @@ export async function completeStage(data: {
 }
 
 export async function getOrderForCompletion(orderId: string) {
-  const user = await requireAuth();
+  const user = await requireActiveAuth();
+  const db = getTenantPrisma(user.organizationId);
 
-  const order = await prisma.productionOrder.findUnique({
+  const order = await db.productionOrder.findUnique({
     where: { id: orderId },
     include: {
       design: {
@@ -152,7 +226,7 @@ export async function getOrderForCompletion(orderId: string) {
           }
         }
       },
-      logs: {
+      StageLog: {
         orderBy: { sequence: 'desc' },
         take: 1
       }
@@ -164,12 +238,14 @@ export async function getOrderForCompletion(orderId: string) {
   }
 
   // Check permissions - operators can only see orders in their department
-  if (user.role === 'OPERATOR' && order.currentDept !== user.department) {
-    throw new Error('Unauthorized: Order not in your department');
+  assertOperatorDepartment(user, order.currentDept);
+
+  if (!order.design) {
+    throw new Error('Direct orders use production output recording instead of stage completion');
   }
 
   const currentStage = order.design.stages.find(s => s.sequence === order.currentStage);
-  const inheritedKg = order.logs.length > 0 ? order.logs[0].kgOut : order.targetKg;
+  const inheritedKg = order.StageLog.length > 0 ? order.StageLog[0].kgOut : order.targetKg;
 
   return {
     ...order,

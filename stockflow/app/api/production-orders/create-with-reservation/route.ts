@@ -1,10 +1,17 @@
 export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { getTenantPrisma, withTenantTransaction } from '@/lib/tenant-prisma'
+import { requireActiveAuth } from '@/lib/auth'
 
 export async function POST(request: NextRequest) {
   try {
+    const user = await requireActiveAuth()
+    if (!['ADMIN', 'MANAGER'].includes(user.role)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+    const db = getTenantPrisma(user.organizationId)
+
     const body = await request.json()
     const { designId, materialId, quantity } = body
 
@@ -23,13 +30,13 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Use Prisma transaction
-    const result = await prisma.$transaction(async (tx) => {
-      // Check if design exists and get its stages
+    // Use tenant-scoped transaction
+    const result = await withTenantTransaction(user.organizationId, async (tx) => {
+      // Check if design exists and get its stages (automatically scoped)
       const design = await tx.design.findUnique({
         where: { id: designId },
         include: {
-          Stage: {
+          stages: {
             orderBy: { sequence: 'asc' },
           },
         },
@@ -39,13 +46,14 @@ export async function POST(request: NextRequest) {
         throw new Error('Design not found')
       }
 
-      if (design.Stage.length === 0) {
+      if (design.stages.length === 0) {
         throw new Error(`Design "${design.name}" has no production stages configured.`);
       }
 
-      const firstStage = design.Stage[0]
+      const firstStage = design.stages[0]
 
-      // Check if material exists and has sufficient stock
+      // Validate the selected material exists. Stock is reserved only after
+      // manager approval, through the shared production approval lifecycle.
       const material = await tx.rawMaterial.findUnique({
         where: { id: materialId },
       })
@@ -60,33 +68,20 @@ export async function POST(request: NextRequest) {
       }
 
       const requiredKg = design.targetWeight.toNumber() * quantity
-      if (material.availableKg.toNumber() < requiredKg) {
-        throw new Error(`Insufficient material stock. Required: ${requiredKg}kg, Available: ${material.availableKg.toNumber()}kg`)
-      }
-
       // Generate order number
       const orderNumber = `PO-${Date.now().toString().slice(-6)}`
 
-      // Create production order
+      // Create production order (organizationId injected by tenant client)
       const productionOrder = await tx.productionOrder.create({
         data: {
           orderNumber,
           designId,
           quantity,
           targetKg: requiredKg,
-          status: 'IN_PRODUCTION',
+          status: 'PENDING',
           priority: 'MEDIUM',
           currentStage: firstStage.sequence,
           currentDept: firstStage.department,
-        },
-      })
-
-      // Reserve material
-      await tx.rawMaterial.update({
-        where: { id: materialId },
-        data: {
-          availableKg: material.availableKg.toNumber() - requiredKg,
-          reservedKg: material.reservedKg.toNumber() + requiredKg,
         },
       })
 
@@ -95,7 +90,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(
       {
-        message: 'Production order created and material reserved successfully',
+        message: 'Production order created and sent for approval',
         order: result,
       },
       { status: 201 }

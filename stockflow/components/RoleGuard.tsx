@@ -2,7 +2,7 @@
 import { ReactNode } from 'react';
 import { redirect } from 'next/navigation';
 import { getUser } from '@/lib/auth';
-import type { Role } from '@/lib/auth';
+import type { UserRole as Role } from '@/lib/types';
 
 export async function RoleGuard({
   children,

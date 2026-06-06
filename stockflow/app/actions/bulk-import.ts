@@ -1,7 +1,7 @@
 "use server";
 
-import { prisma } from "@/lib/prisma";
-import { requireAuth } from "@/lib/auth";
+import { getTenantPrisma } from "@/lib/tenant-prisma";
+import { requireActiveAuth } from "@/lib/auth";
 import { createReadStream } from 'fs';
 import { unlink } from 'fs/promises';
 import ExcelJS from 'exceljs';
@@ -39,7 +39,8 @@ const rawMaterialImportSchema = z.object({
   diameter: z.string().min(1),
   supplierCode: z.string().optional(),
   availableKg: z.number().min(0).default(0),
-  reservedKg: z.number().min(0).default(0)
+  reservedKg: z.number().min(0).default(0),
+  availablePieces: z.number().int().min(0).default(0)
 });
 
 const stockCountImportSchema = z.object({
@@ -66,7 +67,8 @@ export interface ImportResult {
 }
 
 export async function importMasterData(filePath: string, importType: 'suppliers' | 'customers' | 'materials'): Promise<ImportResult> {
-  const user = await requireAuth();
+  const user = await requireActiveAuth();
+  const db = getTenantPrisma(user.organizationId);
 
   if (user.role !== 'ADMIN') {
     throw new Error('Unauthorized: Only admins can import master data');
@@ -101,7 +103,7 @@ export async function importMasterData(filePath: string, importType: 'suppliers'
 
   result.totalRows = rows.length;
 
-  await prisma.$transaction(async (tx) => {
+  await db.$transaction(async (tx) => {
     for (const { data, rowNumber } of rows) {
       try {
         switch (importType) {
@@ -131,7 +133,8 @@ export async function importMasterData(filePath: string, importType: 'suppliers'
 }
 
 export async function importStockCounts(filePath: string): Promise<ImportResult> {
-  const user = await requireAuth();
+  const user = await requireActiveAuth();
+  const db = getTenantPrisma(user.organizationId);
 
   if (!['ADMIN', 'WAREHOUSE'].includes(user.role)) {
     throw new Error('Unauthorized: Only admins and warehouse staff can import stock counts');
@@ -165,7 +168,7 @@ export async function importStockCounts(filePath: string): Promise<ImportResult>
 
   result.totalRows = rows.length;
 
-  await prisma.$transaction(async (tx) => {
+  await db.$transaction(async (tx) => {
     for (const { data, rowNumber } of rows) {
       try {
         await importStockCount(tx, data, rowNumber, result);
@@ -252,7 +255,8 @@ async function importRawMaterial(tx: any, data: any[], rowNumber: number, result
     diameter: data[1]?.toString().trim(),
     supplierCode: data[2]?.toString().trim() || undefined,
     availableKg: parseFloat(data[3]?.toString()) || 0,
-    reservedKg: parseFloat(data[4]?.toString()) || 0
+    reservedKg: parseFloat(data[4]?.toString()) || 0,
+    availablePieces: parseInt(data[5]?.toString() || '0', 10) || 0
   };
 
   const validatedData = rawMaterialImportSchema.parse(materialData);
@@ -279,7 +283,8 @@ async function importRawMaterial(tx: any, data: any[], rowNumber: number, result
       diameter: validatedData.diameter,
       supplierId,
       availableKg: validatedData.availableKg,
-      reservedKg: validatedData.reservedKg
+      reservedKg: validatedData.reservedKg,
+      availablePieces: validatedData.availablePieces
     }
   });
 }
@@ -347,7 +352,8 @@ async function importStockCount(tx: any, data: any[], rowNumber: number, result:
 
 // Generate Excel template for import
 export async function generateImportTemplate(importType: 'suppliers' | 'customers' | 'materials' | 'stock-counts'): Promise<Buffer> {
-  const user = await requireAuth();
+  const user = await requireActiveAuth();
+  const db = getTenantPrisma(user.organizationId);
 
   if (user.role !== 'ADMIN') {
     throw new Error('Unauthorized: Only admins can generate import templates');
@@ -388,7 +394,8 @@ export async function generateImportTemplate(importType: 'suppliers' | 'customer
         { header: 'Diameter*', key: 'diameter', width: 15 },
         { header: 'Supplier Code', key: 'supplierCode', width: 15 },
         { header: 'Available KG', key: 'availableKg', width: 15 },
-        { header: 'Reserved KG', key: 'reservedKg', width: 15 }
+        { header: 'Reserved KG', key: 'reservedKg', width: 15 },
+        { header: 'Available Pieces', key: 'availablePieces', width: 18 }
       ];
       break;
 
@@ -411,20 +418,69 @@ export async function generateImportTemplate(importType: 'suppliers' | 'customer
     fgColor: { argb: 'FF4A90E2' }
   };
 
-  // Add sample data row
+  // Add an example row only from existing tenant data. If there is no matching
+  // record yet, leave the template empty instead of inventing material names.
   switch (importType) {
-    case 'suppliers':
-      worksheet.addRow(['SUP001', 'ABC Steel Corp', 'John Doe', 'john@abcsteel.com', '+1234567890', '123 Steel St, City, State', 'TAX123456']);
+    case 'suppliers': {
+      const supplier = await db.supplier.findFirst({ orderBy: { createdAt: 'asc' } });
+      if (supplier) {
+        worksheet.addRow([
+          supplier.code,
+          supplier.name,
+          supplier.contactName ?? '',
+          supplier.email ?? '',
+          supplier.phone ?? '',
+          supplier.address ?? '',
+          supplier.taxId ?? '',
+        ]);
+      }
       break;
-    case 'customers':
-      worksheet.addRow(['CUST001', 'XYZ Manufacturing', 'Jane Smith', 'jane@xyz.com', '+1234567890', '456 Industry Rd, City, State', 'TAX789012']);
+    }
+    case 'customers': {
+      const customer = await db.customer.findFirst({ orderBy: { createdAt: 'asc' } });
+      if (customer) {
+        worksheet.addRow([
+          customer.code,
+          customer.name,
+          customer.contactName ?? '',
+          customer.email ?? '',
+          customer.phone ?? '',
+          customer.address ?? '',
+          customer.taxId ?? '',
+        ]);
+      }
       break;
-    case 'materials':
-      worksheet.addRow(['High-Tensile Steel', 'M12', 'SUP001', 1000, 0]);
+    }
+    case 'materials': {
+      const material = await db.rawMaterial.findFirst({
+        include: { Supplier: { select: { code: true } } },
+        orderBy: { createdAt: 'asc' },
+      });
+      if (material) {
+        worksheet.addRow([
+          material.materialName,
+          material.diameter,
+          material.Supplier?.code ?? '',
+          Number(material.availableKg),
+          Number(material.reservedKg),
+          material.availablePieces,
+        ]);
+      }
       break;
-    case 'stock-counts':
-      worksheet.addRow(['RM-HIGM12-001', 'Warehouse A', 950, 'BATCH001', 'Physical count']);
+    }
+    case 'stock-counts': {
+      const material = await db.rawMaterial.findFirst({ orderBy: { createdAt: 'asc' } });
+      if (material) {
+        worksheet.addRow([
+          material.barcode ?? material.sku,
+          '',
+          Number(material.availableKg),
+          material.batchNumber ?? '',
+          '',
+        ]);
+      }
       break;
+    }
   }
 
   // Add instructions sheet
@@ -459,13 +515,14 @@ export async function generateImportTemplate(importType: 'suppliers' | 'customer
     case 'materials':
       instructionsSheet.addRow(['RAW MATERIAL IMPORT REQUIREMENTS:']);
       instructionsSheet.addRow(['- Material Name: Descriptive name']);
-      instructionsSheet.addRow(['- Diameter: Size specification (e.g., M12, 1/2")']);
+      instructionsSheet.addRow(['- Diameter: Size specification from your material catalogue']);
       instructionsSheet.addRow(['- Supplier Code: Must match existing supplier']);
       instructionsSheet.addRow(['- Available/Reserved KG: Numeric values only']);
+      instructionsSheet.addRow(['- Available Pieces: Whole number only']);
       break;
     case 'stock-counts':
       instructionsSheet.addRow(['STOCK COUNT IMPORT REQUIREMENTS:']);
-      instructionsSheet.addRow(['- Material Code: Barcode or "Name-Diameter" format']);
+      instructionsSheet.addRow(['- Material Code: Existing barcode or material SKU']);
       instructionsSheet.addRow(['- Counted KG: Physical count result']);
       instructionsSheet.addRow(['- Location: Warehouse location identifier']);
       break;

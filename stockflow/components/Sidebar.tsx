@@ -2,13 +2,26 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import type { Role } from "@/lib/auth";
+import type { UserRole as Role } from "@/lib/types";
 import type { UserRole } from "@/lib/types";
 import { ROLE_NAMES, ROLE_COLORS } from "@/lib/types";
 import { signOut } from "@/actions/auth";
 
+type SidebarCounts = {
+  operatorQueue?: number
+  packagingQueue?: number
+}
+
+type NavItem = {
+  section?: string
+  label?: string
+  href?: string
+  badge?: string
+  badgeColor?: string
+}
+
 // Generate role-specific navigation items
-function getRoleNavItems(role: UserRole): any[] {
+function getRoleNavItems(role: UserRole, counts: SidebarCounts = {}): NavItem[] {
   // Common navigation for all roles
   const commonItems = [
     { section: "Account" },
@@ -28,61 +41,79 @@ function getRoleNavItems(role: UserRole): any[] {
       return [
         { section: "Overview" },
         { label: "Dashboard", href: "/dashboard" },
-        { section: "Production" },
-        { label: "Job cards", href: "/jobs" },
-        { label: "Raw materials", href: "/rawmaterials" },
-        { section: "Inventory" },
-        { label: "Stock overview", href: "/stock" },
+        { section: "System" },
+        { label: "User management", href: "/users" },
+        { label: "Departments", href: "/departments" },
+        { label: "System settings", href: "/admin/settings" },
+        { section: "Templates" },
+        { label: "Design templates", href: "/designs" },
         { label: "Products", href: "/products" },
-        { section: "Sales" },
-        { label: "Sales orders", href: "/sales" },
-        { label: "Customers", href: "/customers" },
+        { section: "Inventory" },
+        { label: "Raw material receipts", href: "/receive" },
+        { label: "Raw materials", href: "/rawmaterials" },
+        { label: "Inventory overview", href: "/stock" },
+        { section: "Production" },
+        { label: "Production approvals", href: "/approvals" },
+        { label: "Production orders", href: "/jobs" },
         { section: "Data" },
         { label: "Import centre", href: "/import" },
+        { section: "Reports" },
         { label: "Reports", href: "/reports" },
-        { section: "Settings" },
-        { label: "Users", href: "/users" },
+        { label: "Scrap and yield", href: "/admin/yield" },
       ];
 
     case 'MANAGER':
       return [
-        { section: "Overview" },
-        { label: "Dashboard", href: "/dashboard" },
-        { section: "Production" },
-        { label: "Job cards", href: "/jobs" },
-        { label: "Raw materials", href: "/rawmaterials" },
-        { section: "Inventory" },
-        { label: "Stock overview", href: "/stock" },
-        { section: "Sales" },
-        { label: "New order", href: "/sales/new" },
-        { label: "Sales orders", href: "/sales" },
-        { section: "Reports" },
+        { section: "Production Control" },
+        { label: "Production dashboard", href: "/dashboard" },
+        { label: "Approval queue", href: "/approvals" },
+        { label: "Department monitoring", href: "/jobs" },
+        { label: "Production orders", href: "/orders" },
+        { section: "Investigation" },
+        { label: "Scrap reports", href: "/scrap" },
         { label: "Reports", href: "/reports" },
+        { section: "Reference" },
+        { label: "Design templates", href: "/designs" },
+        { label: "Inventory overview", href: "/stock" },
+        { section: "Data" },
+        { label: "Import centre", href: "/import" },
       ];
 
     case 'OPERATOR':
       return [
         { section: "My Work" },
-        { label: "Job queue", href: "/operator_queue", badge: "3", badgeColor: "purple" },
-        { label: "Log output", href: "/operator_log" },
+        { label: "Dashboard", href: "/dashboard" },
+        {
+          label: "My queue",
+          href: "/operator_queue",
+          badge: counts.operatorQueue && counts.operatorQueue > 0 ? String(counts.operatorQueue) : undefined,
+          badgeColor: "purple",
+        },
+        { label: "Stage logging", href: "/operator_log" },
         { section: "History" },
-        { label: "Completed jobs", href: "/operator_history" },
+        { label: "Job history", href: "/operator_history" },
       ];
 
     case 'SALES':
       return [
         { section: "Sales" },
-        { label: "New order", href: "/sales/new" },
-        { label: "Order history", href: "/sales" },
-        { section: "Catalogue" },
-        { label: "Available stock", href: "/catalogue" },
+        { label: "Dashboard", href: "/dashboard" },
+        { label: "Sales catalogue", href: "/catalogue" },
+        { label: "New sale order", href: "/sales/new" },
+        { label: "Customer orders", href: "/sales" },
       ];
 
     case 'PACKAGING':
       return [
         { section: "Fulfilment" },
-        { label: "Pending orders", href: "/packaging", badge: "5", badgeColor: "purple" },
-        { label: "Fulfilled today", href: "/pack_done" },
+        {
+          label: "Packaging queue",
+          href: "/packaging",
+          badge: counts.packagingQueue && counts.packagingQueue > 0 ? String(counts.packagingQueue) : undefined,
+          badgeColor: "purple",
+        },
+        { label: "Fulfillment screen", href: "/pack_queue" },
+        { label: "Daily summary", href: "/pack_done" },
       ];
 
     case 'WAREHOUSE':
@@ -103,9 +134,9 @@ function getRoleNavItems(role: UserRole): any[] {
   }
 }
 
-export function Sidebar({ role }: { role: UserRole }) {
+export function Sidebar({ role, counts = {} }: { role: UserRole; counts?: SidebarCounts }) {
   const pathname = usePathname();
-  const navItems = getRoleNavItems(role);
+  const navItems = getRoleNavItems(role, counts);
   const roleColor = ROLE_COLORS[role];
   const roleNameDisplay = ROLE_NAMES[role];
 

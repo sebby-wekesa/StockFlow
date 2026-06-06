@@ -1,48 +1,51 @@
 import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
-import { createServerSupabase } from '@/lib/supabase/server'
+import { getTenantPrisma } from '@/lib/tenant-prisma'
+import { requireActiveAuth } from '@/lib/auth'
 import { getDateRange, toCSV, type DateRangeKey } from '@/lib/reports'
 
 export async function GET(request: Request) {
-  // Auth check
-  const supabase = await createServerSupabase()
-  const { data: { user: authUser } } = await supabase.auth.getUser()
-  if (!authUser) {
-    return new NextResponse('Unauthorized', { status: 401 })
-  }
-  const user = await prisma.user.findUnique({ where: { id: authUser.id } })
-  if (!user || !['admin', 'manager', 'accountant'].includes(user.role)) {
+  const user = await requireActiveAuth()
+  if (!['ADMIN', 'MANAGER', 'SALES'].includes(user.role.toUpperCase())) {
     return new NextResponse('Forbidden', { status: 403 })
   }
+  const db = getTenantPrisma(user.organizationId)
 
   const { searchParams } = new URL(request.url)
   const range = (searchParams.get('range') as DateRangeKey) || '30d'
   const { start, end } = getDateRange(range)
 
-  const orders = await prisma.saleOrder.findMany({
-    where: {
-      status: { in: ['CONFIRMED', 'SHIPPED'] },
-      ...(start ? { createdAt: { gte: start, lte: end } } : {}),
-    },
-    orderBy: { createdAt: 'desc' },
-    include: {
-      SaleItem: { include: { FinishedGoods: { select: { sku: true } } } },
-    },
-  })
+   const orders = await db.saleOrder.findMany({
+     where: {
+       status: { in: ['CONFIRMED', 'READY_FOR_DISPATCH', 'SHIPPED'] },
+       ...(start ? { createdAt: { gte: start, lte: end } } : {}),
+     },
+     orderBy: { createdAt: 'desc' },
+     include: {
+       SaleItem: { include: { FinishedGoods: { include: { design: true } } } },
+       createdByUser: {
+         select: {
+           name: true,
+           Branch: { select: { name: true } },
+         },
+       },
+     },
+   })
 
   // Flatten to one row per line item
   const rows = orders.flatMap((order) =>
     order.SaleItem.map((line) => ({
       invoice_date: new Date(order.createdAt).toISOString().slice(0, 10),
       invoice_number: order.id,
-      branch: 'mombasa', // assume
+      branch: order.createdByUser?.Branch?.name ?? 'Unassigned',
       customer: order.customerName,
       product_code: line.FinishedGoods.sku,
-      product_name: line.FinishedGoods.design.name, // assume
+      product_name: line.FinishedGoods.design.name,
       qty: line.quantity,
+      uom: 'pcs',
       unit_price: Number(line.unitPrice),
       total: Number(line.totalPrice),
       notes: '',
+      recorded_by: order.createdByUser?.name ?? 'System',
     }))
   )
 

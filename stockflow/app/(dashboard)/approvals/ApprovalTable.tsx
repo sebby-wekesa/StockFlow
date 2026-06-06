@@ -1,23 +1,30 @@
 "use client";
 
 import { updateOrderStatus } from "@/app/actions/orders";
-import { Check, X, Eye, Package } from "lucide-react";
+import { Check, X, Package } from "lucide-react";
 import { useState } from "react";
 
 export default function ApprovalTable({ orders }: { orders: any[] }) {
   const [loadingId, setLoadingId] = useState<string | null>(null);
 
   const handleAction = async (id: string, status: "APPROVED" | "REJECTED") => {
+    const reason = status === 'REJECTED'
+      ? window.prompt('Enter the rejection reason:')
+      : undefined;
+    if (status === 'REJECTED' && (!reason || reason.trim().length < 3)) {
+      alert('A rejection reason of at least 3 characters is required.');
+      return;
+    }
     const confirmMsg = `Are you sure you want to ${status.toLowerCase()} this order?`;
     if (!window.confirm(confirmMsg)) return;
 
     setLoadingId(id);
     try {
-      const result = await updateOrderStatus(id, status);
+      const result = await updateOrderStatus(id, status, reason ?? undefined);
       if (!result.success) {
         alert(result.error);
       }
-    } catch (err) {
+    } catch {
       alert("An unexpected error occurred.");
     } finally {
       setLoadingId(null);
@@ -60,7 +67,7 @@ export default function ApprovalTable({ orders }: { orders: any[] }) {
               </td>
               <td>
                 <span className="badge badge-blue">
-                  {order.branch?.location || 'Mombasa'}
+                  Mombasa
                 </span>
               </td>
               <td style={{

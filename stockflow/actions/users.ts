@@ -3,22 +3,18 @@
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
-import { prisma } from '@/lib/prisma'
-import { createServerSupabase } from '@/lib/supabase/server'
 import { createClient as createSupabaseAdminClient } from '@supabase/supabase-js'
-import type { Branch, UserRole } from '@prisma/client'
+import { requireActiveAuth, type AuthUser } from '@/lib/auth'
+import { getTenantPrisma } from '@/lib/tenant-prisma'
+import type { UserRole } from '@/lib/types'
+import { getAuthCallbackUrl } from '@/lib/app-url'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // AUTH — only admins can manage users
 // ─────────────────────────────────────────────────────────────────────────────
 
-async function requireAdmin() {
-  const supabase = await createServerSupabase()
-  const { data: { user: authUser } } = await supabase.auth.getUser()
-  if (!authUser) throw new Error('Not authenticated')
-
-  const user = await prisma.user.findUnique({ where: { id: authUser.id } })
-  if (!user) throw new Error('User not provisioned')
+async function requireAdmin(): Promise<AuthUser> {
+  const user = await requireActiveAuth()
   if (user.role !== 'ADMIN') {
     throw new Error('Only admins can manage users')
   }
@@ -51,37 +47,35 @@ function getSupabaseAdmin() {
 const inviteSchema = z.object({
   email: z.string().email().toLowerCase(),
   name: z.string().min(1).max(200),
-  role: z.enum(['admin', 'manager', 'warehouse', 'sales', 'accountant']),
-  branches: z.array(z.enum(['mombasa', 'nairobi', 'bonje'])).min(1, 'At least one branch is required'),
+  role: z.enum(['ADMIN', 'MANAGER', 'OPERATOR', 'WAREHOUSE', 'SALES', 'PACKAGING']),
+  branchId: z.string().min(1, 'Branch is required'),
 })
 
 export async function inviteUser(formData: FormData) {
   const adminUser = await requireAdmin()
 
-  // Branches come as multiple form entries with the same name
-  const branches = formData.getAll('branches').filter(Boolean) as string[]
-
   const raw = {
     email: formData.get('email'),
     name: formData.get('name'),
     role: formData.get('role'),
-    branches,
+    branchId: formData.get('branchId') || formData.get('branch'),
   }
   const parsed = inviteSchema.safeParse(raw)
   if (!parsed.success) throw new Error(parsed.error.issues[0].message)
 
-  const { email, name, role, branches: branchList } = parsed.data
+  const { email, name, role, branchId } = parsed.data
 
-  // Check if user already exists in our DB
-  const existing = await prisma.user.findUnique({ where: { email } })
+  // Check if a User row already exists for this email (globally — emails are unique across all orgs)
+  const db = getTenantPrisma(adminUser.organizationId)
+  const existing = await db.user.findFirst({ where: { email } })
   if (existing) {
-    throw new Error('A user with this email already exists')
+    throw new Error('A user with this email already exists in your organization')
   }
 
   const supabaseAdmin = getSupabaseAdmin()
 
   // Send invite via Supabase. This creates auth.users with a confirmation token.
-  const redirectTo = `${process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'}/auth/callback`
+  const redirectTo = getAuthCallbackUrl()
   const { data, error } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
     data: { name },
     redirectTo,
@@ -94,16 +88,15 @@ export async function inviteUser(formData: FormData) {
     throw new Error('Invite did not return a user record')
   }
 
-  // Create the Prisma User record so the new user can log in immediately after confirming
-  await prisma.user.create({
+  // Create the Prisma User row scoped to this admin's org (auto-injected)
+  await db.user.create({
     data: {
       id: data.user.id,
-      org_id: adminUser.org_id,
       email,
       name,
       role: role as UserRole,
-      branches: branchList as Branch[],
-
+      branchId,
+      password: 'SUPABASE_AUTH', // schema requires the column; auth is via Supabase
     },
   })
 
@@ -132,11 +125,13 @@ export async function updateUser(userId: string, formData: FormData) {
   const parsed = updateSchema.safeParse(raw)
   if (!parsed.success) throw new Error(parsed.error.issues[0].message)
 
-  // Cannot demote the last active admin
+  const db = getTenantPrisma(adminUser.organizationId)
+
+  // Cannot demote the last active admin (within THIS org)
   if (parsed.data.role !== 'ADMIN') {
-    const target = await prisma.user.findUnique({ where: { id: userId } })
+    const target = await db.user.findFirst({ where: { id: userId } })
     if (target?.role === 'ADMIN') {
-      const otherAdmins = await prisma.user.count({
+      const otherAdmins = await db.user.count({
         where: { role: 'ADMIN', id: { not: userId } },
       })
       if (otherAdmins === 0) {
@@ -145,7 +140,7 @@ export async function updateUser(userId: string, formData: FormData) {
     }
   }
 
-  await prisma.user.update({
+  await db.user.update({
     where: { id: userId },
     data: {
       name: parsed.data.name,
@@ -167,7 +162,8 @@ export async function updateUser(userId: string, formData: FormData) {
 export async function toggleUserActive(userId: string) {
   const adminUser = await requireAdmin()
 
-  const target = await prisma.user.findUnique({ where: { id: userId } })
+  const db = getTenantPrisma(adminUser.organizationId)
+  const target = await db.user.findFirst({ where: { id: userId } })
   if (!target) throw new Error('User not found')
 
   // Can't deactivate yourself — that locks you out
@@ -175,9 +171,9 @@ export async function toggleUserActive(userId: string) {
     throw new Error("You cannot deactivate your own account")
   }
 
-  // Can't deactivate the last admin
+  // Can't deactivate the last admin (within THIS org)
   if (target.role === 'ADMIN') {
-    const otherActiveAdmins = await prisma.user.count({
+    const otherActiveAdmins = await db.user.count({
       where: { role: 'ADMIN', id: { not: userId } },
     })
     if (otherActiveAdmins === 0) {
@@ -204,13 +200,14 @@ export async function toggleUserActive(userId: string) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export async function resendInvite(userId: string) {
-  await requireAdmin()
+  const adminUser = await requireAdmin()
+  const db = getTenantPrisma(adminUser.organizationId)
 
-  const target = await prisma.user.findUnique({ where: { id: userId } })
+  const target = await db.user.findFirst({ where: { id: userId } })
   if (!target) throw new Error('User not found')
 
   const supabaseAdmin = getSupabaseAdmin()
-  const redirectTo = `${process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'}/auth/callback`
+  const redirectTo = getAuthCallbackUrl()
 
   const { error } = await supabaseAdmin.auth.admin.inviteUserByEmail(target.email, {
     data: { name: target.name },
@@ -229,13 +226,14 @@ export async function resendInvite(userId: string) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export async function sendPasswordReset(userId: string) {
-  await requireAdmin()
+  const adminUser = await requireAdmin()
+  const db = getTenantPrisma(adminUser.organizationId)
 
-  const target = await prisma.user.findUnique({ where: { id: userId } })
+  const target = await db.user.findFirst({ where: { id: userId } })
   if (!target) throw new Error('User not found')
 
   const supabaseAdmin = getSupabaseAdmin()
-  const redirectTo = `${process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'}/auth/callback`
+  const redirectTo = getAuthCallbackUrl()
 
   const { error } = await supabaseAdmin.auth.admin.generateLink({
     type: 'recovery',

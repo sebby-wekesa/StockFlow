@@ -1,26 +1,21 @@
 import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
-import { createServerSupabase } from '@/lib/supabase/server'
+import { getTenantPrisma } from '@/lib/tenant-prisma'
+import { requireActiveAuth } from '@/lib/auth'
 import { getDateRange, toCSV, type DateRangeKey } from '@/lib/reports'
 
 export async function GET(request: Request) {
-  // Auth check
-  const supabase = await createServerSupabase()
-  const { data: { user: authUser } } = await supabase.auth.getUser()
-  if (!authUser) {
-    return new NextResponse('Unauthorized', { status: 401 })
-  }
-  const user = await prisma.user.findUnique({ where: { id: authUser.id } })
-  if (!user || !['ADMIN', 'MANAGER', 'OPERATOR'].includes(user.role)) {
+  const user = await requireActiveAuth()
+  if (!['ADMIN', 'MANAGER', 'OPERATOR'].includes(user.role)) {
     return new NextResponse('Forbidden', { status: 403 })
   }
+  const db = getTenantPrisma(user.organizationId)
 
   const { searchParams } = new URL(request.url)
   const range = (searchParams.get('range') as DateRangeKey) || '30d'
   const { start, end } = getDateRange(range)
 
-  // Get completed production orders
-  const orders = await prisma.productionOrder.findMany({
+  // Get completed production orders (tenant scoped)
+  const orders = await db.productionOrder.findMany({
     where: {
       status: 'COMPLETED',
       completedAt: start ? { gte: start, lte: end } : undefined,
@@ -29,7 +24,7 @@ export async function GET(request: Request) {
       design: true,
       StageLog: {
         include: {
-          stage: true,
+          Stage: true,
           User: true,
         },
       },
@@ -42,13 +37,13 @@ export async function GET(request: Request) {
   })
 
   const rows = orders.map((order) => {
-    const totalKgIn = order.StageLog.reduce((sum, log) => sum + log.kgIn, 0)
-    const totalKgOut = order.StageLog.reduce((sum, log) => sum + log.kgOut, 0)
-    const totalScrap = order.StageLog.reduce((sum, log) => sum + log.kgScrap, 0)
+    const totalKgIn = order.StageLog.reduce((sum: number, log: { kgIn: number | string | { toNumber?: () => number } }) => sum + Number(log.kgIn), 0)
+    const totalKgOut = order.StageLog.reduce((sum: number, log: { kgOut: number | string | { toNumber?: () => number } }) => sum + Number(log.kgOut), 0)
+    const totalScrap = order.StageLog.reduce((sum: number, log: { kgScrap: number | string | { toNumber?: () => number } }) => sum + Number(log.kgScrap), 0)
 
     return {
       order_number: order.orderNumber,
-      design: order.Design?.name || 'Unknown',
+      design: order.design?.name || 'Unknown',
       quantity: order.quantity,
       target_kg: order.targetKg,
       completed_at: order.completedAt?.toISOString().slice(0, 10) || '',

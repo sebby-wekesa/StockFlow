@@ -1,7 +1,7 @@
 "use server";
 
-import { prisma } from "@/lib/prisma";
-import { requireAuth } from "@/lib/auth";
+import { getTenantPrisma } from "@/lib/tenant-prisma";
+import { requireActiveAuth } from "@/lib/auth";
 import { z } from "zod";
 
 // Schema for material consumption validation
@@ -15,17 +15,18 @@ const materialConsumptionSchema = z.object({
 });
 
 export async function consumeMaterialsForOrder(productionOrderId: string) {
-  const user = await requireAuth();
+  const user = await requireActiveAuth();
+  const db = getTenantPrisma(user.organizationId);
 
-  // Get the production order with BOM information
-  const order = await prisma.productionOrder.findUnique({
+  // Get the production order with BOM information (tenant scoped)
+  const order = await db.productionOrder.findUnique({
     where: { id: productionOrderId },
     include: {
       design: {
         include: {
-          bomItems: {
+          billOfMaterials: {
             include: {
-              rawMaterial: true
+              RawMaterial: true
             }
           }
         }
@@ -37,12 +38,16 @@ export async function consumeMaterialsForOrder(productionOrderId: string) {
     throw new Error("Production order not found");
   }
 
-  if (order.design.bomItems.length === 0) {
+  if (!order.design) {
+    throw new Error("Direct orders consume material when production output is recorded");
+  }
+
+  if (order.design.billOfMaterials.length === 0) {
     throw new Error("No BOM items found for this design");
   }
 
   // Calculate required quantities
-  const consumptionData = order.design.bomItems.map(bomItem => ({
+  const consumptionData = order.design.billOfMaterials.map(bomItem => ({
     rawMaterialId: bomItem.rawMaterialId,
     quantity: Number(bomItem.quantity) * order.quantity,
     unitOfMeasure: bomItem.unitOfMeasure
@@ -51,8 +56,8 @@ export async function consumeMaterialsForOrder(productionOrderId: string) {
   // Validate the consumption data
   materialConsumptionSchema.parse({ productionOrderId, bomItems: consumptionData });
 
-  // Use transaction for atomic material consumption
-  return await prisma.$transaction(async (tx) => {
+  // Use tenant-scoped transaction for atomic material consumption
+  return await db.$transaction(async (tx) => {
     const consumptionLogs = [];
 
     for (const item of consumptionData) {
@@ -82,6 +87,7 @@ export async function consumeMaterialsForOrder(productionOrderId: string) {
       // Create consumption log
       const log = await tx.materialConsumptionLog.create({
         data: {
+          organizationId: user.organizationId,
           productionOrderId,
           rawMaterialId: item.rawMaterialId,
           quantityConsumed: item.quantity,
@@ -101,15 +107,19 @@ export async function consumeMaterialsForOrder(productionOrderId: string) {
 }
 
 export async function getMaterialConsumptionLogs(orderId: string) {
-  const user = await requireAuth();
+  const user = await requireActiveAuth();
+  const db = getTenantPrisma(user.organizationId);
 
-  const logs = await prisma.materialConsumptionLog.findMany({
-    where: { productionOrderId: orderId },
+  const logs = await db.materialConsumptionLog.findMany({
+    where: { 
+      productionOrderId: orderId,
+      organizationId: user.organizationId 
+    },
     include: {
-      rawMaterial: true,
-      productionOrder: {
+      RawMaterial: true,
+      ProductionOrder: {
         include: {
-          Design: true
+          design: true
         }
       }
     },
@@ -118,9 +128,9 @@ export async function getMaterialConsumptionLogs(orderId: string) {
 
   return logs.map(log => ({
     id: log.id,
-    materialName: log.rawMaterial.materialName,
+    materialName: log.RawMaterial.materialName,
     quantityConsumed: Number(log.quantityConsumed),
-    unitOfMeasure: log.rawMaterial.diameter ? 'kg' : 'pcs', // Simplified unit detection
+    unitOfMeasure: log.RawMaterial.diameter ? 'kg' : 'pcs', // Simplified unit detection
     consumedAt: log.consumedAt,
     notes: log.notes
   }));

@@ -8,7 +8,11 @@ interface RawMaterial {
   id: string;
   materialName: string;
   diameter: string;
+  length: string;
+  width: string;
+  height: string;
   availableKg: number;
+  availablePieces: number;
   reservedKg: number;
   supplier?: string;
 }
@@ -126,7 +130,7 @@ export function CreateOrderForm({ designs }: { designs: Design[] }) {
             <div className="space-y-2">
               <label className="text-xs font-bold text-[#7a8090] uppercase">Customer Reference</label>
               <input
-                placeholder="e.g. PO-882"
+                placeholder="Customer reference"
                 value={customerRef}
                 onChange={(e) => setCustomerRef(e.target.value)}
                 className="w-full bg-[#1e2023] border border-[#2c2d33] rounded-xl p-3 text-white outline-none focus:border-[#4caf7d]"
@@ -153,7 +157,7 @@ export function CreateOrderForm({ designs }: { designs: Design[] }) {
                     value={m.id}
                     className={materialHasInsufficient ? 'text-red-400' : ''}
                   >
-                    {m.materialName} ({m.diameter}) - {m.availableKg}kg available
+                    {m.materialName} ({m.diameter}, {m.length || "—"} L / {m.width || "—"} W/D / {m.height || "—"} H) - {m.availableKg}kg, {m.availablePieces} pcs available
                     {materialRequiredKg > 0 && materialHasInsufficient && " ⚠️ INSUFFICIENT"}
                   </option>
                 );

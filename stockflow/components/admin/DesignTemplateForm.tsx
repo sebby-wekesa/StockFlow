@@ -1,8 +1,9 @@
 "use client";
 
-import { Settings, Layers, Anchor, Save, Plus, X } from "lucide-react";
-import { useState, useEffect } from "react";
+import { Settings, Layers, Anchor, Save } from "lucide-react";
+import { useEffect, useState } from "react";
 import { BOMSection } from "./BOMSection";
+import { getRawMaterials } from "@/app/actions/materials";
 
 interface BOMItem {
   rawMaterialId: string;
@@ -11,18 +12,27 @@ interface BOMItem {
 }
 
 export function DesignTemplateForm() {
-  const [stages, setStages] = useState([{ dept: "Cutting", order: 1 }]);
+  const [stages, setStages] = useState([{ dept: "", order: 1 }]);
   const [bomItems, setBomItems] = useState<BOMItem[]>([]);
-  const [rawMaterials, setRawMaterials] = useState<any[]>([]);
+  const [rawMaterials, setRawMaterials] = useState<Array<{ id: string; materialName: string; diameter: string }>>([]);
+  const [departments, setDepartments] = useState<string[]>([]);
 
   useEffect(() => {
-    // Load raw materials - for now using mock data
-    // In production, this would call an API
-    setRawMaterials([
-      { id: "1", materialName: "High-Tensile Steel", diameter: "M12" },
-      { id: "2", materialName: "Stainless Steel", diameter: "M10" },
-      { id: "3", materialName: "Carbon Steel", diameter: "M8" }
-    ]);
+    async function loadOptions() {
+      const [materials, departmentsResponse] = await Promise.all([
+        getRawMaterials(),
+        fetch('/api/admin/departments'),
+      ]);
+      const departmentsJson = departmentsResponse.ok ? await departmentsResponse.json() : { departments: [] };
+      setRawMaterials(materials.map((material) => ({
+        id: material.id,
+        materialName: material.materialName,
+        diameter: material.diameter,
+      })));
+      setDepartments(Array.isArray(departmentsJson.departments) ? departmentsJson.departments : []);
+    }
+
+    void loadOptions();
   }, []);
 
   const addBomItem = () => {
@@ -62,7 +72,7 @@ export function DesignTemplateForm() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-2">
             <label className="text-xs font-bold text-[#7a8090] uppercase">Template Name</label>
-            <input placeholder="e.g. Hex Bolt M12 x 80mm" className="w-full bg-[#1e2023] border border-[#2c2d33] rounded-xl p-3 text-white outline-none focus:border-[#8b7cf8]" />
+            <input placeholder="Template name" className="w-full bg-[#1e2023] border border-[#2c2d33] rounded-xl p-3 text-white outline-none focus:border-[#8b7cf8]" />
           </div>
           <div className="space-y-2">
             <label className="text-xs font-bold text-[#7a8090] uppercase">Target Kg per 100 Units</label>
@@ -92,10 +102,9 @@ export function DesignTemplateForm() {
               </span>
               <select className="flex-1 bg-transparent text-white outline-none">
                 <option>Select Department...</option>
-                <option>Cutting</option>
-                <option>Forging</option>
-                <option>Threading</option>
-                <option>Electroplating</option>
+                {departments.map((department) => (
+                  <option key={department} value={department}>{department}</option>
+                ))}
               </select>
               <Anchor size={16} className="text-[#353a40] group-hover:text-[#8b7cf8] transition-colors" />
             </div>

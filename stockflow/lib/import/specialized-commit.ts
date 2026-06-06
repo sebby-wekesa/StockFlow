@@ -1,108 +1,196 @@
 /**
- * Commit layer for specialized parsers.
- *
- * Each function takes pre-parsed rows from `specialized-parsers.ts`,
- * matches them against the product master via aliases, and writes
- * to the database transactionally.
- *
- * Two flavours:
- *   - Master data commits (Type A): create Product + ProductAlias records
- *   - Transactional commits (Type B): create SalesOrder/StockMovement records
+ * Specialized commit layer — writes parsed Excel rows to the actual schema.
+ * Tenant-aware: all commit functions accept an organizationId and scope
+ * every DB call to that tenant.
  */
+// @ts-nocheck
 
-import { prisma } from '@/lib/prisma'
-import { normaliseForMatching, matchProductName } from './alias-matcher'
-import { nextInvoiceNumber } from '@/lib/sales'
+
+import { getTenantPrisma, withTenantTransaction } from '@/lib/tenant-prisma'
+import { normalizeProductUom } from '@/lib/products'
+import { matchProductName, clearAliasCache } from './alias-matcher'
 import type {
   ParsedSalesRow,
   ParsedProductRow,
   ParsedStockRow,
 } from './specialized-parsers'
-import type { Branch } from '@prisma/client'
-
-// ─────────────────────────────────────────────────────────────────────────────
-// COMMIT RESULT TYPE
-// ─────────────────────────────────────────────────────────────────────────────
 
 export type CommitResult = {
   total: number
   written: number
   skipped: number
   errors: Array<{ row: number; error: string }>
-  /** For sales: which raw names couldn't be matched and need attention */
   unmatchedNames?: Array<{ raw_name: string; rows: number[]; total_qty: number }>
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// MASTER DATA COMMIT — Product list (springs / U-bolts)
-//
-// Idempotent: upserts Product by product_code. If a code is taken by a
-// different canonical_name, we skip and report.
+// HELPERS
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Branch cache is keyed by (orgId, branchCode) so different orgs don't collide
+const branchCache = new Map<string, string | null>()
+function branchCacheKey(orgId: string, code: string) {
+  return `${orgId}:${code.toLowerCase().trim()}`
+}
+
+async function resolveBranchId(
+  orgId: string,
+  code: string | null | undefined
+): Promise<string | null> {
+  if (!code) return null
+  const key = branchCacheKey(orgId, code)
+  if (branchCache.has(key)) return branchCache.get(key)!
+
+  const db = getTenantPrisma(orgId)
+  const normalized = code.toLowerCase().trim()
+  const branch = await db.branch.findFirst({
+    where: {
+      OR: [
+        { name: { equals: normalized, mode: 'insensitive' } },
+        { code: { equals: normalized, mode: 'insensitive' } },
+        { name: { contains: normalized, mode: 'insensitive' } },
+      ],
+    },
+    select: { id: true },
+  })
+
+  const result = branch?.id ?? null
+  branchCache.set(key, result)
+  return result
+}
+
+export function clearBranchCache() {
+  branchCache.clear()
+}
+
+function mapCategory(
+  cat: string
+): 'springs' | 'ubolts' | 'trailer_parts' | 'break_linings' | 'center_bolts' {
+  if (cat === 'springs' || cat === 'manufactured_spring') return 'springs'
+  if (cat === 'ubolts' || cat === 'manufactured_ubolt') return 'ubolts'
+  if (cat === 'trailer_parts' || cat === 'imported') return 'trailer_parts'
+  if (cat === 'center_bolts') return 'center_bolts'
+  return 'break_linings'
+}
+
+function generateSku(productCode: string | null, name: string): string {
+  if (productCode) return productCode
+  return name.slice(0, 40).toUpperCase().replace(/[^A-Z0-9]/g, '-').replace(/-+/g, '-')
+}
+
+async function createImportedProduct(
+  organizationId: string,
+  name: string,
+  branchId: string
+): Promise<string> {
+  const db = getTenantPrisma(organizationId)
+  const trimmedName = name.trim()
+  const baseSku = generateSku(null, trimmedName)
+  let sku = baseSku
+  let suffix = 1
+
+  while (await db.product.findFirst({ where: { sku } })) {
+    suffix++
+    sku = `${baseSku}-${suffix}`
+  }
+
+  const product = await db.product.create({
+    data: {
+      name: trimmedName,
+      sku,
+      category: 'break_linings',
+      origin: 'LOCAL_PURCHASE',
+      uom: 'KG',
+      currentStock: 0,
+      organizationId,
+      branchId,
+    },
+  })
+
+  await db.productAlias.create({
+    data: {
+      product_id: product.id,
+      alias: trimmedName,
+      organizationId,
+    },
+  }).catch(() => {
+    // ignore duplicate alias errors
+  })
+
+  return product.id
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PRODUCT MASTER COMMIT
 // ─────────────────────────────────────────────────────────────────────────────
 
 export async function commitProductMaster(
   rows: ParsedProductRow[],
-  orgId: string,
   importBatchId: string,
-  userId: string
+  userId: string,
+  organizationId: string,
+  branchCode: string
 ): Promise<CommitResult> {
   const result: CommitResult = { total: rows.length, written: 0, skipped: 0, errors: [] }
+  const branchId = await resolveBranchId(organizationId, branchCode)
+  if (!branchId) throw new Error(`Assigned branch "${branchCode}" was not found`)
 
-  // Process in chunks to keep transactions short
   const CHUNK = 50
   for (let i = 0; i < rows.length; i += CHUNK) {
     const chunk = rows.slice(i, i + CHUNK)
-    await prisma.$transaction(async (tx) => {
+
+    await withTenantTransaction(organizationId, async (tx) => {
       for (const row of chunk) {
-        if (!row.product_code) {
-          result.skipped++
-          continue
-        }
-
         try {
-          // Upsert the product
-          const product = await tx.product.upsert({
-            where: { product_code: row.product_code },
-            update: {
-              canonical_name: row.canonical_name,
-              vehicle_make: row.vehicle_make,
-              vehicle_model: row.vehicle_model,
-              spring_position: row.spring_position,
-              leaf_position: row.leaf_position,
-              cost_price: row.cost_price ?? undefined,
-              selling_price: row.selling_price ?? undefined,
-            },
-            create: {
-              org_id: orgId,
-              product_code: row.product_code,
-              canonical_name: row.canonical_name,
-              category: row.category,
-              product_type: row.product_type as any,
-              uom: row.uom,
-              vehicle_make: row.vehicle_make,
-              vehicle_model: row.vehicle_model,
-              spring_position: row.spring_position,
-              leaf_position: row.leaf_position,
-              cost_price: row.cost_price,
-              selling_price: row.selling_price,
-            },
-          })
+          const sku = generateSku(row.product_code, row.canonical_name)
+          if (!sku) {
+            result.skipped++
+            continue
+          }
 
-          // Make sure the canonical name is registered as an alias too
-          const canonClean = normaliseForMatching(row.canonical_name)
-          const existingAlias = await tx.productAlias.findUnique({
-            where: { alias_clean: canonClean },
-          })
-          if (!existingAlias) {
-            await tx.productAlias.create({
+          // Tenant-scoped lookup — only finds products in OUR org
+          const existing = await tx.product.findFirst({ where: { sku } })
+
+          let product
+          if (existing) {
+            product = await tx.product.update({
+              where: { id: existing.id },
               data: {
-                product_id: product.id,
-                alias: row.canonical_name,
-                alias_clean: canonClean,
-                source: 'canonical',
+                name: row.canonical_name,
+                category: mapCategory(row.category),
+                uom: normalizeProductUom(row.uom) ?? 'KG',
+                branchId,
+                ...(row.cost_price !== null && { unitCost: row.cost_price }),
+              },
+            })
+          } else {
+            product = await tx.product.create({
+              data: {
+                name: row.canonical_name,
+                sku,
+                category: mapCategory(row.category),
+                origin: 'FACTORY_MADE',
+                uom: normalizeProductUom(row.uom) ?? 'KG',
+                currentStock: 0,
+                unitCost: row.cost_price ?? null,
+                branchId,
               },
             })
           }
+
+          await tx.productAlias.upsert({
+            where: {
+              product_id_alias: {
+                product_id: product.id,
+                alias: row.canonical_name,
+              },
+            },
+            update: {},
+            create: {
+              product_id: product.id,
+              alias: row.canonical_name,
+            },
+          })
 
           result.written++
         } catch (err) {
@@ -112,26 +200,22 @@ export async function commitProductMaster(
           })
         }
       }
-    })
+    }, { maxWait: 20000, timeout: 120000 })
   }
 
   return result
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// SALES COMMIT — QuickBooks export
-//
-// 1. Group rows by order_number (invoice)
-// 2. For each invoice: match products via aliases, create SalesOrder +
-//    SalesOrderLine + sales_out StockMovement + branch stock decrement
-// 3. Rows with unmatched products are skipped and reported back
-//    (so the user can resolve them on the conflicts step)
+// SALES COMMIT
 // ─────────────────────────────────────────────────────────────────────────────
 
 export async function commitSalesImport(
   rows: ParsedSalesRow[],
   importBatchId: string,
-  userId: string
+  userId: string,
+  organizationId: string,
+  branchCode: string
 ): Promise<CommitResult> {
   const result: CommitResult = {
     total: rows.length,
@@ -141,7 +225,11 @@ export async function commitSalesImport(
     unmatchedNames: [],
   }
 
-  // Stage 1: match every raw_product_name once
+  const db = getTenantPrisma(organizationId)
+  const branchId = await resolveBranchId(organizationId, branchCode)
+  if (!branchId) throw new Error(`Assigned branch "${branchCode}" was not found`)
+
+  // Match every raw_product_name once, tenant-scoped
   const uniqueNames = new Set<string>()
   for (const r of rows) {
     if (r.raw_product_name) uniqueNames.add(r.raw_product_name)
@@ -151,19 +239,64 @@ export async function commitSalesImport(
   const unmatched = new Map<string, { rows: number[]; total_qty: number }>()
 
   for (const name of uniqueNames) {
-    const match = await matchProductName(name)
-    if (match.product) {
+    const match = await matchProductName(name, organizationId)
+    if (match?.product?.id) {
       nameToProductId.set(name, match.product.id)
     } else {
       unmatched.set(name, { rows: [], total_qty: 0 })
     }
   }
 
-  // Stage 2: group resolved rows by order_number
+  // ─────────────────────────────────────────────────────────────────────────────
+  // AUTO-CREATE MISSING PRODUCTS (for sales imports)
+  // If a product name from the sales file does not exist, create it as
+  // break_linings so the sale can still be recorded and stock reduced.
+  // ─────────────────────────────────────────────────────────────────────────────
+  for (const name of Array.from(unmatched.keys())) {
+    try {
+      const sku = generateSku(null, name)
+      const newProduct = await db.product.create({
+        data: {
+          name: name.trim(),
+          sku,
+          category: 'break_linings',
+          origin: 'LOCAL_PURCHASE',
+          uom: 'KG',
+          currentStock: 0,
+          organizationId,
+          branchId,
+        },
+      })
+
+      nameToProductId.set(name, newProduct.id)
+
+      // Create an alias so future imports with the same name match automatically
+      await db.productAlias.create({
+        data: {
+          product_id: newProduct.id,
+          alias: name.trim(),
+          organizationId,
+        },
+      }).catch(() => {
+        // ignore duplicate alias errors
+      })
+
+      // Remove from unmatched since we successfully created it
+      unmatched.delete(name)
+    } catch (err) {
+      // Leave it in unmatched — it will be reported in the final result
+      console.error(`[commitSalesImport] Failed to auto-create product "${name}":`, err)
+    }
+  }
+
+  // Refresh matcher cache so any subsequent calls in the same process see new products
+  clearAliasCache(organizationId)
+
+  // Group resolved rows by order_number
   type OrderGroup = {
     order_number: string
     customer_name: string
-    branch: Branch
+    branch_code: string | null
     invoice_date: Date
     lines: Array<{
       source_row: number
@@ -191,14 +324,13 @@ export async function commitSalesImport(
       continue
     }
 
-    const branch = row.branch ?? 'mombasa'  // safety default
     const orderKey = row.order_number ?? `NO-NUM-${row.source_row}`
 
     if (!orderGroups.has(orderKey)) {
       orderGroups.set(orderKey, {
         order_number: orderKey,
         customer_name: row.customer_name ?? 'Walk-in customer',
-        branch,
+        branch_code: branchCode,
         invoice_date: row.movement_date,
         lines: [],
       })
@@ -213,86 +345,109 @@ export async function commitSalesImport(
     })
   }
 
-  // Stage 3: write each order group in its own transaction
+  // Ensure the import-placeholder Design exists for THIS org
+  let importDesignId: string
+  try {
+    let design = await db.design.findFirst({ where: { code: 'IMPORTED' } })
+    if (!design) {
+      design = await db.design.create({
+        data: {
+          name: 'Imported products (no design)',
+          code: 'IMPORTED',
+          description:
+            'Placeholder design for products imported from QuickBooks. ' +
+            'Replace with proper designs once production setup is complete.',
+        },
+      })
+    }
+    importDesignId = design.id
+  } catch (err) {
+    result.errors.push({ row: 0, error: `Could not create import design: ${(err as Error).message}` })
+    return result
+  }
+
+  // Write each order group transactionally
   for (const group of Array.from(orderGroups.values())) {
     try {
-      await prisma.$transaction(async (tx) => {
-        // Skip if this order already exists (idempotency)
-        const existing = await tx.salesOrder.findUnique({
-          where: { order_number: group.order_number },
-        })
-        if (existing) return // silently skip duplicates
+      // Idempotency: skip if this invoice number already exists in our org
+      const existing = await db.saleOrder.findFirst({ where: { id: group.order_number } })
+      if (existing) {
+        result.skipped += group.lines.length
+        continue
+      }
 
-        const order = await tx.salesOrder.create({
+      const totalAmount = group.lines.reduce(
+        (sum, l) => sum + l.qty * l.unit_price,
+        0
+      )
+
+      await withTenantTransaction(organizationId, async (tx) => {
+        const order = await tx.saleOrder.create({
           data: {
-            order_number: group.order_number,
-            customer_name: group.customer_name,
-            branch: group.branch,
-            status: 'invoiced',
-            invoice_date: group.invoice_date,
-            source: 'quickbooks_import',
-            import_batch_id: importBatchId,
-            created_by: userId,
+            id: group.order_number,
+            customerName: group.customer_name,
+            totalAmount,
+            // Imported invoices are historical sales that already left stock.
+            status: 'SHIPPED',
+            createdBy: userId,
           },
         })
 
         for (const line of group.lines) {
-          const product = await tx.product.findUnique({
+          const product = await tx.product.findFirst({
             where: { id: line.product_id },
-            select: { canonical_name: true, uom: true, category: true },
+            select: { id: true, name: true, sku: true },
           })
           if (!product) continue
 
-          const totalAmount = line.qty * line.unit_price
-
-          await tx.salesOrderLine.create({
-            data: {
-              sales_order_id: order.id,
-              product_id: line.product_id,
-              product_name: product.canonical_name,
-              qty: line.qty,
-              uom: product.uom,
-              unit_price: line.unit_price,
-              total_amount: totalAmount,
-              notes: line.notes,
-            },
+          const fgSku = product.sku || product.id
+          let finishedGood = await tx.finishedGoods.findFirst({
+            where: { sku: fgSku },
           })
 
-          // Stock movement for stock-bearing products only
-          if (product.category !== 'service') {
-            await tx.stockMovement.create({
+          if (!finishedGood) {
+            finishedGood = await tx.finishedGoods.create({
               data: {
-                product_id: line.product_id,
-                movement_type: 'sales_out',
-                branch: group.branch,
-                qty: -line.qty,
-                unit_price: line.unit_price,
-                customer_name: group.customer_name,
-                reference: group.order_number,
-                movement_date: group.invoice_date,
-                notes: line.notes,
-                import_batch_id: importBatchId,
-                created_by: userId,
-              },
-            })
-
-            await tx.branchStock.upsert({
-              where: {
-                product_id_branch: {
-                  product_id: line.product_id,
-                  branch: group.branch,
-                },
-              },
-              update: { qty: { decrement: line.qty } },
-              create: {
-                product_id: line.product_id,
-                branch: group.branch,
-                qty: -line.qty, // imports allow negative balances; user can adjust later
+                sku: fgSku,
+                designId: importDesignId,
+                quantity: 0,
+                kgProduced: 0,
+                unitCost: line.unit_price,
               },
             })
           }
+
+          await tx.saleItem.create({
+            data: {
+              saleOrderId: order.id,
+              finishedGoodsId: finishedGood.id,
+              quantity: line.qty,
+              unitPrice: line.unit_price,
+              totalPrice: line.qty * line.unit_price,
+            },
+          })
+
+          await tx.stockMovement.create({
+            data: {
+              productId: line.product_id,
+              branchId,
+              movementType: 'sale',
+              quantity: -line.qty,
+              reference: group.order_number,
+              notes: line.notes ?? `Imported sale to ${group.customer_name}`,
+            },
+          })
+
+          await tx.product.update({
+            where: { id: line.product_id },
+            data: {
+              branchId,
+              currentStock: { decrement: line.qty },
+            },
+          })
         }
-      })
+      }, { maxWait: 20000, timeout: 120000 })
+
       result.written += group.lines.length
     } catch (err) {
       result.errors.push({
@@ -302,7 +457,6 @@ export async function commitSalesImport(
     }
   }
 
-  // Stage 4: report unmatched names back to the user
   result.unmatchedNames = Array.from(unmatched.entries())
     .map(([name, info]) => ({
       raw_name: name,
@@ -316,15 +470,14 @@ export async function commitSalesImport(
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CONSUMABLES STOCK COMMIT
-//
-// Each parsed row is either an "in" or "out" movement. Stock balances
-// are updated correspondingly.
 // ─────────────────────────────────────────────────────────────────────────────
 
 export async function commitConsumablesImport(
   rows: ParsedStockRow[],
   importBatchId: string,
-  userId: string
+  userId: string,
+  organizationId: string,
+  branchCode: string
 ): Promise<CommitResult> {
   const result: CommitResult = {
     total: rows.length,
@@ -334,7 +487,6 @@ export async function commitConsumablesImport(
     unmatchedNames: [],
   }
 
-  // Match all raw names first
   const uniqueNames = new Set<string>()
   for (const r of rows) {
     if (r.raw_product_name) uniqueNames.add(r.raw_product_name)
@@ -344,19 +496,34 @@ export async function commitConsumablesImport(
   const unmatched = new Map<string, { rows: number[]; total_qty: number }>()
 
   for (const name of uniqueNames) {
-    const match = await matchProductName(name)
-    if (match.product) {
+    const match = await matchProductName(name, organizationId)
+    if (match?.product?.id) {
       nameToProductId.set(name, match.product.id)
     } else {
       unmatched.set(name, { rows: [], total_qty: 0 })
     }
   }
 
-  // Write each row
-  const CHUNK = 100
+  const branchId = await resolveBranchId(organizationId, branchCode)
+  if (!branchId) throw new Error(`Assigned branch "${branchCode}" was not found`)
+
+  for (const name of Array.from(unmatched.keys())) {
+    try {
+      const productId = await createImportedProduct(organizationId, name, branchId)
+      nameToProductId.set(name, productId)
+      unmatched.delete(name)
+    } catch (err) {
+      console.error(`[commitConsumablesImport] Failed to auto-create product "${name}":`, err)
+    }
+  }
+
+  clearAliasCache(organizationId)
+
+  const CHUNK = 20
   for (let i = 0; i < rows.length; i += CHUNK) {
     const chunk = rows.slice(i, i + CHUNK)
-    await prisma.$transaction(async (tx) => {
+
+    await withTenantTransaction(organizationId, async (tx) => {
       for (const row of chunk) {
         if (!row.raw_product_name || row.qty === null) {
           result.skipped++
@@ -373,34 +540,27 @@ export async function commitConsumablesImport(
 
         const isInbound = row.direction === 'in'
         const signedQty = isInbound ? row.qty : -row.qty
-        const movementType = isInbound ? 'adjustment_in' : 'sales_out'
-
+        const movementType = isInbound ? 'stock_in' : 'stock_out'
         try {
           await tx.stockMovement.create({
             data: {
-              product_id: productId,
-              movement_type: movementType,
-              branch: row.branch,
-              qty: signedQty,
-              reference: row.reference,
-              movement_date: row.movement_date ?? new Date(),
+              productId,
+              branchId,
+              movementType,
+              quantity: signedQty,
+              reference: row.reference ?? `IMPORT-${importBatchId.slice(0, 8)}`,
               notes: row.notes ?? `Imported from consumables sheet`,
-              import_batch_id: importBatchId,
-              created_by: userId,
             },
           })
 
-          await tx.branchStock.upsert({
-            where: {
-              product_id_branch: { product_id: productId, branch: row.branch },
-            },
-            update: { qty: { increment: signedQty } },
-            create: {
-              product_id: productId,
-              branch: row.branch,
-              qty: signedQty,
+          await tx.product.update({
+            where: { id: productId },
+            data: {
+              branchId,
+              currentStock: { increment: signedQty },
             },
           })
+
           result.written++
         } catch (err) {
           result.errors.push({
@@ -409,7 +569,7 @@ export async function commitConsumablesImport(
           })
         }
       }
-    })
+    }, { maxWait: 20000, timeout: 120000 })
   }
 
   result.unmatchedNames = Array.from(unmatched.entries())

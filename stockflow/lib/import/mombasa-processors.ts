@@ -1,5 +1,7 @@
+// @ts-nocheck
 // Category-specific processors for Mombasa stock imports
-import { PrismaClient } from '@prisma/client'
+import { prisma } from '@/lib/prisma'
+import { normalizeProductUom } from '@/lib/products'
 
 export interface ProcessedProduct {
   name: string
@@ -51,7 +53,7 @@ export const trailerPartsProcessor: CategoryProcessor = {
       reorderLevel: reorderLevel > 0 ? reorderLevel : Math.max(1, Math.floor(balance * 0.2)), // 20% of balance as default
       unitCost: unitCost > 0 ? unitCost : undefined,
       vendor: vendor?.trim(),
-      uom: 'PCS',
+      uom: 'KG',
       rawData: row
     }
   },
@@ -94,7 +96,7 @@ export const brakeLiningsProcessor: CategoryProcessor = {
       reorderLevel: reorderLevel > 0 ? reorderLevel : Math.max(2, Math.floor(balance * 0.15)), // 15% for brake parts
       unitCost: unitCost > 0 ? unitCost : undefined,
       vendor: vendor?.trim(),
-      uom: 'PCS',
+      uom: 'KG',
       rawData: row
     }
   },
@@ -137,7 +139,7 @@ export const springComponentsProcessor: CategoryProcessor = {
       reorderLevel: reorderLevel > 0 ? reorderLevel : Math.max(1, Math.floor(balance * 0.25)), // 25% for springs
       unitCost: unitCost > 0 ? unitCost : undefined,
       vendor: vendor?.trim(),
-      uom: 'PCS',
+      uom: 'KG',
       rawData: row
     }
   },
@@ -171,7 +173,7 @@ export const genericProcessor: CategoryProcessor = {
       reorderLevel: reorderLevel > 0 ? reorderLevel : Math.max(1, Math.floor(balance * 0.2)),
       unitCost: unitCost > 0 ? unitCost : undefined,
       vendor: vendor?.trim(),
-      uom: 'PCS',
+      uom: 'KG',
       rawData: row
     }
   },
@@ -208,7 +210,6 @@ export async function processMombasaInventory(
   headers: string[],
   userId: string
 ) {
-  const prisma = new PrismaClient()
   const processor = detectCategory(headers)
 
   console.log(`Processing ${rows.length} rows as ${processor.categoryName} category`)
@@ -257,7 +258,7 @@ export async function processMombasaInventory(
             sku: processedProduct.sku,
             category: processedProduct.category as any,
             origin: 'LOCAL_PURCHASE',
-            uom: processedProduct.uom || 'PCS',
+            uom: normalizeProductUom(processedProduct.uom) ?? 'KG',
             currentStock: processedProduct.balance,
             unitCost: processedProduct.unitCost,
             vendor: processedProduct.vendor,

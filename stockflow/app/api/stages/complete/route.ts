@@ -1,113 +1,70 @@
 export const dynamic = 'force-dynamic';
 
-import { prisma } from "@/lib/prisma";
+import { requireActiveAuth } from "@/lib/auth";
 import { NextResponse } from "next/server";
+import { completeStage } from "@/app/actions/stage-completion";
 
 export async function POST(req: Request) {
   try {
+    const user = await requireActiveAuth();
     const body = await req.json();
     const { 
       orderId, 
       kgIn, 
       kgOut, 
       kgScrap, 
+      piecesIn,
+      piecesOut,
       scrapReason, 
       notes, 
       currentSequence, 
       stageName, 
-      operatorId 
+      operatorId
     } = body;
+    void operatorId;
 
     // 1. Validate required fields for the Stage Log
     if (!orderId || kgIn === undefined || kgOut === undefined || !stageName || currentSequence === undefined) {
        return NextResponse.json({ error: "Missing required fields for handoff" }, { status: 400 });
     }
 
-    // 2. Determine operatorId if not provided (fallback to first operator for demo purposes)
-    let effectiveOperatorId = operatorId;
-    if (!effectiveOperatorId) {
-      const firstOperator = await prisma.user.findFirst({ where: { role: "OPERATOR" } });
-      effectiveOperatorId = firstOperator?.id;
+    if (!['OPERATOR', 'ADMIN', 'MANAGER'].includes(user.role)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
-
-    if (!effectiveOperatorId) {
-      return NextResponse.json({ error: "No operator associated with this action" }, { status: 400 });
-    }
-
-    // 3. Create the Stage Log record for history
-    const log = await prisma.stageLog.create({
-      data: {
-        orderId,
-        kgIn,
-        kgOut,
-        kgScrap: kgScrap || 0,
-        scrapReason,
-        notes,
-        stageName,
-        sequence: currentSequence,
-        operatorId: effectiveOperatorId,
-      }
-    });
-
-    // 4. Dynamic Logic to find the next stage/department
-    // We fetch the current order to get its designId
-    const order = await prisma.productionOrder.findUnique({
-      where: { id: orderId },
-      include: {
-        Design: {
-          include: {
-            Stage: {
-              orderBy: { sequence: "asc" }
-            }
-          }
-        }
-      }
-    });
-
-    if (!order) {
-      return NextResponse.json({ error: "Production order not found" }, { status: 404 });
-    }
-
-    // Find the current stage index and next stage
-    const currentStageIndex = order.Design.Stage.findIndex(s => s.sequence === currentSequence);
-    const nextStage = order.Design.Stage[currentStageIndex + 1];
-
-    let nextDept = "Completed";
-    let finalStatus: "COMPLETED" | "IN_PRODUCTION" = "COMPLETED";
-    let nextSeq = currentSequence + 1;
-
-    if (nextStage) {
-      nextDept = nextStage.department;
-      finalStatus = "IN_PRODUCTION";
-      nextSeq = nextStage.sequence;
-    }
-
-    // 5. Update the Production Order to move it to the next queue
-    const updatedOrder = await prisma.productionOrder.update({
-      where: { id: orderId },
-      data: {
-        currentStage: nextSeq,
-        currentDept: nextDept,
-        status: finalStatus,
-        // Update targetKg for the next stage based on what actually came out of this one
-        targetKg: kgOut,
-        ...(finalStatus === "COMPLETED" && { completedAt: new Date() }),
-      }
+    const result = await completeStage({
+      orderId,
+      stageName,
+      sequence: currentSequence,
+      kgIn: Number(kgIn),
+      kgOut: Number(kgOut),
+      kgScrap: Number(kgScrap || 0),
+      piecesIn: piecesIn === undefined || piecesIn === null || piecesIn === "" ? undefined : Number(piecesIn),
+      piecesOut: piecesOut === undefined || piecesOut === null || piecesOut === "" ? undefined : Number(piecesOut),
+      scrapReason,
+      notes,
     });
 
     return NextResponse.json({ 
       success: true, 
-      log,
+      log: {
+        ...result.stageLog,
+        kgIn: Number(result.stageLog.kgIn),
+        kgOut: Number(result.stageLog.kgOut),
+        kgScrap: Number(result.stageLog.kgScrap),
+        piecesIn: result.stageLog.piecesIn,
+        piecesOut: result.stageLog.piecesOut,
+        completedAt: result.stageLog.completedAt.toISOString(),
+      },
       transition: {
         from: stageName,
-        to: nextDept,
-        nextSequence: nextSeq,
-        status: finalStatus
+        to: result.nextStage?.department ?? 'Completed',
+        nextSequence: result.nextStage?.sequence,
+        status: result.orderCompleted ? 'COMPLETED' : 'IN_PRODUCTION'
       }
     });
 
   } catch (error) {
     console.error("Factory Handoff Error:", error);
-    return NextResponse.json({ error: "Failed to move order to next stage" }, { status: 500 });
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Failed to move order to next stage" }, { status: 500 });
   }
 }

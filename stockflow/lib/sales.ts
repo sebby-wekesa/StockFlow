@@ -1,41 +1,59 @@
-import type { Branch, SalesOrderStatus } from '@prisma/client'
-import { prisma } from '@/lib/prisma'
+import { getTenantPrisma } from '@/lib/tenant-prisma'
+import type { Prisma } from '@prisma/client'
 export { STATUS_LABELS, STATUS_BADGE_CLASS, formatKES } from './sales-utils'
 
-// Branch invoice prefixes — matches existing Springtech numbering convention
-const INVOICE_PREFIX: Record<Branch, string> = {
-  mombasa: '',        // Mombasa uses pure numeric: 107372
-  nairobi: 'NBI',     // NBI25228
-  bonje: 'BNJ',       // BNJ633
+// Springtech's invoice prefix convention. Other orgs will get the default
+// '' prefix until we add a tenant-level "branch prefix" config.
+const SPRINGTECH_INVOICE_PREFIX: Record<string, string> = {
+  mombasa: '',
+  nairobi: 'NBI',
+  bunje: 'BNJ',
 }
 
 /**
- * Generate the next invoice number for a branch. Reads the highest existing
- * number with that prefix and increments. Falls back to 1000 (Mombasa) or
- * 1 (branches) if none exists.
+ * Generate the next invoice number for a given org+branch.
+ *
+ * Scans recent SaleOrder rows in THIS org whose id starts with the branch
+ * prefix, finds the highest numeric portion, returns prefix + (max + 1).
+ * Falls back to a sensible starting point if no prior invoices exist.
+ *
+ * Notes for multitenancy:
+ *   - Org-scoped via getTenantPrisma()
+ *   - Different orgs can use the same prefixes (composite uniqueness in DB)
+ *   - For non-Springtech orgs, prefix defaults to '' (numeric only).
+ *     Stage 6 will add a tenant settings UI to configure prefixes.
  */
-export async function nextInvoiceNumber(branch: Branch): Promise<string> {
-  const prefix = INVOICE_PREFIX[branch]
+export async function nextInvoiceNumber(
+  organizationId: string,
+  branch: string,
+  txClient?: Prisma.TransactionClient
+): Promise<string> {
+  const db = (txClient as any) || getTenantPrisma(organizationId)
+  const prefix = SPRINGTECH_INVOICE_PREFIX[branch.toLowerCase()] ?? ''
 
-  const existing = await prisma.salesOrder.findMany({
-    where: branch === 'mombasa'
-      ? { branch }                                      // mombasa: any number
-      : { order_number: { startsWith: prefix } },       // others: must have prefix
-    select: { order_number: true },
-    orderBy: { created_at: 'desc' },
-    take: 200, // scan recent invoices to find the max
+  const existing = await db.saleOrder.findMany({
+    where: prefix
+      ? { id: { startsWith: prefix } }
+      : { NOT: { id: { startsWith: 'NBI' } } },
+    select: { id: true },
+    orderBy: { createdAt: 'desc' },
+    take: 200,
   })
 
   let maxNum = 0
   for (const e of existing) {
-    const numPart = prefix
-      ? e.order_number.replace(prefix, '')
-      : e.order_number
+    if (!e.id) continue
+    // For Mombasa, skip rows that belong to other branches
+    if (!prefix) {
+      if (e.id.startsWith('NBI') || e.id.startsWith('BNJ') || e.id.startsWith('DRAFT')) {
+        continue
+      }
+    }
+    const numPart = prefix ? e.id.replace(prefix, '') : e.id
     const parsed = parseInt(numPart.replace(/\D/g, ''), 10)
     if (!isNaN(parsed) && parsed > maxNum) maxNum = parsed
   }
 
-  const next = maxNum > 0 ? maxNum + 1 : (branch === 'mombasa' ? 100000 : 1)
+  const next = maxNum > 0 ? maxNum + 1 : branch.toLowerCase() === 'mombasa' ? 100000 : 1
   return `${prefix}${next}`
 }
-

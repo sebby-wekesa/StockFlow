@@ -3,54 +3,43 @@
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
-import { prisma } from '@/lib/prisma'
-import { createServerSupabase } from '@/lib/supabase/server'
-import { normaliseForMatching } from '@/lib/import/alias-matcher'
-import type { ProductCategory, ProductType, UOM } from '@prisma/client'
+import { requireActiveAuth, type AuthUser } from '@/lib/auth'
+import { getTenantPrisma, withTenantTransaction } from '@/lib/tenant-prisma'
+import type { ProductCategory, StockOrigin } from '@prisma/client'
+import { PRODUCT_CATEGORIES, normalizeProductUom } from '@/lib/products'
+import { ALL_BRANCHES, normalizeBranchCode, type BranchCode } from '@/lib/branches'
+import { syncProductShadowStock } from '@/lib/order-lifecycle'
 
-// ─────────────────────────────────────────────────────────────────────────────
-// AUTH HELPER — every action checks the user is logged in and gets their org
-// ─────────────────────────────────────────────────────────────────────────────
-
-async function requireUser() {
-  const supabase = await createServerSupabase()
-  const {
-    data: { user: authUser },
-  } = await supabase.auth.getUser()
-
-  if (!authUser) {
-    throw new Error('Not authenticated')
-  }
-
-  const user = await prisma.user.findUnique({ where: { id: authUser.id } })
-  if (!user) {
-    throw new Error('User not provisioned')
-  }
-
-  // Only admins and managers can modify products
-  if (user.role !== 'admin' && user.role !== 'manager') {
+/** Returns the auth user if role is ADMIN or MANAGER, else throws. */
+async function requireProductManager(): Promise<AuthUser> {
+  const user = await requireActiveAuth()
+  if (user.role !== 'ADMIN' && user.role !== 'MANAGER') {
     throw new Error('Insufficient permissions')
   }
-
   return user
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// CREATE
-// ─────────────────────────────────────────────────────────────────────────────
-
 const createSchema = z.object({
+  // form keeps snake_case keys for backwards compat with existing forms
   product_code: z.string().min(1).max(60),
   canonical_name: z.string().min(1).max(200),
-  category: z.enum([
-    'manufactured_spring',
-    'manufactured_ubolt',
-    'imported',
-    'local_purchase',
-    'service',
-  ]),
-  product_type: z.string().min(1),
-  uom: z.enum(['pcs', 'set', 'kg', 'litres', 'metres', 'box']),
+  category: z.enum(PRODUCT_CATEGORIES),
+  origin: z.enum(['FACTORY_MADE', 'LOCAL_PURCHASE', 'IMPORTED']).default('FACTORY_MADE'),
+  uom: z.preprocess(
+    (value) => normalizeProductUom(value),
+    z.enum(['KG'], {
+      invalid_type_error: 'UOM must be KG',
+      required_error: 'UOM must be KG',
+    })
+  ),
+  cost_price: z.coerce.number().nonnegative().optional().nullable(),
+  selling_price: z.coerce.number().nonnegative().optional().nullable(),
+  reorder_point: z.coerce.number().int().nonnegative().optional().nullable(),
+  pieces_sets: z.coerce.number().int().nonnegative().optional().default(0),
+  branch: z.enum(ALL_BRANCHES as [BranchCode, ...BranchCode[]]),
+  vendor: z.string().max(200).optional().nullable(),
+  // Fields below are not in the schema — accepted but ignored so existing forms don't crash:
+  product_type: z.string().optional().nullable(),
   description: z.string().max(500).optional().nullable(),
   vehicle_make: z.string().max(100).optional().nullable(),
   vehicle_model: z.string().max(100).optional().nullable(),
@@ -58,20 +47,53 @@ const createSchema = z.object({
   leaf_position: z.string().max(50).optional().nullable(),
   shaft_size_mm: z.coerce.number().int().positive().optional().nullable(),
   leg_length_inch: z.string().max(20).optional().nullable(),
-  cost_price: z.coerce.number().nonnegative().optional().nullable(),
-  selling_price: z.coerce.number().nonnegative().optional().nullable(),
-  reorder_point: z.coerce.number().int().nonnegative().optional().nullable(),
 })
 
-export async function createProduct(formData: FormData) {
-  const user = await requireUser()
+const updateSchema = createSchema.extend({
+  current_stock: z.coerce.number().nonnegative().optional().nullable(),
+  adjustment_reason: z.string().max(500).optional().nullable(),
+})
 
-  const raw = {
+const updateCategorySchema = z.object({
+  category: z.enum(PRODUCT_CATEGORIES),
+})
+
+const updateOriginSchema = z.object({
+  origin: z.enum(['FACTORY_MADE', 'LOCAL_PURCHASE', 'IMPORTED']),
+})
+
+const updateUomSchema = z.object({
+  uom: z.preprocess(
+    (value) => normalizeProductUom(value),
+    z.enum(['KG'], {
+      invalid_type_error: 'UOM must be KG',
+      required_error: 'UOM must be KG',
+    })
+  ),
+})
+
+const updatePiecesSetsSchema = z.object({
+  piecesSets: z.coerce.number().int().nonnegative(),
+})
+
+const updateCurrentStockSchema = z.object({
+  currentStock: z.coerce.number().nonnegative(),
+})
+
+function extractForm(formData: FormData) {
+  return {
     product_code: formData.get('product_code'),
     canonical_name: formData.get('canonical_name'),
     category: formData.get('category'),
-    product_type: formData.get('product_type'),
-    uom: formData.get('uom'),
+    origin: formData.get('origin') || 'FACTORY_MADE',
+    uom: formData.get('uom') || 'KG',
+    cost_price: formData.get('cost_price') || null,
+    selling_price: formData.get('selling_price') || null,
+    reorder_point: formData.get('reorder_point') || null,
+    pieces_sets: formData.get('pieces_sets') || 0,
+    branch: formData.get('branch'),
+    vendor: formData.get('vendor') || null,
+    product_type: formData.get('product_type') || null,
     description: formData.get('description') || null,
     vehicle_make: formData.get('vehicle_make') || null,
     vehicle_model: formData.get('vehicle_model') || null,
@@ -79,55 +101,90 @@ export async function createProduct(formData: FormData) {
     leaf_position: formData.get('leaf_position') || null,
     shaft_size_mm: formData.get('shaft_size_mm') || null,
     leg_length_inch: formData.get('leg_length_inch') || null,
-    cost_price: formData.get('cost_price') || null,
-    selling_price: formData.get('selling_price') || null,
-    reorder_point: formData.get('reorder_point') || null,
+    current_stock: formData.get('current_stock') || null,
+    adjustment_reason: formData.get('adjustment_reason') || null,
+  }
+}
+
+async function resolveProductBranch(
+  db: ReturnType<typeof getTenantPrisma>,
+  branchCode: BranchCode
+) {
+  const branches = await db.branch.findMany({
+    select: { id: true, name: true, code: true, location: true },
+  })
+  const branch = branches.find(
+    (candidate) =>
+      normalizeBranchCode(candidate.code, candidate.name, candidate.location) === branchCode
+  )
+
+  if (!branch) {
+    throw new Error(`The ${branchCode} branch has not been configured for this organization`)
   }
 
-  const parsed = createSchema.safeParse(raw)
+  return branch
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CREATE
+// ─────────────────────────────────────────────────────────────────────────────
+
+export async function createProduct(formData: FormData) {
+  const user = await requireProductManager()
+  const db = getTenantPrisma(user.organizationId)
+
+  const parsed = createSchema.safeParse(extractForm(formData))
   if (!parsed.success) {
     const firstError = parsed.error.issues[0]
     throw new Error(`${firstError.path.join('.')}: ${firstError.message}`)
   }
+  const branch = await resolveProductBranch(db, parsed.data.branch)
 
-  // Check for duplicate code
-  const existing = await prisma.product.findUnique({
-    where: { sku: parsed.data.product_code },
-  })
-  if (existing) {
-    throw new Error(`Product code "${parsed.data.product_code}" already exists`)
+  // Transactional create + alias (sku unique constraint in DB prevents real dups even on race)
+  let product: any
+  try {
+    product = await withTenantTransaction(user.organizationId, async (tx) => {
+      const created = await tx.product.create({
+        data: {
+          sku: parsed.data.product_code,
+          name: parsed.data.canonical_name,
+          category: parsed.data.category as ProductCategory,
+          origin: parsed.data.origin as StockOrigin,
+          uom: parsed.data.uom,
+          unitCost: parsed.data.cost_price ?? null,
+          vendor: parsed.data.vendor ?? null,
+          reorderLevel: parsed.data.reorder_point ?? null,
+          piecesSets: parsed.data.pieces_sets ?? 0,
+          currentStock: 0,
+          branchId: branch.id,
+          organizationId: user.organizationId,
+        },
+      })
+
+      // The canonical name itself is automatically a self-alias
+      await tx.productAlias.upsert({
+        where: {
+          product_id_alias: {
+            product_id: created.id,
+            alias: parsed.data.canonical_name,
+          },
+        },
+        update: {},
+        create: {
+          product_id: created.id,
+          alias: parsed.data.canonical_name,
+          organizationId: user.organizationId,
+        },
+      })
+
+      return created
+    }, { maxWait: 10000, timeout: 30000 })
+  } catch (err: any) {
+    if (err?.code === 'P2002' || /unique constraint.*sku/i.test(String(err?.message))) {
+      throw new Error(`Product code "${parsed.data.product_code}" already exists`)
+    }
+    throw err
   }
-
-  const product = await prisma.product.create({
-    data: {
-      org_id: user.org_id,
-      product_code: parsed.data.product_code,
-      canonical_name: parsed.data.canonical_name,
-      category: parsed.data.category,
-      product_type: parsed.data.product_type as ProductType,
-      uom: parsed.data.uom as UOM,
-      description: parsed.data.description,
-      vehicle_make: parsed.data.vehicle_make,
-      vehicle_model: parsed.data.vehicle_model,
-      spring_position: parsed.data.spring_position,
-      leaf_position: parsed.data.leaf_position,
-      shaft_size_mm: parsed.data.shaft_size_mm,
-      leg_length_inch: parsed.data.leg_length_inch,
-      cost_price: parsed.data.cost_price,
-      selling_price: parsed.data.selling_price,
-      reorder_point: parsed.data.reorder_point,
-    },
-  })
-
-  // The canonical name itself is automatically a self-alias
-  await prisma.productAlias.create({
-    data: {
-      product_id: product.id,
-      alias: parsed.data.canonical_name,
-      alias_clean: normaliseForMatching(parsed.data.canonical_name),
-      source: 'canonical',
-    },
-  })
 
   revalidatePath('/products')
   redirect(`/products/${product.id}`)
@@ -138,113 +195,264 @@ export async function createProduct(formData: FormData) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export async function updateProduct(productId: string, formData: FormData) {
-  await requireUser()
+  const user = await requireProductManager()
+  const db = getTenantPrisma(user.organizationId)
 
-  const raw = {
-    product_code: formData.get('product_code'),
-    canonical_name: formData.get('canonical_name'),
-    category: formData.get('category'),
-    product_type: formData.get('product_type'),
-    uom: formData.get('uom'),
-    description: formData.get('description') || null,
-    vehicle_make: formData.get('vehicle_make') || null,
-    vehicle_model: formData.get('vehicle_model') || null,
-    spring_position: formData.get('spring_position') || null,
-    leaf_position: formData.get('leaf_position') || null,
-    shaft_size_mm: formData.get('shaft_size_mm') || null,
-    leg_length_inch: formData.get('leg_length_inch') || null,
-    cost_price: formData.get('cost_price') || null,
-    selling_price: formData.get('selling_price') || null,
-    reorder_point: formData.get('reorder_point') || null,
-  }
-
-  const parsed = createSchema.safeParse(raw)
+  const parsed = updateSchema.safeParse(extractForm(formData))
   if (!parsed.success) {
     const firstError = parsed.error.issues[0]
     throw new Error(`${firstError.path.join('.')}: ${firstError.message}`)
   }
+  const branch = await resolveProductBranch(db, parsed.data.branch)
 
-  // If code changed, check for conflicts
-  const existing = await prisma.product.findUnique({ where: { id: productId } })
+  // findFirst guarantees this product belongs to OUR org (extension adds the filter)
+  const existing = await db.product.findFirst({ where: { id: productId } })
   if (!existing) throw new Error('Product not found')
 
-  if (existing.product_code !== parsed.data.product_code) {
-    const conflict = await prisma.product.findUnique({
-      where: { sku: parsed.data.product_code },
+  // If the user is changing the sku, check no other product in this org has it
+  if (existing.sku !== parsed.data.product_code) {
+    const conflict = await db.product.findFirst({
+      where: { sku: parsed.data.product_code, id: { not: productId } },
     })
     if (conflict) {
       throw new Error(`Product code "${parsed.data.product_code}" already exists`)
     }
   }
 
-  await prisma.product.update({
+  const nextStock = parsed.data.current_stock
+  const stockChanged = nextStock != null && nextStock !== existing.currentStock
+  const stockDelta = stockChanged ? nextStock - existing.currentStock : 0
+
+  await withTenantTransaction(user.organizationId, async (tx) => {
+    await tx.product.update({
+      where: { id: productId },
+      data: {
+        sku: parsed.data.product_code,
+        name: parsed.data.canonical_name,
+        category: parsed.data.category as ProductCategory,
+        origin: parsed.data.origin as StockOrigin,
+        uom: parsed.data.uom,
+        unitCost: parsed.data.cost_price ?? null,
+        vendor: parsed.data.vendor ?? null,
+        reorderLevel: parsed.data.reorder_point ?? null,
+        piecesSets: parsed.data.pieces_sets ?? 0,
+        branchId: branch.id,
+        ...(stockChanged ? { currentStock: nextStock } : {}),
+      },
+    })
+
+    if (stockChanged) {
+      await syncProductShadowStock(
+        tx,
+        existing.sku,
+        parsed.data.product_code,
+        nextStock
+      )
+      await tx.stockMovement.create({
+        data: {
+          productId,
+          movementType: 'adjustment',
+          quantity: stockDelta,
+          reference: `PRODUCT-EDIT-${Date.now().toString(36).toUpperCase()}`,
+          notes: parsed.data.adjustment_reason?.trim() ?? 'Product edit stock adjustment',
+        },
+      })
+    }
+  }, { maxWait: 10000, timeout: 30000 })
+
+  revalidatePath('/products')
+  revalidatePath(`/products/${productId}`)
+}
+
+export async function updateProductCategory(productId: string, category: ProductCategory) {
+  const user = await requireProductManager()
+  const db = getTenantPrisma(user.organizationId)
+
+  const parsed = updateCategorySchema.safeParse({ category })
+  if (!parsed.success) {
+    throw new Error('Invalid product category')
+  }
+
+  const product = await db.product.findFirst({
     where: { id: productId },
-    data: {
-      product_code: parsed.data.product_code,
-      canonical_name: parsed.data.canonical_name,
-      category: parsed.data.category,
-      product_type: parsed.data.product_type as ProductType,
-      uom: parsed.data.uom as UOM,
-      description: parsed.data.description,
-      vehicle_make: parsed.data.vehicle_make,
-      vehicle_model: parsed.data.vehicle_model,
-      spring_position: parsed.data.spring_position,
-      leaf_position: parsed.data.leaf_position,
-      shaft_size_mm: parsed.data.shaft_size_mm,
-      leg_length_inch: parsed.data.leg_length_inch,
-      cost_price: parsed.data.cost_price,
-      selling_price: parsed.data.selling_price,
-      reorder_point: parsed.data.reorder_point,
-    },
+    select: { id: true },
+  })
+  if (!product) throw new Error('Product not found')
+
+  await db.product.update({
+    where: { id: productId },
+    data: { category: parsed.data.category as ProductCategory },
   })
 
   revalidatePath('/products')
   revalidatePath(`/products/${productId}`)
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// TOGGLE ACTIVE / DEACTIVATE
-// ─────────────────────────────────────────────────────────────────────────────
+export async function updateProductOrigin(productId: string, origin: StockOrigin) {
+  const user = await requireProductManager()
+  const db = getTenantPrisma(user.organizationId)
 
-export async function toggleProductActive(productId: string) {
-  await requireUser()
-  const existing = await prisma.product.findUnique({ where: { id: productId } })
-  if (!existing) throw new Error('Product not found')
+  const parsed = updateOriginSchema.safeParse({ origin })
+  if (!parsed.success) {
+    throw new Error('Invalid product origin')
+  }
 
-  await prisma.product.update({
+  const product = await db.product.findFirst({
     where: { id: productId },
-    // is_active field removed - products are always active
+    select: { id: true },
+  })
+  if (!product) throw new Error('Product not found')
+
+  await db.product.update({
+    where: { id: productId },
+    data: { origin: parsed.data.origin as StockOrigin },
   })
 
   revalidatePath('/products')
   revalidatePath(`/products/${productId}`)
 }
 
+export async function updateProductBranch(productId: string, branchCode: BranchCode) {
+  const user = await requireProductManager()
+  const db = getTenantPrisma(user.organizationId)
+
+  if (!ALL_BRANCHES.includes(branchCode)) {
+    throw new Error('Invalid branch')
+  }
+
+  const [product, branch] = await Promise.all([
+    db.product.findFirst({
+      where: { id: productId },
+      select: { id: true },
+    }),
+    resolveProductBranch(db, branchCode),
+  ])
+  if (!product) throw new Error('Product not found')
+
+  await db.product.update({
+    where: { id: productId },
+    data: { branchId: branch.id },
+  })
+
+  revalidatePath('/products')
+  revalidatePath(`/products/${productId}`)
+}
+
+export async function updateProductUom(productId: string, uom: string) {
+  const user = await requireProductManager()
+  const db = getTenantPrisma(user.organizationId)
+
+  const parsed = updateUomSchema.safeParse({ uom })
+  if (!parsed.success) {
+    throw new Error('UOM must be KG')
+  }
+
+  const product = await db.product.findFirst({
+    where: { id: productId },
+    select: { id: true },
+  })
+  if (!product) throw new Error('Product not found')
+
+  await db.product.update({
+    where: { id: productId },
+    data: { uom: parsed.data.uom },
+  })
+
+  revalidatePath('/products')
+  revalidatePath(`/products/${productId}`)
+}
+
+export async function updateProductPiecesSets(productId: string, piecesSets: number) {
+  const user = await requireProductManager()
+  const db = getTenantPrisma(user.organizationId)
+
+  const parsed = updatePiecesSetsSchema.safeParse({ piecesSets })
+  if (!parsed.success) {
+    throw new Error('PCS/Sets must be a whole number')
+  }
+
+  const product = await db.product.findFirst({
+    where: { id: productId },
+    select: { id: true },
+  })
+  if (!product) throw new Error('Product not found')
+
+  await db.product.update({
+    where: { id: productId },
+    data: { piecesSets: parsed.data.piecesSets },
+  })
+
+  revalidatePath('/products')
+  revalidatePath(`/products/${productId}`)
+}
+
+export async function updateProductCurrentStock(productId: string, currentStock: number) {
+  const user = await requireProductManager()
+  const db = getTenantPrisma(user.organizationId)
+
+  const parsed = updateCurrentStockSchema.safeParse({ currentStock })
+  if (!parsed.success) {
+    throw new Error('Current stock must be zero or greater')
+  }
+
+  const product = await db.product.findFirst({
+    where: { id: productId },
+    select: { id: true, sku: true, currentStock: true },
+  })
+  if (!product) throw new Error('Product not found')
+
+  const nextStock = parsed.data.currentStock
+  const stockDelta = nextStock - product.currentStock
+  if (stockDelta === 0) return
+
+  await withTenantTransaction(user.organizationId, async (tx) => {
+    await tx.product.update({
+      where: { id: productId },
+      data: { currentStock: nextStock },
+    })
+
+    await syncProductShadowStock(tx, product.sku, product.sku, nextStock)
+
+    await tx.stockMovement.create({
+      data: {
+        productId,
+        movementType: 'adjustment',
+        quantity: stockDelta,
+        reference: `PRODUCT-STOCK-${Date.now().toString(36).toUpperCase()}`,
+        notes: 'Inline product stock adjustment',
+      },
+    })
+  }, { maxWait: 10000, timeout: 30000 })
+
+  revalidatePath('/products')
+  revalidatePath(`/products/${productId}`)
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
-// DELETE — only allowed if no stock movements exist
+// DELETE — allowed if no receipts exist. Movement history is removed with the product.
 // ─────────────────────────────────────────────────────────────────────────────
 
 export async function deleteProduct(productId: string) {
-  const user = await requireUser()
-  if (user.role !== 'admin') {
+  const user = await requireProductManager()
+  if (user.role !== 'ADMIN') {
     throw new Error('Only admins can delete products')
   }
+  await withTenantTransaction(user.organizationId, async (tx) => {
+    // Existence + tenant check
+    const product = await tx.product.findFirst({ where: { id: productId } })
+    if (!product) throw new Error('Product not found')
 
-  // Block deletion if there's any history
-  const [movementCount, salesCount, jobCardCount] = await Promise.all([
-    prisma.stockMovement.count({ where: { product_id: productId } }),
-    prisma.salesOrderLine.count({ where: { product_id: productId } }),
-    prisma.jobCard.count({ where: { product_id: productId } }),
-  ])
+    const receiptCount = await tx.productReceipt.count({ where: { productId } })
+    if (receiptCount > 0) {
+      throw new Error(
+        `Cannot delete: product has ${receiptCount} receipts. Remove receipts first.`
+      )
+    }
 
-  if (movementCount + salesCount + jobCardCount > 0) {
-    throw new Error(
-      `Cannot delete: product has ${movementCount} stock movements, ${salesCount} sales lines, and ${jobCardCount} job cards. Deactivate instead.`
-    )
-  }
-
-  await prisma.productAlias.deleteMany({ where: { product_id: productId } })
-  await prisma.product.delete({ where: { id: productId } })
+    await tx.stockMovement.deleteMany({ where: { productId } })
+    await tx.productAlias.deleteMany({ where: { product_id: productId } })
+    await tx.product.delete({ where: { id: productId } })
+  }, { maxWait: 10000, timeout: 30000 })
 
   revalidatePath('/products')
   redirect('/products')
@@ -255,41 +463,62 @@ export async function deleteProduct(productId: string) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export async function addAlias(productId: string, formData: FormData) {
-  await requireUser()
+  const user = await requireProductManager()
+  const db = getTenantPrisma(user.organizationId)
+
   const alias = String(formData.get('alias') ?? '').trim()
   if (!alias) throw new Error('Alias cannot be empty')
 
-  const alias_clean = normaliseForMatching(alias)
+  // Confirm the product is ours
+  const product = await db.product.findFirst({ where: { id: productId } })
+  if (!product) throw new Error('Product not found')
 
-  // Check if this alias already maps to a different product
-  const existing = await prisma.productAlias.findUnique({ where: { alias_clean } })
+  // Check this alias doesn't already exist in our org (across all products)
+  const existing = await db.productAlias.findFirst({ where: { alias } })
   if (existing) {
     if (existing.product_id === productId) {
       throw new Error('This alias already exists for this product')
     }
-    const otherProduct = await prisma.product.findUnique({
+    const otherProduct = await db.product.findFirst({
       where: { id: existing.product_id },
-      select: { product_code: true, canonical_name: true },
+      select: { sku: true, name: true },
     })
     throw new Error(
-      `Alias conflict: already mapped to ${otherProduct?.product_code} (${otherProduct?.canonical_name})`
+      `Alias conflict: already mapped to ${otherProduct?.sku} (${otherProduct?.name})`
     )
   }
 
-  await prisma.productAlias.create({
-    data: { product_id: productId, alias, alias_clean, source: 'manual' },
+  await db.productAlias.create({
+    data: {
+      product_id: productId,
+      alias,
+      organizationId: user.organizationId,
+    },
   })
 
   revalidatePath(`/products/${productId}`)
 }
 
 export async function removeAlias(productId: string, aliasId: string) {
-  await requireUser()
-  const alias = await prisma.productAlias.findUnique({ where: { id: aliasId } })
-  if (!alias) throw new Error('Alias not found')
-  if (alias.source === 'canonical') {
-    throw new Error('Cannot remove the canonical alias — change the canonical name instead')
+  const user = await requireProductManager()
+  const db = getTenantPrisma(user.organizationId)
+
+  const aliasRow = await db.productAlias.findFirst({ where: { id: aliasId } })
+  if (!aliasRow) throw new Error('Alias not found')
+  if (aliasRow.product_id !== productId) {
+    throw new Error('Alias does not belong to this product')
   }
-  await prisma.productAlias.delete({ where: { id: aliasId } })
+
+  const product = await db.product.findFirst({
+    where: { id: productId },
+    select: { name: true },
+  })
+  if (product && aliasRow.alias === product.name) {
+    throw new Error(
+      'Cannot remove the canonical alias — change the product name instead'
+    )
+  }
+
+  await db.productAlias.delete({ where: { id: aliasId } })
   revalidatePath(`/products/${productId}`)
 }

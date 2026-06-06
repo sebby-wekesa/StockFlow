@@ -1,24 +1,36 @@
-import { notFound } from 'next/navigation'
-import { prisma } from '@/lib/prisma'
+import { notFound, redirect } from 'next/navigation'
+import type { ImportBatch, ImportRow } from '@prisma/client'
+import { getUser } from '@/lib/auth'
+import { getTenantPrisma } from '@/lib/tenant-prisma'
 import { ImportWorkflow } from './_components/ImportWorkflow'
 
 interface PageProps {
   params: Promise<{ id: string }>
 }
 
+type BatchWithIncludes = ImportBatch & {
+  User: { name: string | null } | null
+  ImportRow: ImportRow[]
+}
+
 export default async function ImportDetailPage({ params }: PageProps) {
   const { id } = await params
 
-  const batch = await prisma.importBatch.findUnique({
-    where: { id },
+  const user = await getUser()
+  if (!user) redirect('/login')
+
+  const db = getTenantPrisma(user.organizationId)
+
+  const batch = await db.importBatch.findFirst({
+    where: { id, organizationId: user.organizationId },
     include: {
-      created_by_user: { select: { name: true } },
-      rows: {
+      User: { select: { name: true } },
+      ImportRow: {
         orderBy: { row_number: 'asc' },
         take: 10, // For preview
       },
     },
-  })
+  }) as BatchWithIncludes | null
 
   if (!batch) {
     notFound()

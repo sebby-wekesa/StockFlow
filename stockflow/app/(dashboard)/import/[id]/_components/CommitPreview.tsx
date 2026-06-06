@@ -1,19 +1,26 @@
-import { prisma } from '@/lib/prisma'
-import type { ImportBatch } from '@prisma/client'
+import { getTenantPrisma } from '@/lib/tenant-prisma'
+import { requireActiveAuth } from '@/lib/auth'
+import type { ImportBatch, ImportRow } from '@prisma/client'
 
 interface CommitPreviewProps {
   batch: ImportBatch
 }
 
 export async function CommitPreview({ batch }: CommitPreviewProps) {
-  // Get summary stats
-  const rows = await prisma.importRow.findMany({
-    where: { batch_id: batch.id },
+  const user = await requireActiveAuth()
+  const db = getTenantPrisma(user.organizationId)
+
+  // Get summary stats (tenant scoped)
+  const rows = await db.importRow.findMany({
+    where: { 
+      batch_id: batch.id,
+      organizationId: user.organizationId 
+    },
   })
 
-  const willWrite = rows.filter(r => r.resolved_product).length
+  const willWrite = rows.filter((r: ImportRow) => r.resolved_product).length
   const willSkip = rows.length - willWrite
-  const errors = rows.filter(r => r.errors).length
+  const errors = rows.filter((r: ImportRow) => r.errors).length
 
   // Group by branch for impact breakdown
   const branchGroups = new Map<string, number>()

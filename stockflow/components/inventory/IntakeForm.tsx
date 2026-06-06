@@ -20,7 +20,7 @@ export function RawMaterialIntake() {
               <Factory className="absolute left-3 top-3 text-[#353a40]" size={18} />
               <input
                 name="materialName"
-                placeholder="e.g. Mild Steel S235"
+                placeholder="Material from inventory"
                 className="w-full bg-[#1e2023] border border-[#2c2d33] rounded-xl p-3 pl-10 text-white focus:border-[#4a9eff] outline-none"
               />
             </div>
@@ -33,7 +33,7 @@ export function RawMaterialIntake() {
               <Hash className="absolute left-3 top-3 text-[#353a40]" size={18} />
               <input
                 name="diameter"
-                placeholder="e.g. M12 / 12mm"
+                placeholder="Size or diameter"
                 className="w-full bg-[#1e2023] border border-[#2c2d33] rounded-xl p-3 pl-10 text-white focus:border-[#4a9eff] outline-none"
               />
             </div>
@@ -46,7 +46,7 @@ export function RawMaterialIntake() {
               <Truck className="absolute left-3 top-3 text-[#353a40]" size={18} />
               <input
                 name="supplier"
-                placeholder="e.g. SteelCorp Ltd"
+                placeholder="Supplier from database"
                 className="w-full bg-[#1e2023] border border-[#2c2d33] rounded-xl p-3 pl-10 text-white focus:border-[#4a9eff] outline-none"
               />
             </div>
@@ -60,6 +60,18 @@ export function RawMaterialIntake() {
               type="number"
               step="0.01"
               placeholder="0.00"
+              className="w-full bg-[#1e2023] border border-[#4a9eff]/30 rounded-xl p-4 text-2xl font-mono text-white focus:border-[#4a9eff] outline-none"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-xs font-bold text-[#4a9eff] uppercase">Amount Received (Pieces)</label>
+            <input
+              name="pieces"
+              type="number"
+              step="1"
+              min="1"
+              placeholder="0"
               className="w-full bg-[#1e2023] border border-[#4a9eff]/30 rounded-xl p-4 text-2xl font-mono text-white focus:border-[#4a9eff] outline-none"
             />
           </div>

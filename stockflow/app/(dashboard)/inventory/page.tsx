@@ -58,10 +58,15 @@ type Tab = (typeof TABS)[number]["key"];
 // ─── Raw Material row (from existing /api/inventory/materials) ────────────────
 interface RawMaterial {
   id: string;
+  category: string;
   materialName: string;
   diameter: string;
+  length: string;
+  width: string;
+  height: string;
   availableKg: string | number;
   reservedKg: string | number;
+  availablePieces: number;
   supplier?: { name: string } | null;
   createdAt: string;
 }
@@ -82,8 +87,8 @@ export default function InventoryPage() {
 
   // ── Fetchers ──────────────────────────────────────────────────────────────
 
-  const fetchRaw = useCallback(async () => {
-    setLoadingRaw(true);
+  const fetchRaw = useCallback(async (showLoading = true) => {
+    if (showLoading) setLoadingRaw(true);
     try {
       const res = await fetch("/api/inventory/materials");
       if (res.ok) {
@@ -95,8 +100,8 @@ export default function InventoryPage() {
     finally { setLoadingRaw(false); }
   }, []);
 
-  const fetchProducts = useCallback(async (origin: StockOrigin, setter: (p: Product[]) => void, setLoading: (b: boolean) => void) => {
-    setLoading(true);
+  const fetchProducts = useCallback(async (origin: StockOrigin, setter: (p: Product[]) => void, setLoading: (b: boolean) => void, showLoading = true) => {
+    if (showLoading) setLoading(true);
     try {
       const res = await fetch(`/api/inventory/products?origin=${origin}`);
       if (res.ok) {
@@ -107,9 +112,18 @@ export default function InventoryPage() {
     finally { setLoading(false); }
   }, []);
 
-  useEffect(() => { fetchRaw(); }, [fetchRaw]);
-  useEffect(() => { fetchProducts("LOCAL_PURCHASE", setLocalProducts, setLoadingLocal); }, [fetchProducts]);
-  useEffect(() => { fetchProducts("IMPORTED", setImportedProducts, setLoadingImp); }, [fetchProducts]);
+  useEffect(() => {
+    const timer = window.setTimeout(() => void fetchRaw(false), 0);
+    return () => window.clearTimeout(timer);
+  }, [fetchRaw]);
+  useEffect(() => {
+    const timer = window.setTimeout(() => void fetchProducts("LOCAL_PURCHASE", setLocalProducts, setLoadingLocal, false), 0);
+    return () => window.clearTimeout(timer);
+  }, [fetchProducts]);
+  useEffect(() => {
+    const timer = window.setTimeout(() => void fetchProducts("IMPORTED", setImportedProducts, setLoadingImp, false), 0);
+    return () => window.clearTimeout(timer);
+  }, [fetchProducts]);
 
   function handleSuccess() {
     fetchProducts("LOCAL_PURCHASE", setLocalProducts, setLoadingLocal);
@@ -121,6 +135,7 @@ export default function InventoryPage() {
   const totalLocal  = localProducts.reduce((s, p) => s + p.currentStock, 0);
   const totalImp    = importedProducts.reduce((s, p) => s + p.currentStock, 0);
   const totalRawKg  = rawMaterials.reduce((s, m) => s + Number(m.availableKg ?? 0), 0);
+  const totalRawPieces = rawMaterials.reduce((s, m) => s + Number(m.availablePieces ?? 0), 0);
 
   // ─── Render ───────────────────────────────────────────────────────────────
 
@@ -155,7 +170,7 @@ export default function InventoryPage() {
         <div className="stat-card amber">
           <div className="stat-label">Raw Material Stock</div>
           <div className="stat-value">{fmt(totalRawKg)}<span style={{ fontSize: 14, color: "var(--muted)" }}> kg</span></div>
-          <div className="stat-sub"><Layers size={11} style={{ display: "inline", marginRight: 3 }} />Steel rod inventory</div>
+          <div className="stat-sub"><Layers size={11} style={{ display: "inline", marginRight: 3 }} />{fmt(totalRawPieces)} pieces</div>
         </div>
         <div className="stat-card teal">
           <div className="stat-label">Local Purchase Items</div>
@@ -195,7 +210,7 @@ export default function InventoryPage() {
       {tab === "raw" && (
         <div className="card">
           <div className="section-header mb-16">
-            <div className="section-title" style={{ color: "var(--accent)" }}>Steel Rod Stock</div>
+            <div className="section-title" style={{ color: "var(--accent)" }}>Raw Material Stock</div>
             <span className="badge badge-amber">{rawMaterials.length} materials</span>
           </div>
           {loadingRaw ? (
@@ -208,7 +223,10 @@ export default function InventoryPage() {
                 <thead>
                   <tr>
                     <th>Material</th>
+                    <th>Category</th>
                     <th>Diameter</th>
+                    <th>Dimensions</th>
+                    <th>Pieces</th>
                     <th>Available (kg)</th>
                     <th>Reserved (kg)</th>
                     <th>Free (kg)</th>
@@ -224,7 +242,10 @@ export default function InventoryPage() {
                     return (
                       <tr key={m.id}>
                         <td style={{ fontWeight: 600 }}>{m.materialName}</td>
+                        <td><span className="badge badge-muted">{m.category}</span></td>
                         <td><span className="badge badge-muted">{m.diameter}</span></td>
+                        <td>{m.length || "—"} L · {m.width || "—"} W/D · {m.height || "—"} H</td>
+                        <td>{fmt(Number(m.availablePieces ?? 0))}</td>
                         <td><span className="job-kg">{fmt(avail, 1)} kg</span></td>
                         <td style={{ color: "var(--muted)" }}>{fmt(reserved, 1)} kg</td>
                         <td>

@@ -2,8 +2,9 @@
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { CATEGORY_LABELS, PRODUCT_TYPES_BY_CATEGORY, PRODUCT_TYPE_LABELS } from '@/lib/products'
-import type { ProductCategory, UOM } from '@prisma/client'
+import { CATEGORY_LABELS, ORIGIN_LABELS, PRODUCT_TYPES_BY_CATEGORY, PRODUCT_TYPE_LABELS, PRODUCT_UOM_LABELS, PRODUCT_UOMS, normalizeProductUom } from '@/lib/products'
+import type { ProductCategory, StockOrigin } from '@prisma/client'
+import { ALL_BRANCHES, BRANCH_LABELS, type BranchCode } from '@/lib/branches'
 
 type Mode = 'create' | 'edit'
 
@@ -11,8 +12,9 @@ type Initial = {
   product_code?: string
   canonical_name?: string
   category?: ProductCategory
+  origin?: StockOrigin
   product_type?: string
-  uom?: UOM
+  uom?: string
   description?: string | null
   vehicle_make?: string | null
   vehicle_model?: string | null
@@ -23,6 +25,9 @@ type Initial = {
   cost_price?: number | null
   selling_price?: number | null
   reorder_point?: number | null
+  pieces_sets?: number | null
+  currentStock?: number | null
+  branch?: BranchCode | null
 }
 
 export function ProductForm({
@@ -38,13 +43,12 @@ export function ProductForm({
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
   const [category, setCategory] = useState<ProductCategory>(
-    initial?.category ?? 'manufactured_spring'
+    initial?.category ?? 'springs'
   )
 
   const productTypes = PRODUCT_TYPES_BY_CATEGORY[category]
-  const isSpring = category === 'manufactured_spring'
-  const isUbolt = category === 'manufactured_ubolt'
-  const isService = category === 'service'
+  const isSpring = category === 'springs'
+  const isUbolt = category === 'ubolts' || category === 'center_bolts'
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -62,14 +66,14 @@ export function ProductForm({
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       {error && (
-        <div className="p-3 rounded-md bg-red-500/10 border border-red-500/30 text-red-400 text-sm">
+        <div className="p-3 rounded-md bg-red/10 border border-red/30 text-red text-sm">
           {error}
         </div>
       )}
 
       {/* CORE FIELDS */}
       <div className="card p-6">
-        <div className="font-head font-bold mb-4">Core details</div>
+        <div className="section-title mb-16">Core details</div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
@@ -80,8 +84,8 @@ export function ProductForm({
               name="product_code"
               required
               defaultValue={initial?.product_code ?? ''}
-              className="input font-mono"
-              placeholder="e.g. FH215/FSML"
+              className="form-input w-full font-mono"
+              placeholder="Product code"
             />
             <p className="text-xs text-muted mt-1">
               Unique permanent identifier. Cannot be reused if deleted.
@@ -96,8 +100,8 @@ export function ProductForm({
               name="canonical_name"
               required
               defaultValue={initial?.canonical_name ?? ''}
-              className="input"
-              placeholder="e.g. Mitsubishi FH215 Front Spring Main Leaf"
+              className="form-input w-full"
+              placeholder="Canonical product name"
             />
           </div>
 
@@ -110,9 +114,27 @@ export function ProductForm({
               required
               value={category}
               onChange={(e) => setCategory(e.target.value as ProductCategory)}
-              className="input"
+              className="form-input w-full"
             >
               {Object.entries(CATEGORY_LABELS).map(([key, label]) => (
+                <option key={key} value={key}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs uppercase tracking-wider text-muted mb-2">
+              Origin <span className="text-red">*</span>
+            </label>
+            <select
+              name="origin"
+              required
+              defaultValue={initial?.origin ?? 'FACTORY_MADE'}
+              className="form-input w-full"
+            >
+              {Object.entries(ORIGIN_LABELS).map(([key, label]) => (
                 <option key={key} value={key}>
                   {label}
                 </option>
@@ -129,7 +151,7 @@ export function ProductForm({
               required
               defaultValue={initial?.product_type ?? productTypes[0]}
               key={category}
-              className="input"
+              className="form-input w-full"
             >
               {productTypes.map((t) => (
                 <option key={t} value={t}>
@@ -146,15 +168,33 @@ export function ProductForm({
             <select
               name="uom"
               required
-              defaultValue={initial?.uom ?? (isService ? 'pcs' : 'pcs')}
-              className="input"
+              defaultValue={normalizeProductUom(initial?.uom) ?? 'KG'}
+              className="form-input w-full"
             >
-              <option value="pcs">Pieces</option>
-              <option value="set">Set</option>
-              <option value="kg">Kilograms</option>
-              <option value="litres">Litres</option>
-              <option value="metres">Metres</option>
-              <option value="box">Box</option>
+              {PRODUCT_UOMS.map((uom) => (
+                <option key={uom} value={uom}>
+                  {PRODUCT_UOM_LABELS[uom]}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs uppercase tracking-wider text-muted mb-2">
+              Branch <span className="text-red">*</span>
+            </label>
+            <select
+              name="branch"
+              required
+              defaultValue={initial?.branch ?? ''}
+              className="form-input w-full"
+            >
+              <option value="" disabled>Select branch</option>
+              {ALL_BRANCHES.map((branch) => (
+                <option key={branch} value={branch}>
+                  {BRANCH_LABELS[branch]}
+                </option>
+              ))}
             </select>
           </div>
 
@@ -165,7 +205,7 @@ export function ProductForm({
             <input
               name="description"
               defaultValue={initial?.description ?? ''}
-              className="input"
+              className="form-input w-full"
               placeholder="Optional notes about this product"
             />
           </div>
@@ -175,7 +215,7 @@ export function ProductForm({
       {/* CATEGORY-SPECIFIC FIELDS */}
       {(isSpring || isUbolt) && (
         <div className="card p-6">
-          <div className="font-head font-bold mb-4">
+          <div className="section-title mb-16">
             {isSpring ? 'Vehicle & spring details' : 'U-bolt specifications'}
           </div>
 
@@ -187,8 +227,8 @@ export function ProductForm({
               <input
                 name="vehicle_make"
                 defaultValue={initial?.vehicle_make ?? ''}
-                className="input"
-                placeholder="e.g. Mitsubishi FH 215"
+                className="form-input w-full"
+                placeholder="Vehicle make"
               />
             </div>
 
@@ -199,8 +239,8 @@ export function ProductForm({
               <input
                 name="vehicle_model"
                 defaultValue={initial?.vehicle_model ?? ''}
-                className="input"
-                placeholder="e.g. FH215"
+                className="form-input w-full"
+                placeholder="Vehicle model"
               />
             </div>
 
@@ -213,7 +253,7 @@ export function ProductForm({
                   <select
                     name="spring_position"
                     defaultValue={initial?.spring_position ?? ''}
-                    className="input"
+                    className="form-input w-full"
                   >
                     <option value="">— select —</option>
                     <option value="Front">Front</option>
@@ -229,7 +269,7 @@ export function ProductForm({
                   <select
                     name="leaf_position"
                     defaultValue={initial?.leaf_position ?? ''}
-                    className="input"
+                    className="form-input w-full"
                   >
                     <option value="">— select —</option>
                     <option value="Main Leaf">Main leaf</option>
@@ -253,8 +293,8 @@ export function ProductForm({
                     type="number"
                     min="0"
                     defaultValue={initial?.shaft_size_mm ?? ''}
-                    className="input"
-                    placeholder="e.g. 24"
+                    className="form-input w-full"
+                    placeholder="Shaft size"
                   />
                 </div>
 
@@ -265,8 +305,8 @@ export function ProductForm({
                   <input
                     name="leg_length_inch"
                     defaultValue={initial?.leg_length_inch ?? ''}
-                    className="input"
-                    placeholder='e.g. 8"'
+                    className="form-input w-full"
+                    placeholder="Leg length"
                   />
                 </div>
               </>
@@ -277,8 +317,8 @@ export function ProductForm({
 
       {/* PRICING */}
       <div className="card p-6">
-        <div className="font-head font-bold mb-4">Pricing & reorder</div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="section-title mb-16">Pricing & reorder</div>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div>
             <label className="block text-xs uppercase tracking-wider text-muted mb-2">
               Cost price (KES)
@@ -289,7 +329,7 @@ export function ProductForm({
               step="0.01"
               min="0"
               defaultValue={initial?.cost_price ?? ''}
-              className="input font-mono"
+              className="form-input w-full font-mono"
             />
           </div>
           <div>
@@ -302,26 +342,71 @@ export function ProductForm({
               step="0.01"
               min="0"
               defaultValue={initial?.selling_price ?? ''}
-              className="input font-mono"
+              className="form-input w-full font-mono"
             />
           </div>
-          {!isService && (
-            <div>
-              <label className="block text-xs uppercase tracking-wider text-muted mb-2">
-                Reorder point
-              </label>
-              <input
-                  name="reorder_point"
-                  type="number"
-                  min="0"
-                  defaultValue={initial?.reorder_point ?? ''}
-                  className="input font-mono"
-                  placeholder="Alert when stock < this"
-                />
-            </div>
-          )}
+          <div>
+            <label className="block text-xs uppercase tracking-wider text-muted mb-2">
+              Reorder point
+            </label>
+            <input
+              name="reorder_point"
+              type="number"
+              min="0"
+              defaultValue={initial?.reorder_point ?? ''}
+              className="form-input w-full font-mono"
+              placeholder="Alert when stock < this"
+            />
+          </div>
+          <div>
+            <label className="block text-xs uppercase tracking-wider text-muted mb-2">
+              PCS/Sets
+            </label>
+            <input
+              name="pieces_sets"
+              type="number"
+              min="0"
+              step="1"
+              defaultValue={initial?.pieces_sets ?? 0}
+              className="form-input w-full font-mono"
+            />
+          </div>
         </div>
       </div>
+
+      {mode === 'edit' && (
+        <div className="card p-6" style={{ borderColor: 'rgba(240,192,64,0.45)' }}>
+          <div className="section-title mb-6" style={{ color: 'var(--accent)' }}>Stock Adjustment</div>
+          <div className="text-sm text-muted mb-4">
+            Changing stock here creates an adjustment record. Prefer using receipts or production for normal changes.
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs uppercase tracking-wider text-muted mb-2">
+                Current Stock
+              </label>
+              <input
+                name="current_stock"
+                type="number"
+                step="0.01"
+                defaultValue={initial?.currentStock ?? 0}
+                className="form-input w-full font-mono"
+              />
+            </div>
+            <div>
+              <label className="block text-xs uppercase tracking-wider text-muted mb-2">
+                Reason for adjustment
+              </label>
+              <input
+                name="adjustment_reason"
+                type="text"
+                placeholder="Required only when stock changes"
+                className="form-input w-full"
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="flex gap-3">
         <button type="submit" disabled={isPending} className="btn btn-primary">

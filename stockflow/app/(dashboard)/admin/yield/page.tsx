@@ -1,32 +1,34 @@
 export const dynamic = 'force-dynamic';
 
-import { prisma } from "@/lib/prisma";
 import { YieldDashboard } from "@/components/YieldDashboard";
 import { ExportButtons } from "@/components/admin/ExportButtons";
+import { getTenantPrisma } from "@/lib/tenant-prisma";
+import { requireActiveAuth } from "@/lib/auth";
 
-async function getYieldData() {
+async function getYieldData(organizationId: string) {
+  const db = getTenantPrisma(organizationId);
   try {
-    // 1. Fetch Department Aggregates [cite: 98, 160]
-    const stats = await prisma.stageLog.groupBy({
+    // 1. Fetch Department Aggregates
+    const stats = await db.stageLog.groupBy({
       by: ['stageName'],
       _sum: { kgIn: true, kgOut: true, kgScrap: true }
     });
 
-    // 2. Fetch Scrap Distribution by Reason [cite: 33, 153]
-    const scrapLogs = await prisma.stageLog.groupBy({
+    // 2. Fetch Scrap Distribution by Reason
+    const scrapLogs = await db.stageLog.groupBy({
       by: ['scrapReason'],
       _sum: { kgScrap: true },
       where: { kgScrap: { gt: 0 } }
     });
 
-    // 3. Fetch WIP (Work in Progress) [cite: 27, 99]
-    const wipOrders = await prisma.productionOrder.findMany({
+    // 3. Fetch WIP (Work in Progress)
+    const wipOrders = await db.productionOrder.findMany({
       where: { status: 'IN_PRODUCTION' },
       select: {
         currentDept: true,
         targetKg: true,
         id: true,
-        logs: {
+        StageLog: {
           select: { kgOut: true },
           orderBy: { completedAt: 'desc' },
           take: 1
@@ -37,7 +39,7 @@ async function getYieldData() {
     const wipMap: Record<string, { kgRemaining: number; orderCount: number }> = {};
     for (const order of wipOrders) {
       const dept = order.currentDept || "Awaiting Start";
-      const lastLog = order.logs[0];
+      const lastLog = order.StageLog[0];
       const kgRemaining = lastLog ? lastLog.kgOut.toNumber() : order.targetKg.toNumber();
       if (!wipMap[dept]) wipMap[dept] = { kgRemaining: 0, orderCount: 0 };
       wipMap[dept].kgRemaining += Math.max(0, kgRemaining);
@@ -94,7 +96,8 @@ async function getYieldData() {
 
 
 export default async function YieldPage() {
-  const data = await getYieldData();
+  const user = await requireActiveAuth();
+  const data = await getYieldData(user.organizationId);
   return (
     <>
       <div className="section-header">

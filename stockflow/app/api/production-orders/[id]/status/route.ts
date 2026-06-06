@@ -1,8 +1,9 @@
 export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
-import { requireRole } from '@/lib/auth'
+import { getTenantPrisma, withTenantTransaction } from '@/lib/tenant-prisma'
+import { requireActiveAuth } from '@/lib/auth'
+import { assertOperatorDepartment } from '@/lib/operator-access'
 
 export async function PATCH(
   request: NextRequest,
@@ -10,8 +11,13 @@ export async function PATCH(
 ) {
   const params = await props.params;
   try {
-    // Verify user has manager or admin role
-    const user = await requireRole('ADMIN', 'MANAGER')
+    // Verify user has manager or admin role (tenant aware)
+    const user = await requireActiveAuth()
+    if (!['ADMIN', 'MANAGER'].includes(user.role)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
+    const db = getTenantPrisma(user.organizationId)
 
     const body = await request.json()
     const { status, rejectionReason } = body
@@ -32,8 +38,8 @@ export async function PATCH(
       )
     }
 
-    // Get the current order
-    const order = await prisma.productionOrder.findUnique({
+    // Get the current order (tenant scoped)
+    const order = await db.productionOrder.findUnique({
       where: { id: params.id },
     })
 
@@ -43,27 +49,31 @@ export async function PATCH(
         { status: 404 }
       )
     }
+    assertOperatorDepartment(user, order.currentDept)
+    if (order.status !== 'PENDING') {
+      return NextResponse.json({ error: 'Only pending orders can be approved or rejected' }, { status: 400 })
+    }
 
     // Update the order status
     const statusMap: any = {
-      RELEASED: 'APPROVED',
+      RELEASED: 'IN_PRODUCTION',
       REJECTED: 'REJECTED',
     }
 
     const newStatus = statusMap[status]
 
-    // If approving, perform inventory deduction
+    // If approving, perform inventory deduction (tenant scoped)
     let updatedOrder;
     if (status === 'RELEASED') {
-      updatedOrder = await prisma.$transaction(async (tx) => {
+      updatedOrder = await withTenantTransaction(user.organizationId, async (tx) => {
         // 1. Get the Design to see which raw materials are needed
         const design = await tx.design.findUnique({
           where: { id: order.designId },
           include: {
-            Stage: {
+            stages: {
               orderBy: { sequence: 'asc' }
             },
-            BillOfMaterials: {
+            billOfMaterials: {
               include: { RawMaterial: true }
             }
           }
@@ -73,79 +83,75 @@ export async function PATCH(
           throw new Error('Design not found');
         }
 
-        if (!design.BillOfMaterials || design.BillOfMaterials.length === 0) {
+        if (!design.billOfMaterials || design.billOfMaterials.length === 0) {
           throw new Error('Design does not have any BOM items');
         }
 
-        const firstStage = design.Stage[0];
+        const firstStage = design.stages[0];
         if (!firstStage) {
           throw new Error('Design has no production stages configured');
         }
 
-        // For now, assume single raw material per design (take first BOM item)
-        const primaryBomItem = design.BillOfMaterials[0];
-
-        // 2. Calculate the required quantity for this BOM item
         const plannedUnits =
           design.targetWeight && design.targetWeight.gt(0)
             ? order.targetKg.toNumber() / design.targetWeight.toNumber()
             : order.quantity;
-        const requiredQuantity = plannedUnits * primaryBomItem.quantity.toNumber();
 
-        if (primaryBomItem.rawMaterial.availableKg.toNumber() < requiredQuantity) {
-          throw new Error('Insufficient stock to release this order');
+        // Reserve every BOM material before releasing the job.
+        for (const bomItem of design.billOfMaterials) {
+          const requiredQuantity = plannedUnits * bomItem.quantity.toNumber();
+          if (!bomItem.RawMaterial || bomItem.RawMaterial.availableKg.toNumber() < requiredQuantity) {
+            throw new Error(
+              `Insufficient stock for ${bomItem.RawMaterial?.materialName ?? 'required material'}`
+            );
+          }
+
+          await tx.rawMaterial.update({
+            where: { id: bomItem.rawMaterialId },
+            data: {
+              availableKg: { decrement: requiredQuantity },
+              reservedKg: { increment: requiredQuantity }
+            }
+          });
         }
 
-        // 3. Deduct from Available and add to Reserved
-        await tx.rawMaterial.update({
-          where: { id: primaryBomItem.rawMaterialId },
-          data: {
-            availableKg: { decrement: requiredQuantity },
-            reservedKg: { increment: requiredQuantity }
-          }
-        });
-
-        // 4. Update the Order Status
         return await tx.productionOrder.update({
           where: { id: params.id },
           data: {
             status: newStatus,
             approvedBy: user.id,
             approvedAt: new Date(),
+            rejectionReason: null,
             currentStage: firstStage.sequence,
             currentDept: firstStage.department,
           },
           include: {
-            Design: {
+            design: {
               select: { name: true },
             },
           },
         });
       });
     } else {
-      updatedOrder = await prisma.productionOrder.update({
+      updatedOrder = await db.productionOrder.update({
         where: { id: params.id },
         data: {
           status: newStatus,
           approvedBy: user.id,
           approvedAt: new Date(),
-          // Store rejection reason in notes if rejecting
-          ...(status === 'REJECTED' && {
-            // Note: Adjust this if your schema has a rejectionReason field
-            // For now, we'll use notes
-          }),
+          rejectionReason: rejectionReason.trim(),
         },
         include: {
-          Design: {
+          design: {
             select: { name: true },
           },
         },
       });
     }
 
-    // Create an audit log entry
+    // Create an audit log entry (using scoped client)
     try {
-      await prisma.$executeRaw`
+      await db.$executeRaw`
         INSERT INTO audit_logs (user_id, action, entity_type, entity_id, details, created_at)
         VALUES (${user.id}, ${status === 'RELEASED' ? 'APPROVED_ORDER' : 'REJECTED_ORDER'}, 'ProductionOrder', ${params.id}, ${JSON.stringify({
           previousStatus: order.status,
@@ -157,6 +163,7 @@ export async function PATCH(
       // Log audit error but don't fail the request
       console.error('Audit log error:', auditError)
     }
+    assertOperatorDepartment(user, order.currentDept)
 
     return NextResponse.json(
       {
@@ -197,10 +204,13 @@ export async function GET(
 ) {
   const params = await props.params;
   try {
-    const order = await prisma.productionOrder.findUnique({
+    const user = await requireActiveAuth()
+    const db = getTenantPrisma(user.organizationId)
+
+    const order = await db.productionOrder.findUnique({
       where: { id: params.id },
       include: {
-        Design: true,
+        design: true,
       },
     })
 
@@ -210,6 +220,7 @@ export async function GET(
         { status: 404 }
       )
     }
+    assertOperatorDepartment(user, order.currentDept)
 
     return NextResponse.json(
       {

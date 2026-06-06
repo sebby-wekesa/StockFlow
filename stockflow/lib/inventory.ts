@@ -4,7 +4,7 @@
  */
 
 export type OriginType = 'IMPORTED' | 'LOCAL_PURCHASE' | 'FACTORY_MADE';
-export type UOM = 'PCS' | 'KGS';
+export type UOM = 'KG';
 
 export interface ProcessedItem {
   itemName: string;
@@ -21,7 +21,7 @@ const LANDING_COST_MULTIPLIER = 1.25;
 
 /**
  * Processes a raw string item list into structured inventory data.
- * Example input: "500 Long Nuts (Imported)"
+ * Parses product descriptions imported from inventory sheets.
  */
 export function processStockArrivals(items: string[]): ProcessedItem[] {
   return items.map((rawItem) => {
@@ -35,7 +35,7 @@ export function processStockArrivals(items: string[]): ProcessedItem[] {
     // 2. Determine Origin Logic
     let originType: OriginType = 'LOCAL_PURCHASE'; // Default
     let branch = 'Nairobi'; // Default
-    let uom: UOM = 'PCS';
+    const uom: UOM = 'KG';
 
     const upperDesc = description.toUpperCase();
 
@@ -50,16 +50,11 @@ export function processStockArrivals(items: string[]): ProcessedItem[] {
       branch = upperDesc.includes('BUNJE') ? 'Bunje Branch' : 'Nairobi';
     }
 
-    // 3. UOM Logic
-    if (item.toLowerCase().includes('kg') || item.toLowerCase().includes('steel rod') || item.toLowerCase().includes('wire rod')) {
-      uom = 'KGS';
-    }
-
-    // 4. Landing Cost Calculation
+    // 3. Landing Cost Calculation
     const baseCost = 1.0; // Placeholder: In a real scenario, this would come from a price list or input
     const landingCost = originType === 'IMPORTED' ? baseCost * LANDING_COST_MULTIPLIER : baseCost;
 
-    // 5. Clean Item Name (remove the tags)
+    // 4. Clean Item Name (remove the tags)
     const itemName = description
       .replace(/\(IMPORTED\)|\(IMP\)|\(SRZ\)|\(SARAZO\)|\(LOCAL\)|\(JUA KALI\)/gi, '')
       .trim();

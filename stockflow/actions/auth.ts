@@ -1,41 +1,37 @@
 "use server";
 
 import { cookies } from "next/headers";
-import type { CookieOptions } from "next/headers";
 import { redirect } from "next/navigation";
 import { createServerClient } from '@supabase/ssr'
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { clearAuthCookies } from "@/lib/auth-session";
-import { prisma } from "@/lib/prisma";
+// NOTE: This file contains both normal authenticated paths and critical bootstrap logic
+// (first-login user creation, default org creation). Bootstrap sections intentionally
+// use the base prisma client because no organizationId exists yet.
+// This is documented as an approved Week 2 exception.
+import { prisma, withRetry } from "@/lib/prisma";
 import { loginSchema } from "@/lib/validations";
-import { ALL_BRANCHES } from "@/lib/branches";
+import { checkRateLimitAsync, getClientIp } from "@/lib/rate-limit";
 
-const ROLE_PATHS = {
-  ADMIN: "/admin/dashboard",
-  MANAGER: "/dashboard",
-  WAREHOUSE: "/dashboard",
-  SALES: "/dashboard",
-  ACCOUNTANT: "/reports",
-  OPERATOR: "/dashboard",
-  PACKAGING: "/dashboard",
-  PENDING: "/dashboard/setup",
-};
-
-function createSupabaseClient() {
-  const cookieStore = cookies();
+async function createSupabaseClient() {
+  const cookieStore = await cookies();
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value;
+        getAll() {
+          return cookieStore.getAll();
         },
-        set(name: string, value: string, options: CookieOptions) {
-          cookieStore.set({ name, value, ...options });
-        },
-        remove(name: string, options: CookieOptions) {
-          cookieStore.set({ name, value: '', ...options });
+        setAll(cookiesToSet) {
+          try {
+            cookiesToSet.forEach(({ name, value, options }) =>
+              cookieStore.set(name, value, options)
+            );
+          } catch {
+            // The `setAll` method was called from a Server Component.
+            // We can ignore this in Server Actions.
+          }
         },
       },
     }
@@ -56,7 +52,7 @@ function getAuthErrorMessage(error: unknown) {
     return "Please check your email and click the confirmation link before signing in.";
   }
   if (message.includes('User not found') || message.includes('user_not_found')) {
-    return "No account found with this email address. Please sign up first.";
+    return "No account found with this email address. Ask your organization administrator for an invitation.";
   }
   return "Authentication failed. Please try again.";
 }
@@ -64,6 +60,16 @@ function getAuthErrorMessage(error: unknown) {
 export async function signIn(formData: FormData) {
   const email = formData.get("email") as string;
   const password = formData.get("password") as string;
+
+  // Rate-limit: 5 attempts per minute per (IP, email). This stops single-source
+  // brute force without locking out a busy office where many people sign in.
+  // Check happens BEFORE input validation so even malformed requests count.
+  const ip = await getClientIp();
+  const rlKey = `signin:${ip}:${(email ?? '').toLowerCase().trim()}`;
+  const rl = await checkRateLimitAsync(rlKey, { windowMs: 60_000, maxRequests: 5 });
+  if (!rl.success) {
+    return { error: rl.error };
+  }
 
   // Validate input
   const validation = loginSchema.safeParse({ email, password });
@@ -75,7 +81,7 @@ export async function signIn(formData: FormData) {
   }
 
   // Create Supabase server client
-  const supabase = createSupabaseClient();
+  const supabase = await createSupabaseClient();
 
   const { data, error } = await supabase.auth.signInWithPassword({
     email: validation.data.email,
@@ -102,62 +108,57 @@ export async function signIn(formData: FormData) {
     return { error: "Authentication failed. Please try again." };
   }
 
-  // Ensure user exists in database
+  // Verify the user has a fully-set-up account in our Prisma database.
+  // Never auto-create a User row or attach a user to an organization.
+  // Organization owners arrive through organization signup; team members
+  // must be invited by an organization administrator.
   try {
-    // Try to create profile record
-    try {
-      await prisma.profile.upsert({
+    const existingUser = await withRetry(() =>
+      prisma.user.findUnique({
         where: { id: data.user.id },
-        update: {},
-        create: {
-          id: data.user.id,
-          email: data.user.email!,
-          full_name: data.user.user_metadata?.name || '',
-          role: data.user.user_metadata?.role || 'PENDING',
-        },
-      });
-      console.log("Profile record created/updated in database");
-    } catch (profileError) {
-      console.error("Profile creation failed:", profileError);
-    }
-
-    // Check if User model exists
-    // First try to find existing user
-    const existingUser = await prisma.user.findUnique({
-      where: { id: data.user.id }
-    });
+        select: { id: true, role: true, name: true, organizationId: true },
+      })
+    );
 
     if (!existingUser) {
-      // Create new user record - need to provide password and timestamps for schema
-      // Since this is Supabase auth, we'll use a placeholder password
-      await prisma.user.create({
-        data: {
-          id: data.user.id,
-          email: data.user.email!,
-          name: data.user.user_metadata?.name || '',
-          role: (data.user.user_metadata?.role as any) || 'PENDING',
-          password: 'SUPABASE_AUTH', // Placeholder since auth is handled by Supabase
-          createdAt: new Date(),
-          updatedAt: new Date(),
+      await supabase.auth.signOut();
+      return {
+        error:
+          "Your account isn't fully set up. Ask your organization administrator to invite you.",
+      };
+    }
+
+    if (!existingUser.organizationId) {
+      await supabase.auth.signOut();
+      return {
+        error:
+          "Your account isn't linked to an organization. Please contact support.",
+      };
+    }
+
+    if (existingUser.role && existingUser.role !== data.user.user_metadata?.role) {
+      await supabaseAdmin.auth.admin.updateUserById(data.user.id, {
+        user_metadata: {
+          name: existingUser.name,
+          role: existingUser.role,
         },
       });
-      console.log("Created new user record in database");
-    } else {
-      // Update existing user if needed
-      console.log("User record already exists in database");
     }
   } catch (dbError) {
-    console.error("Database user creation failed:", dbError);
-    // Don't fail login if DB update fails, but log it
+    console.error("Sign-in verification failed:", dbError);
+    await supabase.auth.signOut();
+    return {
+      error: "Unable to verify your account. Please try again or contact support.",
+    };
   }
 
-  console.log("Login successful, session and database records established");
+  console.log("Login successful, session and database records verified");
   return { success: true };
 }
 
 export async function signOut() {
   try {
-    const supabase = createSupabaseClient();
+    const supabase = await createSupabaseClient();
     await supabase.auth.signOut();
   } catch (error) {
     console.error("Supabase signout error:", error);
@@ -168,98 +169,4 @@ export async function signOut() {
   clearAuthCookies(cookieStore);
 
   redirect("/login");
-}
-
-export async function signUp(formData: FormData) {
-  const email = formData.get("email") as string;
-  const password = formData.get("password") as string;
-  const name = formData.get("name") as string;
-  const branch = formData.get("branch") as string;
-
-  if (!email || !password) {
-    return { error: "Email and password are required" };
-  }
-
-  if (!name || !branch) {
-    return { error: "Name and branch are required" };
-  }
-
-  if (!ALL_BRANCHES.includes(branch as any)) {
-    return { error: "Invalid branch selected" };
-  }
-
-  try {
-    // Create Supabase server client
-    const supabase = createSupabaseClient();
-
-    // Create user with Supabase Auth
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          name: name || '',
-          role: 'PENDING', // Default role for new signups
-          branch: branch,
-        }
-      }
-    });
-
-    if (error) {
-      console.error("Supabase signup error:", error);
-      // Check for various forms of "user already exists" error
-      if (error.message.includes('already registered') ||
-          error.message.includes('User already registered') ||
-          error.message.includes('user_already_exists') ||
-          (error as any).status === 422) {
-        return { error: "An account with this email already exists. Please sign in instead." };
-      }
-      return { error: getAuthErrorMessage(error) };
-    }
-
-    if (!data.user) {
-      return { error: "Failed to create account. Please try again." };
-    }
-
-    if (!data.session) {
-      return {
-        message: "Account created successfully. Please check your email and sign in to continue.",
-      };
-    }
-
-    // Create profile record in database if it doesn't exist
-    await prisma.profile.upsert({
-      where: { id: data.user.id },
-      update: {},
-      create: {
-        id: data.user.id,
-        email: data.user.email!,
-        full_name: data.user.user_metadata?.name || name || '',
-        role: 'PENDING', // Default role for new signups
-      },
-    });
-
-    // Create User record
-    await prisma.user.upsert({
-      where: { email: data.user.email! },
-      update: {},
-        create: {
-          id: data.user.id,
-          email: data.user.email!,
-          password: '', // Password handled by Supabase
-          name: data.user.user_metadata?.name || name || '',
-          role: 'PENDING', // Default role
-          branchId: branch,
-          organizationId: 'org-stockflow-001', // Default organization
-          updatedAt: new Date(),
-        },
-    });
-
-    // Middleware will handle cookie setting and redirects
-    return { success: true };
-
-  } catch (error) {
-    console.error("Sign up error:", error);
-    return { error: "An unexpected error occurred. Please try again." };
-  }
 }

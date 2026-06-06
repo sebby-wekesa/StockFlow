@@ -1,16 +1,22 @@
 export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
-import { requireRole } from '@/lib/auth'
+import { getTenantPrisma } from '@/lib/tenant-prisma'
+import { requireActiveAuth } from '@/lib/auth'
+import { completeStage } from '@/app/actions/stage-completion'
 
 export async function POST(request: NextRequest) {
   try {
-    // Verify user has appropriate role
-    const user = await requireRole('OPERATOR', 'ADMIN')
+    // Verify user has appropriate role (tenant-aware)
+    const user = await requireActiveAuth()
+    if (!['OPERATOR', 'ADMIN'].includes(user.role)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
+    const db = getTenantPrisma(user.organizationId)
 
     const body = await request.json()
-    const { orderId, department, inputWeight, outputWeight, scrapWeight, timestamp } = body
+    const { orderId, department, inputWeight, outputWeight, scrapWeight, piecesIn, piecesOut } = body
 
     // Validate input
     if (!orderId || !department || inputWeight === undefined || outputWeight === undefined || scrapWeight === undefined) {
@@ -32,10 +38,10 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Get the order to find current stage
-    const order = await prisma.productionOrder.findFirst({
+    // Get the order to find current stage (automatically scoped)
+    const order = await db.productionOrder.findFirst({
       where: { id: orderId },
-      include: { Design: true },
+      include: { design: { include: { stages: true } } },
     })
 
     if (!order) {
@@ -45,32 +51,43 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Create stage log in database
-    const stageLog = await prisma.stageLog.create({
-      data: {
-        orderId,
-        stageName: department,
-        department: department, // Use the provided department
-        sequence: order.currentStage,
-        kgIn: inputWeight,
-        kgOut: outputWeight,
-        kgScrap: scrapWeight,
-        operatorId: user.id,
-        notes: `Logged at ${new Date().toLocaleString()}`,
-        completedAt: new Date(timestamp),
-      },
-      include: {
-        User: {
-          select: { name: true, email: true },
-        },
-      },
+    if (!order.design) {
+      return NextResponse.json(
+        { error: 'Direct orders use production output recording instead of stage logging' },
+        { status: 400 }
+      )
+    }
+
+    const stage = order.design.stages.find(stage => stage.sequence === order.currentStage)
+    if (!stage) {
+      return NextResponse.json({ error: 'Current stage not found' }, { status: 400 })
+    }
+    const result = await completeStage({
+      orderId,
+      stageId: stage.id,
+      stageName: stage.name,
+      department,
+      sequence: stage.sequence,
+      kgIn: Number(inputWeight),
+      kgOut: Number(outputWeight),
+      kgScrap: Number(scrapWeight),
+      piecesIn: piecesIn === undefined || piecesIn === null || piecesIn === "" ? undefined : Number(piecesIn),
+      piecesOut: piecesOut === undefined || piecesOut === null || piecesOut === "" ? undefined : Number(piecesOut),
     })
 
     return NextResponse.json(
       {
         success: true,
         message: 'Stage log created successfully',
-        data: stageLog,
+        data: {
+          ...result.stageLog,
+          kgIn: Number(result.stageLog.kgIn),
+          kgOut: Number(result.stageLog.kgOut),
+          kgScrap: Number(result.stageLog.kgScrap),
+          piecesIn: result.stageLog.piecesIn,
+          piecesOut: result.stageLog.piecesOut,
+          completedAt: result.stageLog.completedAt.toISOString(),
+        },
       },
       { status: 201 }
     )
@@ -93,7 +110,12 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
-    const user = await requireRole('ADMIN')
+    const user = await requireActiveAuth()
+    if (user.role !== 'ADMIN') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
+    const db = getTenantPrisma(user.organizationId)
 
     const searchParams = request.nextUrl.searchParams
     const stageName = searchParams.get('stageName')
@@ -104,7 +126,7 @@ export async function GET(request: NextRequest) {
       query.stageName = stageName
     }
 
-    const logs = await prisma.stageLog.findMany({
+    const logs = await db.stageLog.findMany({
       where: query,
       include: {
         User: {
@@ -114,7 +136,7 @@ export async function GET(request: NextRequest) {
           select: {
             id: true,
             quantity: true,
-            Design: { select: { name: true } }
+            design: { select: { name: true } }
           },
         },
       },

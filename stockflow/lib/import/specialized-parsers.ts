@@ -17,7 +17,9 @@
  */
 
 import * as XLSX from 'xlsx'
-import type { Branch } from '@prisma/client'
+
+/** Branch codes — matches the strings used elsewhere in the app */
+export type BranchCode = 'mombasa' | 'nairobi' | 'bunje'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // NORMALIZED OUTPUT TYPES
@@ -30,7 +32,7 @@ export type ParsedSalesRow = {
   order_number: string | null
   raw_product_name: string | null
   customer_name: string | null
-  branch: Branch | null
+  branch: BranchCode | null
   qty: number | null
   unit_price: number | null
   amount: number | null
@@ -42,7 +44,7 @@ export type ParsedProductRow = {
   source_row: number
   product_code: string | null
   canonical_name: string
-  category: 'manufactured_spring' | 'manufactured_ubolt' | 'imported' | 'local_purchase'
+  category: 'springs' | 'ubolts' | 'trailer_parts' | 'break_linings' | 'center_bolts'
   product_type: string
   uom: 'pcs' | 'set'
   vehicle_make: string | null
@@ -58,11 +60,18 @@ export type ParsedStockRow = {
   source_row: number
   movement_date: Date | null
   raw_product_name: string | null
-  branch: Branch
+  branch: BranchCode
   qty: number | null
   direction: 'in' | 'out' | 'balance'
   reference: string | null
   notes: string | null
+}
+
+export type ConsumablesWorkbookParseResult = {
+  rows: ParsedStockRow[]
+  candidateSheetNames: string[]
+  parsedSheets: Array<{ sheetName: string; rowCount: number }>
+  errors: Array<{ sheetName: string; error: string }>
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -71,6 +80,7 @@ export type ParsedStockRow = {
 
 export type SpecializedSheetType =
   | 'sales_quickbooks_v2'
+  | 'sales_simple'
   | 'springs_master'
   | 'ubolt_master'
   | 'consumables_stock'
@@ -90,20 +100,36 @@ export function detectFile(file: File): Promise<DetectResult> {
         const wb = XLSX.read(buffer, { type: 'array', cellDates: true })
         const sheetNames = wb.SheetNames
 
-        // Check for QuickBooks sales export
+        // Check for QuickBooks sales export (flexible — any column)
         if (sheetNames.length === 1) {
           const ws = wb.Sheets[sheetNames[0]]
           const rows = XLSX.utils.sheet_to_json(ws, { header: 1 }) as unknown[][]
-          if (rows.length > 1) {
-            // Look for "Invoice" in column H (7)
-            const hasInvoiceType = rows.some((row) => toStr(getCell(row, 7)) === 'Invoice')
-            if (hasInvoiceType) {
-              return resolve({
-                recommendedSheetType: 'sales_quickbooks_v2',
-                sheetNames,
-                reason: 'Found "Invoice" entries in column H — looks like QuickBooks export',
-              })
-            }
+          const hasInvoiceType = rows.some((row) =>
+            row.some((cell) => toStr(cell) === 'Invoice')
+          )
+          if (hasInvoiceType) {
+            return resolve({
+              recommendedSheetType: 'sales_quickbooks_v2',
+              sheetNames,
+              reason: 'Found "Invoice" rows — looks like QuickBooks sales export',
+            })
+          }
+        }
+
+        // Check for simple sales ledger (product, quantity, invoice_number, customer, location, date)
+        {
+          const ws = wb.Sheets[sheetNames[0]]
+          const rows = XLSX.utils.sheet_to_json(ws, { header: 1 }) as unknown[][]
+          const hasSimpleSalesHeaders = rows.some((row) => {
+            const norm = row.map((c) => toStr(c)?.toLowerCase() ?? '')
+            return norm.includes('product') && norm.includes('quantity') && norm.includes('invoice_number')
+          })
+          if (hasSimpleSalesHeaders) {
+            return resolve({
+              recommendedSheetType: 'sales_simple',
+              sheetNames,
+              reason: 'Found columns "product", "quantity", "invoice_number" — looks like simple sales list',
+            })
           }
         }
 
@@ -125,8 +151,8 @@ export function detectFile(file: File): Promise<DetectResult> {
           })
         }
 
-        // Check for consumables stock (sheets ending with IN-OUT)
-        const inOutSheets = sheetNames.filter((n) => n.toUpperCase().includes('IN-OUT'))
+        // Check for consumables stock sheets.
+        const inOutSheets = sheetNames.filter(isConsumablesStockSheetName)
         if (inOutSheets.length > 0) {
           return resolve({
             recommendedSheetType: 'consumables_stock',
@@ -153,7 +179,6 @@ export function detectFile(file: File): Promise<DetectResult> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
->>>>>>> 67b50c242752acb2edbf7c42ea15ef3cd4b7f0d6
 // HELPERS
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -186,20 +211,6 @@ function toDate(value: unknown): Date | null {
     const epoch = new Date(1899, 11, 30)
     return new Date(epoch.getTime() + value * 86400000)
   }
-<<<<<<< HEAD
-  const parsed = new Date(String(value))
-  return isNaN(parsed.getTime()) ? null : parsed
-}
-
-function normaliseBranch(value: unknown): Branch | null {
-  const s = toStr(value)
-  if (!s) return null
-  const lower = s.toLowerCase()
-  if (lower.includes('mombasa')) return 'mombasa'
-  if (lower.includes('nairobi')) return 'nairobi'
-  if (lower.includes('bonje')) return 'bonje'
-  // "Upcountry" is QuickBooks shorthand for upcountry (inland) sales — ship out of Mombasa HQ
-=======
   const str = String(value).trim()
   if (!str) return null
   const parsed = new Date(str)
@@ -207,63 +218,18 @@ function normaliseBranch(value: unknown): Branch | null {
   return parsed
 }
 
-function normaliseBranch(value: unknown): Branch | null {
+function normaliseBranch(value: unknown): BranchCode | null {
   const str = toStr(value)
   if (!str) return null
   const lower = str.toLowerCase()
   if (lower.includes('mombasa')) return 'mombasa'
   if (lower.includes('nairobi')) return 'nairobi'
-  if (lower.includes('bonje')) return 'bonje'
+  if (lower.includes('bunje') || lower.includes('bonje')) return 'bunje'
   // Handle "Upcountry" as Mombasa
->>>>>>> 67b50c242752acb2edbf7c42ea15ef3cd4b7f0d6
   if (lower.includes('upcountry')) return 'mombasa'
   return null
 }
 
-<<<<<<< HEAD
-/** Read a sheet as an array of rows (each row is an array of cell values). */
-function readSheetAsRows(buffer: ArrayBuffer, sheetName?: string): {
-  rows: unknown[][]
-  sheetNames: string[]
-  selectedSheet: string
-} {
-  const wb = XLSX.read(buffer, { type: 'array', cellDates: true })
-  const sheet = sheetName ?? wb.SheetNames[0]
-  const ws = wb.Sheets[sheet]
-  if (!ws) {
-    throw new Error(
-      `Sheet "${sheet}" not found. Available: ${wb.SheetNames.join(', ')}`
-    )
-  }
-  const rows = XLSX.utils.sheet_to_json<unknown[]>(ws, {
-    header: 1,        // get rows as arrays, not objects
-    defval: null,
-    raw: false,       // get formatted dates as Date objects
-    blankrows: false,
-  })
-  return { rows, sheetNames: wb.SheetNames, selectedSheet: sheet }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// PARSER 1 — QuickBooks Sales Export
-//
-// Header row at row 1, columns scattered:
-//   col 7  = Type ("Invoice")
-//   col 9  = Date
-//   col 11 = Num (invoice number)
-//   col 13 = Memo (raw product name)
-//   col 15 = Name (customer)
-//   col 17 = Class (branch)
-//   col 19 = Qty
-//   col 21 = U/M
-//   col 23 = Sales Price
-//   col 25 = Amount
-//
-// Other rows are noise:
-//   - Bare product names in col 2 (group headers like "BEARING 804358 (BEARING 804358)")
-//   - "Total X" rows in col 2 with SUM formulas (subtotals)
-//   - Empty separator rows
-=======
 function readSheetAsRows(buffer: ArrayBuffer, sheetName?: string) {
   const wb = XLSX.read(buffer, { type: 'array', cellDates: true })
   const targetSheet = sheetName ?? wb.SheetNames[0]
@@ -273,58 +239,450 @@ function readSheetAsRows(buffer: ArrayBuffer, sheetName?: string) {
   return { rows, wb, ws }
 }
 
+function normalizeSheetName(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
+}
+
+export function isConsumablesStockSheetName(sheetName: string): boolean {
+  const normalized = normalizeSheetName(sheetName)
+  return (
+    normalized.includes('in out') ||
+    normalized.includes('inout') ||
+    normalized.includes('consumable') ||
+    normalized.includes('stock')
+  )
+}
+
+function isConsumablesHeaderRow(row: unknown[]): boolean {
+  const cells = row.map((cell) => toStr(cell)?.toLowerCase() ?? '')
+  const nonEmpty = cells.filter(Boolean)
+  if (nonEmpty.length === 0) return true
+
+  const hasProductHeader = cells.some((cell) =>
+    ['product', 'item', 'description', 'particulars'].some((header) => cell.includes(header))
+  )
+  const hasQtyHeader = cells.some((cell) =>
+    cell === 'qty' || cell === 'quantity' || cell.includes('qty') || cell.includes('quantity')
+  )
+  const hasMovementHeader = cells.some((cell) =>
+    cell === 'in' ||
+    cell === 'out' ||
+    cell === 'stock in' ||
+    cell === 'stock out' ||
+    cell === 'balance' ||
+    cell === 'bal'
+  )
+
+  return (hasProductHeader && (hasQtyHeader || hasMovementHeader)) || (hasQtyHeader && hasMovementHeader)
+}
+
+export function parseConsumablesWorkbook(
+  buffer: ArrayBuffer,
+  branch: BranchCode
+): ConsumablesWorkbookParseResult {
+  const wb = XLSX.read(buffer, { type: 'array', cellDates: true })
+  let candidateSheetNames = wb.SheetNames.filter(isConsumablesStockSheetName)
+
+  if (candidateSheetNames.length === 0 && wb.SheetNames.length === 1) {
+    candidateSheetNames = [...wb.SheetNames]
+  }
+
+  const rows: ParsedStockRow[] = []
+  const parsedSheets: ConsumablesWorkbookParseResult['parsedSheets'] = []
+  const errors: ConsumablesWorkbookParseResult['errors'] = []
+
+  for (const sheetName of candidateSheetNames) {
+    try {
+      const parsed = parseConsumablesStock(buffer, sheetName, branch)
+      parsedSheets.push({ sheetName, rowCount: parsed.length })
+      rows.push(...parsed)
+    } catch (err) {
+      errors.push({ sheetName, error: (err as Error).message })
+    }
+  }
+
+  if (rows.length === 0) {
+    console.error('=== Consumables Stock Parser - 0 rows produced ===')
+    console.error('Workbook sheets:', wb.SheetNames)
+    console.error('Candidate sheets:', candidateSheetNames)
+    console.error('Parsed sheets:', parsedSheets)
+    console.error('Sheet parser errors:', errors)
+
+    for (const sheetName of candidateSheetNames.slice(0, 5)) {
+      const ws = wb.Sheets[sheetName]
+      if (!ws) continue
+      const sample = XLSX.utils
+        .sheet_to_json(ws, { header: 1, defval: '' })
+        .slice(0, 8)
+      console.error(`Sample rows from "${sheetName}":`, sample)
+    }
+  }
+
+  return { rows, candidateSheetNames, parsedSheets, errors }
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
-// PARSER 1 — QuickBooks sales export
+// PARSER 1 — QuickBooks sales export (robust column mapping)
 //
-// Column layout:
-//   7: Type (we filter to "Invoice")
-//   9: Date
-//   11: Num (invoice number)
-//   13: Memo (product name)
-//   15: Name (customer)
-//   17: Class (branch)
-//   19: Qty
-//   23: Sales Price
-//   25: Amount
->>>>>>> 67b50c242752acb2edbf7c42ea15ef3cd4b7f0d6
-//
-// We only keep rows where col 7 === "Invoice".
+// Supports both the original fixed layout and any QuickBooks export where the
+// user included the standard columns (Type, Date, Num, Memo, Name, Class, Qty,
+// Sales Price, Amount). We locate the header row and map columns by name so
+// different column orders / extra columns do not break the import.
 // ─────────────────────────────────────────────────────────────────────────────
+
+interface QBColumnMap {
+  type: number
+  date: number
+  num: number
+  memo: number
+  name: number
+  class: number
+  qty: number
+  salesPrice: number
+  amount: number
+}
+
+function findQuickBooksColumnMap(rows: unknown[][]): { map: QBColumnMap; headerRow: number } | null {
+  // Scan first 15 rows — some QB exports have title + blank rows before the real table header
+  for (let r = 0; r < Math.min(15, rows.length); r++) {
+    const row = rows[r]
+    const normalized = row.map((c) => toStr(c)?.toLowerCase() ?? '')
+
+    const map: Partial<QBColumnMap> = {}
+    for (let c = 0; c < normalized.length; c++) {
+      const cell = normalized[c]
+      if (!cell) continue
+
+      if (!map.type && (cell === 'type' || cell.includes('type'))) map.type = c
+      if (!map.date && (cell === 'date' || cell === 'txn date')) map.date = c
+      if (!map.num && (cell === 'num' || cell === 'number' || cell.includes('invoice') || cell === '#')) map.num = c
+      if (!map.memo && (cell === 'memo' || cell === 'description' || cell.includes('item') || cell.includes('product') || cell.includes('desc'))) map.memo = c
+      if (!map.name && (cell === 'name' || cell === 'customer' || cell.includes('customer'))) map.name = c
+      if (!map.class && (cell === 'class' || cell === 'location' || cell === 'branch')) map.class = c
+      if (!map.qty && (cell === 'qty' || cell === 'quantity' || cell.includes('qty') || cell.includes('quantity'))) map.qty = c
+      if (!map.salesPrice && (cell.includes('sales price') || cell === 'rate' || cell === 'price' || cell.includes('unit price'))) map.salesPrice = c
+      if (!map.amount && (cell === 'amount' || cell === 'total')) map.amount = c
+    }
+
+    // Minimum required: type column + a product/description column + qty column
+    if (map.type !== undefined && map.memo !== undefined && map.qty !== undefined) {
+      return {
+        map: {
+          type: map.type,
+          date: map.date ?? 9,
+          num: map.num ?? 11,
+          memo: map.memo,
+          name: map.name ?? 15,
+          class: map.class ?? 17,
+          qty: map.qty,
+          salesPrice: map.salesPrice ?? 23,
+          amount: map.amount ?? 25,
+        },
+        headerRow: r,
+      }
+    }
+  }
+
+  return null
+}
 
 export function parseSalesQuickbooks(buffer: ArrayBuffer): ParsedSalesRow[] {
   const { rows } = readSheetAsRows(buffer)
   const out: ParsedSalesRow[] = []
 
-  // Skip header row (row 1, index 0)
-  for (let i = 1; i < rows.length; i++) {
+  const found = findQuickBooksColumnMap(rows)
+  const colMap = found ? found.map : null
+  const headerRow = found ? found.headerRow : -1
+
+  // Fallback to the original hard-coded layout if we couldn't find a header
+  const getIdx = (logical: keyof QBColumnMap) => (colMap ? colMap[logical] : getFallbackIndex(logical))
+
+  function getFallbackIndex(logical: keyof QBColumnMap): number {
+    switch (logical) {
+      case 'type': return 7
+      case 'date': return 9
+      case 'num': return 11
+      case 'memo': return 13
+      case 'name': return 15
+      case 'class': return 17
+      case 'qty': return 19
+      case 'salesPrice': return 23
+      case 'amount': return 25
+    }
+  }
+
+  // Start data from the row after the detected header (or row 1 for fallback)
+  const startRow = headerRow >= 0 ? headerRow + 1 : 1
+
+  // Accept common QuickBooks sales transaction types
+  const isSaleType = (t: string | null) => {
+    if (!t) return false
+    const lower = t.toLowerCase().trim()
+    return lower === 'invoice' || lower.includes('sales receipt') || lower === 'salesreceipt'
+  }
+
+  // Support two common QuickBooks layouts:
+  // 1. Every line-item row has "Invoice" in the Type column (flattened)
+  // 2. Type only appears on the invoice header row; subsequent rows with Qty + product have blank Type (grouped)
+  type InvoiceContext = {
+    movement_date: Date | null
+    order_number: string | null
+    customer_name: string | null
+    branch: BranchCode | null
+    branchNote: string | null
+  }
+  let currentContext: InvoiceContext | null = null
+
+  for (let i = startRow; i < rows.length; i++) {
     const row = rows[i]
-    const typeCell = toStr(getCell(row, 7))
-    if (typeCell !== 'Invoice') continue
+    const typeCell = toStr(getCell(row, getIdx('type')))
+    const qty = toNumber(getCell(row, getIdx('qty')))
+    const memo = toStr(getCell(row, getIdx('memo')))
 
-    const qty = toNumber(getCell(row, 19))
-    const memo = toStr(getCell(row, 13))
-    if (qty === null || !memo) continue // require qty and product name
-
-    const originalBranchLabel = toStr(getCell(row, 17))
+    const originalBranchLabel = toStr(getCell(row, getIdx('class')))
     const normalisedBranch = normaliseBranch(originalBranchLabel)
-    // If the original was "Upcountry", note it so the audit trail preserves it
     const branchNote =
       originalBranchLabel && originalBranchLabel.toLowerCase().includes('upcountry')
         ? `Upcountry sale (assigned to Mombasa)`
         : null
 
-    out.push({
-      source_row: i + 1, // 1-indexed for user-facing reference
-      movement_date: toDate(getCell(row, 9)),
-      order_number: toStr(getCell(row, 11)),
-      raw_product_name: memo,
-      customer_name: toStr(getCell(row, 15)),
-      branch: normalisedBranch,
-      qty: Math.abs(Math.round(qty)),
-      unit_price: toNumber(getCell(row, 23)),
-      amount: toNumber(getCell(row, 25)),
-      notes: branchNote,
+    const rowDate = toDate(getCell(row, getIdx('date')))
+    const rowNum = toStr(getCell(row, getIdx('num')))
+    const rowCustomer = toStr(getCell(row, getIdx('name')))
+
+    if (isSaleType(typeCell)) {
+      // This row starts (or is) a sale transaction
+      if (qty !== null && memo) {
+        // Direct line item with full info on the same row (layout 1)
+        out.push({
+          source_row: i + 1,
+          movement_date: rowDate,
+          order_number: rowNum,
+          raw_product_name: memo,
+          customer_name: rowCustomer,
+          branch: normalisedBranch,
+          qty: Math.abs(Math.round(qty)),
+          unit_price: toNumber(getCell(row, getIdx('salesPrice'))),
+          amount: toNumber(getCell(row, getIdx('amount'))),
+          notes: branchNote,
+        })
+        // Keep context updated in case next lines are blank-Type
+        currentContext = {
+          movement_date: rowDate,
+          order_number: rowNum,
+          customer_name: rowCustomer,
+          branch: normalisedBranch,
+          branchNote,
+        }
+      } else {
+        // Header row for a new invoice — update context for following blank-Type lines
+        currentContext = {
+          movement_date: rowDate,
+          order_number: rowNum,
+          customer_name: rowCustomer,
+          branch: normalisedBranch,
+          branchNote,
+        }
+      }
+      continue
+    }
+
+    // Not a sale-type row. If we have a context and this row has qty + product name, treat it as a line item belonging to the previous invoice.
+    if (currentContext && qty !== null && memo) {
+      out.push({
+        source_row: i + 1,
+        movement_date: currentContext.movement_date ?? rowDate,
+        order_number: currentContext.order_number ?? rowNum,
+        raw_product_name: memo,
+        customer_name: currentContext.customer_name ?? rowCustomer,
+        branch: currentContext.branch ?? normalisedBranch,
+        qty: Math.abs(Math.round(qty)),
+        unit_price: toNumber(getCell(row, getIdx('salesPrice'))),
+        amount: toNumber(getCell(row, getIdx('amount'))),
+        notes: currentContext.branchNote ?? branchNote,
+      })
+    }
+  }
+
+  if (out.length === 0) {
+    console.error('=== QuickBooks Sales Parser — 0 rows produced ===')
+    console.error('Total rows read from sheet:', rows.length)
+    console.error('startRow (first data row):', startRow)
+    console.error('Header row index found by detector:', headerRow)
+
+    if (colMap) {
+      console.error('Column indices used:', colMap)
+      const hdr = rows[headerRow] || []
+      console.error('Raw header row (cols 0-30):', hdr.slice(0, 30))
+    } else {
+      console.error('No suitable header row containing Type + product-name + Qty columns was detected in the first 15 rows.')
+      console.error('First 3 raw rows (for inspection):')
+      for (let k = 0; k < Math.min(3, rows.length); k++) {
+        console.error(`  Row ${k}:`, rows[k]?.slice(0, 15))
+      }
+    }
+
+    // Show what the parser actually saw in the columns it decided to use
+    const sampleStart = Math.max(0, startRow)
+    const samples = rows.slice(sampleStart, sampleStart + 8).map((r, idx) => {
+      const actualRow = sampleStart + idx + 1
+      return {
+        excelRow: actualRow,
+        Type: toStr(getCell(r, getIdx('type'))),
+        Qty_raw: getCell(r, getIdx('qty')),
+        Qty_parsed: toNumber(getCell(r, getIdx('qty'))),
+        Memo: toStr(getCell(r, getIdx('memo'))),
+        Customer: toStr(getCell(r, getIdx('name'))),
+        Class: toStr(getCell(r, getIdx('class'))),
+      }
     })
+    console.error('First data rows using the chosen columns:', samples)
+
+    const anyInvoice = rows.some(r => r.some(c => toStr(c)?.toLowerCase() === 'invoice'))
+    console.error('Does the file contain the word "Invoice" anywhere?', anyInvoice)
+  }
+
+  return out
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PARSER — Simple sales list (product, quantity, invoice_number, customer, location, date)
+//
+// This is the format the user had (not a classic QuickBooks export).
+// We auto-detect the header and map the obvious columns.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export function parseSimpleSales(buffer: ArrayBuffer): ParsedSalesRow[] {
+  let { rows } = readSheetAsRows(buffer)
+  const out: ParsedSalesRow[] = []
+
+  // --- Handle the very common case where user pasted CSV text into Excel column A ---
+  // In this case every row has only 1 cell containing the full "product,quantity,invoice..." line
+  const looksLikePastedCsv = rows.length > 1 &&
+    rows[1] &&
+    rows[1].length <= 2 &&
+    typeof rows[1][0] === 'string' &&
+    (rows[1][0] as string).includes(',');
+
+  if (looksLikePastedCsv) {
+    const rebuilt: unknown[][] = [];
+    for (const row of rows) {
+      const cell = toStr(getCell(row, 0)) || '';
+      if (cell.includes(',')) {
+        // Split by comma, but be careful with commas inside product names (they usually have parentheses)
+        const parts = cell.split(',').map(s => s.trim());
+        rebuilt.push(parts);
+      } else {
+        rebuilt.push(row);
+      }
+    }
+    rows = rebuilt;
+  }
+
+  // Find a header row that contains "product" + "quantity" (or "qty")
+  let headerRow = -1
+  let col: Record<string, number> = {}
+
+  for (let r = 0; r < Math.min(6, rows.length); r++) {
+    const norm = rows[r].map((c) => toStr(c)?.toLowerCase() ?? '')
+    const iProduct = norm.findIndex((c) => c.includes('product'))
+    const iQty = norm.findIndex((c) => c.includes('quantity') || c.includes('qty'))
+    const iInvoice = norm.findIndex((c) => c.includes('invoice'))
+    const iCustomer = norm.findIndex((c) => c.includes('customer'))
+    const iLocation = norm.findIndex((c) => c.includes('location') || c.includes('branch'))
+    const iDate = norm.findIndex((c) => c.includes('date'))
+
+    if (iProduct >= 0 && iQty >= 0) {
+      headerRow = r
+      col = {
+        product: iProduct,
+        qty: iQty,
+        invoice: iInvoice,
+        customer: iCustomer,
+        location: iLocation,
+        date: iDate,
+      }
+      break
+    }
+  }
+
+  if (headerRow < 0) {
+    // Last-resort assumption based on the exact file the user uploaded
+    headerRow = 0
+    col = { product: 0, qty: 1, invoice: 2, customer: 3, location: 4, date: 5 }
+  }
+
+  for (let i = headerRow + 1; i < rows.length; i++) {
+    const row = rows[i]
+    const rawProduct = toStr(getCell(row, col.product))
+    const qty = toNumber(getCell(row, col.qty))
+    if (!rawProduct || qty === null) continue
+
+    const loc = toStr(getCell(row, col.location))
+    const branch = normaliseBranch(loc) ?? 'nairobi'
+
+    out.push({
+      source_row: i + 1,
+      movement_date: toDate(getCell(row, col.date)),
+      order_number: toStr(getCell(row, col.invoice)),
+      raw_product_name: rawProduct,
+      customer_name: toStr(getCell(row, col.customer)),
+      branch,
+      qty: Math.abs(Math.round(qty)),
+      unit_price: null,
+      amount: null,
+      notes: null,
+    })
+  }
+
+  // Final safety net: if we still got nothing, try the classic 6-column layout
+  // (product | quantity | invoice | customer | location | date)
+  // This helps when the user pasted CSV text into Excel without splitting columns.
+  if (out.length === 0) {
+    const fallbackCol = { product: 0, qty: 1, invoice: 2, customer: 3, location: 4, date: 5 }
+    for (let i = 1; i < rows.length; i++) {
+      const row = rows[i]
+      const rawProduct = toStr(getCell(row, fallbackCol.product))
+      const qty = toNumber(getCell(row, fallbackCol.qty))
+      if (!rawProduct || qty === null) continue
+
+      const loc = toStr(getCell(row, fallbackCol.location))
+      const branch = normaliseBranch(loc) ?? 'nairobi'
+
+      out.push({
+        source_row: i + 1,
+        movement_date: toDate(getCell(row, fallbackCol.date)),
+        order_number: toStr(getCell(row, fallbackCol.invoice)),
+        raw_product_name: rawProduct,
+        customer_name: toStr(getCell(row, fallbackCol.customer)),
+        branch,
+        qty: Math.abs(Math.round(qty)),
+        unit_price: null,
+        amount: null,
+        notes: null,
+      })
+    }
+  }
+
+  if (out.length === 0) {
+    console.error('=== Simple Sales Parser - 0 rows produced ===')
+    console.error('Total rows read from sheet:', rows.length)
+    console.error('Header row index found by detector:', headerRow)
+    console.error('Column indices used:', col)
+    console.error('First 8 raw rows:', rows.slice(0, 8))
+    console.error(
+      'First candidate rows using chosen columns:',
+      rows.slice(Math.max(1, headerRow + 1), Math.max(1, headerRow + 1) + 8).map((row, idx) => ({
+        excelRow: Math.max(1, headerRow + 1) + idx + 1,
+        product: toStr(getCell(row, col.product)),
+        qtyRaw: getCell(row, col.qty),
+        qtyParsed: toNumber(getCell(row, col.qty)),
+        invoice: toStr(getCell(row, col.invoice)),
+        customer: toStr(getCell(row, col.customer)),
+        location: toStr(getCell(row, col.location)),
+        date: getCell(row, col.date),
+      }))
+    )
   }
 
   return out
@@ -350,46 +708,6 @@ export function parseSpringsList(buffer: ArrayBuffer): ParsedProductRow[] {
 
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i]
-<<<<<<< HEAD
-    const nameCell = toStr(getCell(row, 0))
-    const codeCell = toStr(getCell(row, 1))
-
-    if (!nameCell) continue
-
-    // Group header: only column 0 has content
-    if (!codeCell) {
-      currentMake = nameCell
-      continue
-    }
-
-    // Product row: name + code present
-    const lowerName = nameCell.toLowerCase()
-    const spring_position =
-      lowerName.includes('front') ? 'Front' :
-      lowerName.includes('rear') ? 'Rear' :
-      lowerName.includes('helper') ? 'Helper' :
-      null
-    const leaf_position =
-      lowerName.includes('main leaf') ? 'Main Leaf' :
-      lowerName.includes('2nd leaf') ? '2nd Leaf' :
-      lowerName.includes('3rd leaf') ? '3rd Leaf' :
-      lowerName.includes('4th leaf') ? '4th Leaf' :
-      lowerName.includes('5th leaf') ? '5th Leaf' :
-      lowerName.includes('assly') || lowerName.includes('assembly') ? null :
-      null
-
-    const product_type =
-      lowerName.includes('assly') || lowerName.includes('assembly')
-        ? 'spring_assembly'
-        : lowerName.includes('helper')
-        ? 'helper_spring'
-        : 'leaf_spring'
-
-    out.push({
-      source_row: i + 1,
-      product_code: codeCell,
-      canonical_name: nameCell,
-=======
     const col1 = toStr(getCell(row, 0))
     const col2 = toStr(getCell(row, 1))
 
@@ -415,16 +733,11 @@ export function parseSpringsList(buffer: ArrayBuffer): ParsedProductRow[] {
       source_row: i + 1,
       product_code: code,
       canonical_name: name,
->>>>>>> 67b50c242752acb2edbf7c42ea15ef3cd4b7f0d6
-      category: 'manufactured_spring',
+      category: 'springs',
       product_type,
       uom: 'pcs',
       vehicle_make: currentMake,
-<<<<<<< HEAD
-      vehicle_model: currentMake?.split(/\s+/)[0] ?? null,
-=======
       vehicle_model: null,
->>>>>>> 67b50c242752acb2edbf7c42ea15ef3cd4b7f0d6
       spring_position,
       leaf_position,
       cost_price: null,
@@ -435,8 +748,6 @@ export function parseSpringsList(buffer: ArrayBuffer): ParsedProductRow[] {
   return out
 }
 
-<<<<<<< HEAD
-=======
 function inferSpringDetails(name: string): { spring_position: string | null; leaf_position: string | null; product_type: string } {
   const lower = name.toLowerCase()
 
@@ -467,44 +778,18 @@ function inferSpringDetails(name: string): { spring_position: string | null; lea
   return { spring_position, leaf_position, product_type }
 }
 
->>>>>>> 67b50c242752acb2edbf7c42ea15ef3cd4b7f0d6
 // ─────────────────────────────────────────────────────────────────────────────
 // PARSER 3 — U-bolt master list
 //
 // Sheet: U BOLT LIST
-<<<<<<< HEAD
-// Row 2 has headers: Product Description | UOM | Cost Price | Selling Price
-// Data starts row 3.
-//
-// We generate codes from the product description since the source file
-// doesn't have explicit codes.
-=======
 // Headers are in row 2, data starts at row 3.
 // Similar to springs but simpler structure.
->>>>>>> 67b50c242752acb2edbf7c42ea15ef3cd4b7f0d6
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function parseUBoltList(buffer: ArrayBuffer): ParsedProductRow[] {
   const { rows } = readSheetAsRows(buffer, 'U BOLT LIST')
   const out: ParsedProductRow[] = []
 
-<<<<<<< HEAD
-  // Data starts at row 3 (index 2)
-  for (let i = 2; i < rows.length; i++) {
-    const row = rows[i]
-    const name = toStr(getCell(row, 0))
-    if (!name) continue
-
-    // Skip header repeats and section labels
-    if (name.toLowerCase().includes('product description')) continue
-
-    const cost = toNumber(getCell(row, 2))
-    const selling = toNumber(getCell(row, 3))
-
-    // Generate code from the name: take meaningful tokens
-    // e.g. "F/UBOLT FH 215 8''(Q16X72MM SQ)" → "UB-FH215-F8"
-    const code = generateUBoltCode(name)
-=======
   // Skip first two rows (headers in row 2)
   for (let i = 2; i < rows.length; i++) {
     const row = rows[i]
@@ -517,23 +802,12 @@ export function parseUBoltList(buffer: ArrayBuffer): ParsedProductRow[] {
     const code = col2.trim()
 
     if (name.toLowerCase().includes('description') || code.toLowerCase().includes('code')) continue
->>>>>>> 67b50c242752acb2edbf7c42ea15ef3cd4b7f0d6
 
     out.push({
       source_row: i + 1,
       product_code: code,
       canonical_name: name,
-      category: 'manufactured_ubolt',
-<<<<<<< HEAD
-      product_type: 'u_bolt',
-      uom: 'pcs',
-      vehicle_make: extractVehicleFromUBoltName(name),
-      vehicle_model: null,
-      spring_position: name.toUpperCase().startsWith('F/') ? 'Front' : name.toUpperCase().startsWith('R/') ? 'Rear' : null,
-      leaf_position: null,
-      cost_price: cost,
-      selling_price: selling,
-=======
+      category: 'ubolts',
       product_type: 'u-bolt',
       uom: 'pcs',
       vehicle_make: null,
@@ -542,54 +816,12 @@ export function parseUBoltList(buffer: ArrayBuffer): ParsedProductRow[] {
       leaf_position: null,
       cost_price: null,
       selling_price: null,
->>>>>>> 67b50c242752acb2edbf7c42ea15ef3cd4b7f0d6
     })
   }
 
   return out
 }
 
-<<<<<<< HEAD
-function generateUBoltCode(name: string): string {
-  // Examples we need to handle:
-  // "F/UBOLT FH 215 8''(Q16X72MM SQ)" → "UB-FH215-F8"
-  // "F/U BOLT 4D 31 5''(Q14X72MM SQ)" → "UB-4D31-F5"
-  // "F/UBOLT NQR 6''(Q16X72MM SQ)" → "UB-NQR-F6"
-  const upper = name.toUpperCase()
-  const prefix = upper.startsWith('F/') ? 'F' : upper.startsWith('R/') ? 'R' : 'X'
-  // strip the F/UBOLT or R/UBOLT prefix
-  const withoutPrefix = upper.replace(/^[FR]\/U\s*BOLT\s*/, '').trim()
-  // Extract the make/model (everything before the size)
-  const sizeMatch = withoutPrefix.match(/(\d+)\s*(?:''|"|inch)/)
-  const size = sizeMatch?.[1] ?? ''
-  const makePart = sizeMatch ? withoutPrefix.slice(0, sizeMatch.index).trim() : withoutPrefix
-  const makeClean = makePart.replace(/\s+/g, '')
-  return `UB-${makeClean}-${prefix}${size}`.replace(/-+$/, '')
-}
-
-function extractVehicleFromUBoltName(name: string): string | null {
-  const upper = name.toUpperCase().replace(/^[FR]\/U\s*BOLT\s*/, '').trim()
-  const sizeMatch = upper.match(/\d+\s*(?:''|"|inch)/)
-  if (sizeMatch) return upper.slice(0, sizeMatch.index).trim()
-  return upper.split('(')[0]?.trim() || null
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// PARSER 4 — Consumables stock (Mombasa / Nairobi files)
-//
-// Sheet names like " CONSUMABLESTOCK IN-OUT-BALANCE", "TRAILER PARTS IN-OUT",
-// "BRAKE LININGS IN-OUT", etc.
-//
-// Layout (data starts row 5):
-//   STOCK IN side:    col 0=DATE, col 1=PRODUCT DESC, col 2=QTY, col 3=REF
-//   STOCK OUT side:   col 4=DATE, col 5=PRODUCT DESC, col 6=QTY, col 7=REF
-//   BALANCE side:     col 8 onwards (formulas — skip)
-//
-// We emit two rows per data row: one stock-in (qty positive) and one
-// stock-out (qty negative), if either side has data.
-//
-// `branch` is supplied by the caller (it knows which file is which).
-=======
 // ─────────────────────────────────────────────────────────────────────────────
 // PARSER 4 — Consumables stock movements
 //
@@ -600,63 +832,32 @@ function extractVehicleFromUBoltName(name: string): string | null {
 //   Right table (cols E-F): current balance (ignored for import)
 //
 // We emit one ParsedStockRow per product movement.
->>>>>>> 67b50c242752acb2edbf7c42ea15ef3cd4b7f0d6
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function parseConsumablesStock(
   buffer: ArrayBuffer,
   sheetName: string,
-  branch: Branch
+  branch: BranchCode
 ): ParsedStockRow[] {
   const { rows } = readSheetAsRows(buffer, sheetName)
   const out: ParsedStockRow[] = []
 
-<<<<<<< HEAD
-  // Data starts at row 5 (index 4)
-  for (let i = 4; i < rows.length; i++) {
+  // Start from row 0 and skip header-like rows
+  for (let i = 0; i < rows.length; i++) {
     const row = rows[i]
-
-    // Stock IN side
-    const inProduct = toStr(getCell(row, 1))
-    const inQty = toNumber(getCell(row, 2))
-    if (inProduct && inQty !== null && inQty > 0) {
-      out.push({
-        source_row: i + 1,
-        movement_date: toDate(getCell(row, 0)),
-        raw_product_name: inProduct,
-        branch,
-        qty: Math.round(inQty),
-        direction: 'in',
-        reference: toStr(getCell(row, 3)),
-        notes: null,
-      })
+    if (isConsumablesHeaderRow(row)) {
+      continue
     }
 
-    // Stock OUT side
-    const outProduct = toStr(getCell(row, 5))
-    const outQty = toNumber(getCell(row, 6))
-    if (outProduct && outQty !== null && outQty > 0) {
-      out.push({
-        source_row: i + 1,
-        movement_date: toDate(getCell(row, 4)),
-        raw_product_name: outProduct,
-        branch,
-        qty: Math.round(outQty),
-        direction: 'out',
-        reference: toStr(getCell(row, 7)),
-        notes: null,
-=======
-  // Start from row 5 (index 4)
-  for (let i = 4; i < rows.length; i++) {
-    const row = rows[i]
+    // Try common layouts:
 
-    // Left side: stock IN (cols A-B)
+    // Layout 1: Product | Qty In | Product | Qty Out  (columns 0-3)
     const inProduct = toStr(getCell(row, 0))
     const inQty = toNumber(getCell(row, 1))
     if (inProduct && inQty && inQty > 0) {
       out.push({
         source_row: i + 1,
-        movement_date: null, // consumables imports don't have dates
+        movement_date: null,
         raw_product_name: inProduct,
         branch,
         qty: inQty,
@@ -666,7 +867,6 @@ export function parseConsumablesStock(
       })
     }
 
-    // Right side: stock OUT (cols C-D)
     const outProduct = toStr(getCell(row, 2))
     const outQty = toNumber(getCell(row, 3))
     if (outProduct && outQty && outQty > 0) {
@@ -679,93 +879,173 @@ export function parseConsumablesStock(
         direction: 'out',
         reference: `${sheetName} import`,
         notes: `Stock out from ${sheetName}`,
->>>>>>> 67b50c242752acb2edbf7c42ea15ef3cd4b7f0d6
+      })
+    }
+
+    // Layout 2: Product | Name | Category | UOM | Branch | Current stock
+    const snapshotProduct = toStr(getCell(row, 0))
+    const snapshotQty = toNumber(getCell(row, 5))
+    if (snapshotProduct && snapshotQty !== null && snapshotQty !== 0) {
+      out.push({
+        source_row: i + 1,
+        movement_date: null,
+        raw_product_name: snapshotProduct,
+        branch,
+        qty: Math.abs(snapshotQty),
+        direction: snapshotQty > 0 ? 'in' : 'out',
+        reference: `${sheetName} import`,
+        notes: `Stock snapshot from ${sheetName}`,
+      })
+      continue
+    }
+
+    // Layout 2: Product | Qty  (single movement per row, assume IN)
+    const product = toStr(getCell(row, 0))
+    const qty = toNumber(getCell(row, 1))
+    if (product && qty && qty > 0 && !inProduct && !outProduct) {
+      out.push({
+        source_row: i + 1,
+        movement_date: null,
+        raw_product_name: product,
+        branch,
+        qty: qty,
+        direction: 'in',
+        reference: `${sheetName} import`,
+        notes: `Stock import from ${sheetName}`,
       })
     }
   }
 
   return out
-<<<<<<< HEAD
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// FILE DETECTION
-// Inspect a file's sheets and headers to suggest what kind of file it is.
+// UNIFIED WORKBOOK PARSER (Enhanced Global Parser)
+// Handles manufacturing data matrices + consumables + auto parts + sales
 // ─────────────────────────────────────────────────────────────────────────────
 
-export type FileDetection = {
-  recommendedSheetType: SpecializedSheetType
-  sheetNames: string[]
-  reason: string
+export interface ProductPayload {
+  name: string
+  uom: string
+  opening_stock: number
+  current_stock: number
+  location: 'Mombasa' | 'Nairobi'
+  category: 'Consumables' | 'Trailer Parts' | 'Brake Linings' | 'Springs' | 'Raw Material'
 }
 
-export type SpecializedSheetType =
-  | 'sales_quickbooks_v2'  // QuickBooks accordion export
-  | 'springs_master'        // SPRINGS LIST sheet → Product master
-  | 'ubolt_master'          // U BOLT LIST sheet → Product master
-  | 'consumables_stock'     // Mombasa/Nairobi stock files
-  | 'unknown'
+export interface SaleTransactionPayload {
+  product_name: string
+  quantity: number
+  transaction_date: string
+  invoice_number: string | null
+  customer_name: string | null
+  location: 'Mombasa' | 'Nairobi'
+}
 
-export async function detectFile(file: File): Promise<FileDetection> {
-  const buffer = await file.arrayBuffer()
-  const wb = XLSX.read(buffer, { type: 'array', cellDates: true })
-  const sheetNames = wb.SheetNames
+export interface StockInPayload {
+  product_name: string
+  quantity: number
+  transaction_date: string
+  reference_memo: string | null
+  location: 'Mombasa' | 'Nairobi'
+}
 
-  // Hint 1: Springs master sheet — multi-sheet file containing "SPRINGS LIST"
-  if (sheetNames.includes('SPRINGS LIST')) {
-    return {
-      recommendedSheetType: 'springs_master',
-      sheetNames,
-      reason: 'Found SPRINGS LIST sheet — this looks like the springs master catalogue',
+export interface ParsedWorkbookResult {
+  products: ProductPayload[]
+  sales: SaleTransactionPayload[]
+  purchases: StockInPayload[]
+}
+
+export function parseAllWorkbooksUnified(
+  workbook: XLSX.WorkBook,
+  location: 'Mombasa' | 'Nairobi'
+): ParsedWorkbookResult {
+  const result: ParsedWorkbookResult = { products: [], sales: [], purchases: [] }
+
+  for (const sheetName of workbook.SheetNames) {
+    const upperName = sheetName.toUpperCase()
+    const sheet = workbook.Sheets[sheetName]
+    const rows = XLSX.utils.sheet_to_json<any[]>(sheet, { header: 1, defval: null })
+
+    let category: ProductPayload['category'] = 'Trailer Parts'
+    if (upperName.includes('CONSUMABLE')) category = 'Consumables'
+    else if (upperName.includes('BRAKE')) category = 'Brake Linings'
+    else if (upperName.includes('SPRING') || upperName.includes('FINISHED')) category = 'Springs'
+    else if (upperName.includes('RAW') || upperName.includes('BAR')) category = 'Raw Material'
+
+    let headerRowIndex = -1
+    const map = {
+      inDate: -1, inItem: -1, inQty: -1,
+      outDate: -1, outItem: -1, outQty: -1,
+      balItem: -1, balOpStock: -1, balCurrentStock: -1, balUom: -1
     }
-  }
 
-  // Hint 2: U-bolt master
-  if (sheetNames.includes('U BOLT LIST')) {
-    return {
-      recommendedSheetType: 'ubolt_master',
-      sheetNames,
-      reason: 'Found U BOLT LIST sheet — this is the U-bolt master catalogue',
+    for (let i = 0; i < rows.length; i++) {
+      if (!rows[i]) continue
+      const rowNorm = rows[i].map((c: any) => String(c || '').trim().toUpperCase())
+
+      if ((rowNorm.includes('PRODUCT DESCRIPTION') || rowNorm.includes('PRODUCT DESCRIPTION3')) &&
+          (rowNorm.includes('QTY') || rowNorm.includes('BALANCE STOCK') || rowNorm.includes('B. STOCK'))) {
+        headerRowIndex = i
+        rowNorm.forEach((cell: string, idx: number) => {
+          if (cell === 'DATE' && map.inDate === -1) map.inDate = idx
+          if ((cell === 'PRODUCT DESCRIPTION' || cell === 'PRODUCT DESCRIPTION2') && map.inItem === -1) map.inItem = idx
+          if ((cell === 'QTY' || cell === 'QUANTITY') && map.inQty === -1) map.inQty = idx
+
+          if (cell === 'DATE' && map.inDate !== -1 && idx > map.inDate) map.outDate = idx
+          if ((cell === 'PRODUCT DESCRIPTION' || cell === 'PRODUCT DESCRIPTION2') && map.inItem !== -1 && idx > map.inItem) map.outItem = idx
+          if ((cell === 'QTY' || cell === 'QTY2' || cell === 'QUANTITY2') && map.inQty !== -1 && idx > map.inQty) map.outQty = idx
+
+          if ((cell === 'PRODUCT DESCRIPTION' || cell === 'PRODUCT DESCRIPTION3') && idx > map.outItem) map.balItem = idx
+          if (cell === 'OP. STOCK' || cell === 'OPENING STOCK' || cell === 'OP STOCK') map.balOpStock = idx
+          if (cell === 'BALANCE STOCK' || cell === 'CURRENT BALANCE' || cell === 'B. STOCK') map.balCurrentStock = idx
+          if (cell === 'UOM' || cell === 'U/M') map.balUom = idx
+        })
+        break
+      }
     }
-  }
 
-  // Hint 3: Consumables stock — has "IN-OUT" sheets
-  if (sheetNames.some((s) => s.toUpperCase().includes('IN-OUT'))) {
-    return {
-      recommendedSheetType: 'consumables_stock',
-      sheetNames,
-      reason: 'Found "IN-OUT" sheets — this is a branch consumables stock file',
-    }
-  }
+    if (headerRowIndex !== -1) {
+      for (let i = headerRowIndex + 1; i < rows.length; i++) {
+        const row = rows[i]
+        if (!row || row.length === 0) continue
 
-  // Hint 4: QuickBooks export — single sheet, check for the row-1 pattern
-  if (sheetNames.length === 1) {
-    const ws = wb.Sheets[sheetNames[0]]
-    const firstRow = XLSX.utils.sheet_to_json<unknown[]>(ws, {
-      header: 1,
-      range: 0,
-      blankrows: false,
-    })[0]
-    if (firstRow && Array.isArray(firstRow)) {
-      // Check if "Type" and "Memo" appear in the expected scattered columns
-      const hasQbStructure =
-        toStr(firstRow[7]) === 'Type' &&
-        toStr(firstRow[13]) === 'Memo'
-      if (hasQbStructure) {
-        return {
-          recommendedSheetType: 'sales_quickbooks_v2',
-          sheetNames,
-          reason: 'Detected QuickBooks sales export format',
+        if (row[map.inItem] && String(row[map.inItem]).trim() !== '') {
+          result.purchases.push({
+            product_name: String(row[map.inItem]).trim(),
+            quantity: Number(row[map.inQty]) || 0,
+            transaction_date: row[map.inDate] ? new Date(row[map.inDate]).toISOString() : new Date().toISOString(),
+            reference_memo: `Inbound Ledger entry on sheet: ${sheetName}`,
+            location
+          })
+        }
+
+        if (row[map.outItem] && String(row[map.outItem]).trim() !== '') {
+          result.sales.push({
+            product_name: String(row[map.outItem]).trim(),
+            quantity: Number(row[map.outQty]) || 0,
+            transaction_date: row[map.outDate] ? new Date(row[map.outDate]).toISOString() : new Date().toISOString(),
+            invoice_number: row[map.outDate + 1] ? String(row[map.outDate + 1]) : null,
+            customer_name: row[map.outDate + 2] ? String(row[map.outDate + 2]) : null,
+            location
+          })
+        }
+
+        const balItemName = row[map.balItem]
+        if (balItemName && String(balItemName).trim() !== '' &&
+            !['CONSUMABLES', 'DOLL', 'SPRINGTECH'].includes(String(balItemName).toUpperCase())) {
+          result.products.push({
+            name: String(balItemName).trim(),
+            uom: row[map.balUom] ? String(row[map.balUom]).trim() : 'Pcs',
+            opening_stock: Number(row[map.balOpStock]) || 0,
+            current_stock: Number(row[map.balCurrentStock]) || 0,
+            location,
+            category
+          })
         }
       }
     }
   }
 
-  return {
-    recommendedSheetType: 'unknown',
-    sheetNames,
-    reason: 'Could not auto-detect format — pick the closest match manually',
-  }
-=======
->>>>>>> 67b50c242752acb2edbf7c42ea15ef3cd4b7f0d6
+  return result
 }

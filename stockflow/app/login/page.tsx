@@ -1,31 +1,24 @@
 "use client";
 
-import { useState } from 'react';
+import { type FormEvent, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { signIn, signUp } from '@/actions/auth';
+import { signIn } from '@/actions/auth';
 
 export default function LoginPage() {
-  const [isLogin, setIsLogin] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
   const router = useRouter();
 
-  async function handleSubmit(formData: FormData) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
     setError(null);
-    setMessage(null);
     try {
-      const action = isLogin ? signIn : signUp;
-      const res = await action(formData);
+      const formData = new FormData(event.currentTarget);
+      const res = await signIn(formData);
       if (res?.error) {
         setError(res.error);
         return;
       }
-      if (res && "message" in res && res.message) {
-        setMessage(res.message);
-        setIsLogin(true);
-        return;
-      }
-      if (res?.success) {
+      if (res && typeof res === 'object' && 'success' in res && res.success === true) {
         // Success - wait a moment for session to be established, then redirect
         setTimeout(() => {
           router.push('/dashboard');
@@ -77,7 +70,7 @@ export default function LoginPage() {
           </div>
         </div>
 
-        <form action={handleSubmit}>
+        <form onSubmit={handleSubmit}>
           {error && (
             <div style={{
               background: 'rgba(224, 85, 85, 0.15)',
@@ -91,49 +84,6 @@ export default function LoginPage() {
               {error}
             </div>
           )}
-
-          {message && (
-            <div style={{
-              background: 'rgba(46, 196, 160, 0.15)',
-              color: 'var(--teal)',
-              padding: '12px',
-              borderRadius: 'var(--radius-small)',
-              marginBottom: '16px',
-              fontSize: '14px',
-              border: '1px solid rgba(46, 196, 160, 0.3)'
-            }}>
-              {message}
-            </div>
-          )}
-
-           {!isLogin && (
-             <>
-               <div className="form-group" style={{ marginBottom: '16px' }}>
-                 <label className="form-label">Full Name</label>
-                 <input
-                   type="text"
-                   name="name"
-                   className="form-input"
-                   placeholder="e.g. Jane Doe"
-                   required
-                 />
-               </div>
-
-               <div className="form-group" style={{ marginBottom: '16px' }}>
-                 <label className="form-label">Branch</label>
-                 <select
-                   name="branch"
-                   className="form-input"
-                   required
-                 >
-                   <option value="">Select a branch</option>
-                   <option value="mombasa">Mombasa HQ — Production + main store</option>
-                   <option value="nairobi">Nairobi — Retail branch</option>
-                   <option value="bonje">Bonje — Retail branch</option>
-                 </select>
-               </div>
-             </>
-           )}
 
           <div className="form-group" style={{ marginBottom: '16px' }}>
             <label className="form-label">Email</label>
@@ -162,30 +112,26 @@ export default function LoginPage() {
             className="btn btn-primary"
             style={{ width: '100%', marginBottom: '16px' }}
           >
-            {isLogin ? 'Sign In' : 'Sign Up'}
+            Sign In
           </button>
         </form>
 
         <div style={{ textAlign: 'center', marginTop: '16px' }}>
-          <button
-            type="button"
-            onClick={() => {
-              setIsLogin(!isLogin);
-              setError(null);
-              setMessage(null);
-            }}
+          <a
+            href="/signup"
             className="btn btn-secondary"
             style={{
               background: 'transparent',
               border: 'none',
               padding: '8px 16px',
-              fontSize: '14px'
+              fontSize: '14px',
+              color: 'var(--text-muted)',
+              textDecoration: 'none',
+              display: 'inline-block',
             }}
           >
-            {isLogin
-              ? "Don't have an account? Sign up"
-              : "Already have an account? Sign in"}
-          </button>
+            Register a new organization
+          </a>
         </div>
       </div>
     </div>

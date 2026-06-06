@@ -17,8 +17,8 @@ export function normalizeUserRole(role: unknown): UserRole {
 export const ROLE_PATHS: Record<UserRole, string> = {
   PENDING: '/dashboard',
   ADMIN: '/admin/dashboard',
-  MANAGER: '/manager',
-  OPERATOR: '/operator',
+  MANAGER: '/dashboard',
+  OPERATOR: '/dashboard',
   SALES: '/sales',
   PACKAGING: '/packaging',
   WAREHOUSE: '/warehouse',

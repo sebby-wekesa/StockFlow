@@ -1,10 +1,14 @@
-import { prisma } from "@/lib/prisma"
+import { getTenantPrisma } from "@/lib/tenant-prisma"
+import { requireActiveAuth } from "@/lib/auth"
 import DesignsClient from "./DesignsClient";
 
 export const dynamic = 'force-dynamic';
 
 export default async function DesignsPage() {
-  const designs = await prisma.design.findMany({
+  const user = await requireActiveAuth();
+  const db = getTenantPrisma(user.organizationId);
+
+  const designs = await db.design.findMany({
     include: {
       stages: {
         orderBy: { sequence: 'asc' }
@@ -13,5 +17,18 @@ export default async function DesignsPage() {
     orderBy: { createdAt: 'desc' }
   });
 
-  return <DesignsClient designs={designs} />;
+  const plainDesigns = designs.map((design) => ({
+    ...design,
+    targetWeight: design.targetWeight == null ? null : Number(design.targetWeight),
+    createdAt: design.createdAt.toISOString(),
+    updatedAt: design.updatedAt.toISOString(),
+    lastSeenAt: design.lastSeenAt?.toISOString() ?? null,
+    stages: design.stages.map((stage) => ({
+      ...stage,
+      createdAt: stage.createdAt.toISOString(),
+      updatedAt: stage.updatedAt.toISOString(),
+    })),
+  }));
+
+  return <DesignsClient designs={plainDesigns} />;
 }

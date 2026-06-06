@@ -17,8 +17,12 @@ interface RecentDelivery {
   material: {
     materialName: string;
     diameter: string;
+    length: string;
+    width: string;
+    height: string;
   };
   kgReceived: number;
+  piecesReceived: number;
   createdAt: string;
 }
 
@@ -26,7 +30,11 @@ interface LowStockItem {
   id: string;
   materialName: string;
   diameter: string;
+  length: string;
+  width: string;
+  height: string;
   availableKg: number;
+  availablePieces: number;
 }
 
 export default function WarehousePage() {
@@ -46,6 +54,10 @@ export default function WarehousePage() {
       try {
         // Fetch stats
         const statsResponse = await fetch('/api/warehouse/stats');
+        if (statsResponse.status === 401) {
+          router.push('/login');
+          return;
+        }
         if (statsResponse.ok) {
           const statsData = await statsResponse.json();
           setStats(statsData);
@@ -53,6 +65,10 @@ export default function WarehousePage() {
 
         // Fetch recent deliveries
         const deliveriesResponse = await fetch('/api/warehouse/recent-deliveries');
+        if (deliveriesResponse.status === 401) {
+          router.push('/login');
+          return;
+        }
         if (deliveriesResponse.ok) {
           const deliveriesData = await deliveriesResponse.json();
           setRecentDeliveries(deliveriesData);
@@ -60,6 +76,10 @@ export default function WarehousePage() {
 
         // Fetch low stock alerts
         const lowStockResponse = await fetch('/api/warehouse/low-stock');
+        if (lowStockResponse.status === 401) {
+          router.push('/login');
+          return;
+        }
         if (lowStockResponse.ok) {
           const lowStockData = await lowStockResponse.json();
           setLowStockAlerts(lowStockData);
@@ -72,7 +92,7 @@ export default function WarehousePage() {
     };
 
     fetchWarehouseData();
-  }, []);
+  }, [router]);
 
   return (
     <div>
@@ -99,12 +119,13 @@ export default function WarehousePage() {
           <div className="section-header mb-16"><div className="section-title">Receiving</div><Link href="/receive" className="btn btn-ghost btn-sm">Receive stock</Link></div>
           <div className="table-wrap">
             <table>
-              <thead><tr><th>Material</th><th>Kg received</th><th>Date</th></tr></thead>
+              <thead><tr><th>Material</th><th>Kg received</th><th>Pieces</th><th>Date</th></tr></thead>
               <tbody>
                 {recentDeliveries.slice(0, 4).map((delivery) => (
                   <tr key={delivery.id}>
-                    <td>{delivery.material.materialName} {delivery.material.diameter}</td>
+                    <td>{delivery.material.materialName} {delivery.material.diameter} · {delivery.material.length || "—"} L · {delivery.material.width || "—"} W/D · {delivery.material.height || "—"} H</td>
                     <td><span className="job-kg">{delivery.kgReceived} kg</span></td>
+                    <td>{delivery.piecesReceived}</td>
                     <td>{new Date(delivery.createdAt).toLocaleDateString()}</td>
                   </tr>
                 ))}
@@ -116,12 +137,13 @@ export default function WarehousePage() {
           <div className="section-header mb-16"><div className="section-title">Stock levels</div><Link href="/rawmaterials" className="btn btn-ghost btn-sm">View all</Link></div>
           <div className="table-wrap">
             <table>
-              <thead><tr><th>Material</th><th>Available</th><th>Status</th></tr></thead>
+              <thead><tr><th>Material</th><th>Available</th><th>Pieces</th><th>Status</th></tr></thead>
               <tbody>
                 {lowStockAlerts.slice(0, 4).map((item) => (
                   <tr key={item.id}>
-                    <td>{item.materialName} {item.diameter}</td>
+                    <td>{item.materialName} {item.diameter} · {item.length || "—"} L · {item.width || "—"} W/D · {item.height || "—"} H</td>
                     <td><span className="job-kg">{item.availableKg} kg</span></td>
+                    <td>{item.availablePieces}</td>
                     <td><span className={`badge ${item.availableKg < 100 ? 'badge-red' : 'badge-teal'}`}>{item.availableKg < 100 ? 'Low' : 'Good'}</span></td>
                   </tr>
                 ))}
@@ -153,11 +175,11 @@ export default function WarehousePage() {
                   <div>
                     <p className="font-medium" style={{color: 'var(--text)'}}>{item.materialName}</p>
                     <p className="text-sm" style={{color: 'var(--muted)'}}>
-                      Size: {item.diameter}
+                      Size: {item.diameter} · {item.length || "—"} L · {item.width || "—"} W/D · {item.height || "—"} H
                     </p>
                   </div>
                   <span className="badge badge-red">
-                    {item.availableKg} kg
+                    {item.availableKg} kg · {item.availablePieces} pcs
                   </span>
                 </div>
               ))}
@@ -186,11 +208,11 @@ export default function WarehousePage() {
                   <div>
                     <p className="font-medium" style={{color: 'var(--text)'}}>{delivery.material.materialName}</p>
                     <p className="text-sm" style={{color: 'var(--muted)'}}>
-                      {new Date(delivery.createdAt).toLocaleDateString()} · {delivery.material.diameter}
+                      {new Date(delivery.createdAt).toLocaleDateString()} · {delivery.material.diameter} · {delivery.material.length || "—"} L · {delivery.material.width || "—"} W/D · {delivery.material.height || "—"} H
                     </p>
                   </div>
                   <span className="badge badge-muted">
-                    {delivery.kgReceived} kg
+                    {delivery.kgReceived} kg · {delivery.piecesReceived} pcs
                   </span>
                 </div>
               ))}

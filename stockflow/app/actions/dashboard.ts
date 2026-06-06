@@ -1,11 +1,12 @@
 "use server";
 
 import { startOfDay, startOfWeek } from "date-fns";
-import { requireAuth } from "@/lib/auth";
+import { requireActiveAuth } from "@/lib/auth";
 import type { AuthUser, Role } from "@/lib/auth";
 import { revalidatePath } from 'next/cache';
-import { prisma } from '@/lib/prisma';
+import { getTenantPrisma } from '@/lib/tenant-prisma';
 import { Prisma, type Design, type ProductionOrder, type RawMaterial, type StageLog } from '@prisma/client';
+import { updateOrderStatus } from '@/app/actions/orders';
 
 interface Stat {
   label: string;
@@ -35,6 +36,27 @@ type StageLogWithOrder = StageLog & {
   ProductionOrder: ProductionOrder;
 }
 
+type FinishedGoodsAggregate = {
+  _sum: {
+    kgProduced: Prisma.Decimal | null;
+    quantity: number | null;
+  };
+};
+
+type PendingApproval = ProductionOrder & {
+  design: Design | null;
+};
+
+type ActiveProductionSummary = {
+  currentDept: string | null;
+  _count: {
+    _all: number;
+  };
+  _sum: {
+    targetKg: number | null;
+  };
+};
+
 function toNumber(value: Prisma.Decimal | number | null | undefined) {
   if (typeof value === "number") {
     return value;
@@ -43,8 +65,26 @@ function toNumber(value: Prisma.Decimal | number | null | undefined) {
   return value?.toNumber() ?? 0;
 }
 
+const DEFAULT_DASHBOARD_QUERY_BATCH_SIZE = 3;
+const MAX_DASHBOARD_QUERY_BATCH_SIZE = 10;
+
+function getDashboardQueryBatchSize(value: string | undefined) {
+  if (!value) return DEFAULT_DASHBOARD_QUERY_BATCH_SIZE;
+
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < 1) {
+    console.warn(
+      `Invalid DB_QUERY_BATCH_SIZE="${value}". Falling back to ${DEFAULT_DASHBOARD_QUERY_BATCH_SIZE}.`
+    );
+    return DEFAULT_DASHBOARD_QUERY_BATCH_SIZE;
+  }
+
+  return Math.min(Math.floor(parsed), MAX_DASHBOARD_QUERY_BATCH_SIZE);
+}
+
 export async function getDashboardStats(user?: AuthUser, role?: Role) {
-  const authUser = user || await requireAuth();
+  const authUser = user || await requireActiveAuth();
+  const db = getTenantPrisma(authUser.organizationId);
   const effectiveRole = role || authUser.role;
   const now = new Date();
   const weekStart = startOfWeek(now);
@@ -57,165 +97,128 @@ export async function getDashboardStats(user?: AuthUser, role?: Role) {
   const isWarehouse = effectiveRole === "WAREHOUSE";
   const isSales = effectiveRole === "SALES";
 
-  // 1. Raw Material Stock - Everyone can see, but Warehouse sees more detail
-  let materials: RawMaterial[] = []
-  try {
-    materials = await prisma.rawMaterial.findMany();
-  } catch (error) {
-    console.warn('Failed to fetch raw materials:', error)
-    materials = []
+  // 2. Active Orders - Filter based on role (compute the where clauses up front
+  //    so we can use them in the parallel fetch below)
+  let activeOrdersWhere: Prisma.ProductionOrderWhereInput = {};
+  let pendingApprovalsWhere: Prisma.ProductionOrderWhereInput = {};
+
+  if (isOperator) {
+    activeOrdersWhere = {
+      status: { in: ["APPROVED", "IN_PRODUCTION"] },
+      currentDept: authUser.department,
+    };
+    pendingApprovalsWhere = { status: "PENDING" };
+  } else if (isWarehouse) {
+    activeOrdersWhere = {};
+    pendingApprovalsWhere = {};
+  } else if (isSales) {
+    activeOrdersWhere = {};
+    pendingApprovalsWhere = {};
+  } else {
+    activeOrdersWhere = { status: { in: ["APPROVED", "IN_PRODUCTION"] } };
+    pendingApprovalsWhere = { status: "PENDING" };
   }
-  const rawMaterialStock = materials.reduce(
+
+  // 5. Recent Orders - Filter based on role
+  let recentOrdersWhere: Prisma.ProductionOrderWhereInput = {};
+  if (isOperator) {
+    recentOrdersWhere = { currentDept: authUser.department };
+  } else if (isWarehouse || isSales) {
+    recentOrdersWhere = {};
+  }
+
+  const fetchPendingApprovals = !isOperator && !isWarehouse && !isSales;
+  const fetchScrapAndDeptMetrics = isAdmin || isManager;
+  const fetchTodayThroughput = isAdmin || isManager || isOperator;
+  const fetchRecentOrders = !(isWarehouse || isSales);
+
+  // ─── PARALLEL FETCH ─────────────────────────────────────────────────────────
+  // Run independent queries in small batches to avoid bursting DB pooler
+  async function runBatches<T>(tasks: Array<() => Promise<T>>, batchSize = 3): Promise<T[]> {
+    const results: T[] = []
+    for (let i = 0; i < tasks.length; i += batchSize) {
+      const batch = tasks.slice(i, i + batchSize).map((fn) => fn())
+      const res = await Promise.all(batch)
+      results.push(...res)
+    }
+    return results
+  }
+
+  const queryTasks: Array<() => Promise<unknown>> = [
+    () => db.rawMaterial.findMany().catch((e) => { console.warn('Failed to fetch raw materials:', e); return [] as RawMaterial[]; }),
+    () => db.productionOrder.count({ where: activeOrdersWhere }).catch((e) => { console.warn('Failed to count active orders:', e); return 0; }),
+    () => (fetchPendingApprovals
+      ? db.productionOrder.count({ where: pendingApprovalsWhere }).catch((e) => { console.warn('Failed to count pending approvals:', e); return 0; })
+      : Promise.resolve(0)),
+    () => db.finishedGoods.aggregate({ _sum: { kgProduced: true, quantity: true } }).catch((e) => { console.warn('Failed to aggregate finished goods:', e); return { _sum: { kgProduced: null, quantity: null } }; }),
+    () => (fetchScrapAndDeptMetrics
+      ? db.stageLog.findMany({ where: { completedAt: { gte: weekStart } } }).catch((e) => { console.warn('Failed to fetch weekly logs:', e); return [] as StageLog[]; })
+      : Promise.resolve([] as StageLog[])),
+    () => (fetchRecentOrders
+      ? db.productionOrder.findMany({
+          take: 4,
+          where: recentOrdersWhere,
+          orderBy: { updatedAt: "desc" },
+          include: { design: true },
+        }).catch((e) => { console.warn('Failed to fetch recent orders:', e); return [] as (ProductionOrder & { design: Design })[]; })
+      : Promise.resolve([] as (ProductionOrder & { design: Design })[])),
+    () => (fetchTodayThroughput
+      ? db.stageLog.findMany({
+          where: {
+            completedAt: { gte: todayStart },
+            ...(isOperator && authUser.department ? { department: authUser.department } : {}),
+          },
+        }).catch((e) => { console.warn('Failed to fetch today logs:', e); return [] as StageLog[]; })
+      : Promise.resolve([] as StageLog[])),
+  ]
+
+  const [
+    materials,
+    activeOrdersCountRaw,
+    pendingApprovalsCountRaw,
+    finishedGoodsAggRaw,
+    weeklyLogsRaw,
+    recentOrdersRaw,
+    todayLogsRaw,
+  ] = await runBatches(queryTasks, getDashboardQueryBatchSize(process.env.DB_QUERY_BATCH_SIZE));
+
+  const materialsTyped = materials as RawMaterial[];
+  const activeOrdersCount = activeOrdersCountRaw as number;
+  const pendingApprovalsCount = pendingApprovalsCountRaw as number;
+  const finishedGoodsAgg = finishedGoodsAggRaw as FinishedGoodsAggregate;
+  const weeklyLogs = weeklyLogsRaw as StageLog[];
+  const recentOrders = recentOrdersRaw as (ProductionOrder & { design: Design })[];
+  const todayLogs = todayLogsRaw as StageLog[];
+
+  // 1. Raw Material totals (in-memory, no DB)
+  const rawMaterialStock = materialsTyped.reduce(
     (sum, m) => sum + toNumber(m.availableKg) + toNumber(m.reservedKg),
     0
   );
-  const totalFree = materials.reduce(
+  const totalFree = materialsTyped.reduce(
     (sum, m) => sum + toNumber(m.availableKg),
     0
   );
 
-  // 2. Active Orders - Filter based on role
-  let activeOrdersWhere: any = {};
-  let pendingApprovalsWhere: any = {};
-
-  if (isOperator) {
-    // Operators only see orders in their department
-    activeOrdersWhere = {
-      status: { in: ["APPROVED", "IN_PRODUCTION"] },
-      currentDept: authUser.department,
-    };
-    pendingApprovalsWhere = {
-      status: "PENDING",
-      // Operators don't see pending approvals
-    };
-  } else if (isWarehouse) {
-    // Warehouse staff only see basic counts, no order details
-    activeOrdersWhere = {};
-    pendingApprovalsWhere = {};
-  } else if (isSales) {
-    // Sales see minimal production info
-    activeOrdersWhere = {};
-    pendingApprovalsWhere = {};
-  } else {
-    // Admin/Manager see all
-    activeOrdersWhere = {
-      status: { in: ["APPROVED", "IN_PRODUCTION"] },
-    };
-    pendingApprovalsWhere = {
-      status: "PENDING",
-    };
-  }
-
-  let activeOrdersCount = 0
-  try {
-    activeOrdersCount = await prisma.productionOrder.count({
-      where: activeOrdersWhere,
-    });
-  } catch (error) {
-    console.warn('Failed to count active orders:', error)
-    activeOrdersCount = 0
-  }
-  let pendingApprovalsCount = isOperator || isWarehouse || isSales ? 0 : 0
-  if (!isOperator && !isWarehouse && !isSales) {
-    try {
-      pendingApprovalsCount = await prisma.productionOrder.count({
-        where: pendingApprovalsWhere,
-      });
-    } catch (error) {
-      console.warn('Failed to count pending approvals:', error)
-      pendingApprovalsCount = 0
+  // 3. Finished Goods totals (already aggregated above)
+  const finishedGoods = {
+    _sum: {
+      kgProduced: finishedGoodsAgg._sum.kgProduced?.toNumber() ?? null,
+      quantity: finishedGoodsAgg._sum.quantity ?? null,
     }
-  }
+  };
 
-  // 3. Finished Goods - Everyone can see basic counts
-  let finishedGoods: { _sum: { kgProduced: number | null, quantity: number | null } } = { _sum: { kgProduced: null, quantity: null } }
-  try {
-    const aggResult = await prisma.finishedGoods.aggregate({
-      _sum: {
-        kgProduced: true,
-        quantity: true,
-      },
-    });
-    finishedGoods = {
-      _sum: {
-        kgProduced: aggResult._sum.kgProduced?.toNumber() ?? null,
-        quantity: aggResult._sum.quantity ?? null,
-      }
-    };
-  } catch (error) {
-    console.warn('Failed to aggregate finished goods:', error)
-    finishedGoods = { _sum: { kgProduced: 0, quantity: 0 } }
-  }
-
-  // 4. Scrap This Week - Only Admin/Manager see scrap data
+  // 4. Scrap This Week (reuses weeklyLogs)
   let scrapThisWeek = 0;
-  if (isAdmin || isManager) {
-    let weeklyLogs: StageLog[] = []
-    try {
-      weeklyLogs = await prisma.stageLog.findMany({
-        where: {
-          completedAt: {
-            gte: weekStart,
-          },
-        },
-      });
-    } catch (error) {
-      console.warn('Failed to fetch weekly logs for scrap:', error)
-      weeklyLogs = []
-    }
+  if (fetchScrapAndDeptMetrics) {
     scrapThisWeek = weeklyLogs.reduce((sum, log) => sum + log.kgScrap.toNumber(), 0);
   }
 
-  // 5. Recent Orders - Filter based on role
-  let recentOrdersWhere: any = {};
-  if (isOperator) {
-    recentOrdersWhere = {
-      currentDept: authUser.department,
-    };
-  } else if (isWarehouse || isSales) {
-    // Warehouse and Sales see limited or no order details
-    recentOrdersWhere = {}; // Will return empty array below
-  }
-
-  let recentOrders: (ProductionOrder & { design: Design })[] = []
-  if (!(isWarehouse || isSales)) {
-    try {
-      recentOrders = await prisma.productionOrder.findMany({
-        take: 4,
-        where: recentOrdersWhere,
-        orderBy: {
-          updatedAt: "desc",
-        },
-        include: {
-          design: true,
-        },
-      });
-    } catch (error) {
-      console.warn('Failed to fetch recent orders:', error)
-      recentOrders = []
-    }
-  }
-
-  // 6. Department Metrics (Scrap & Throughput) - Only Admin/Manager see detailed metrics
+  // 6. Department Metrics — Scrap (reuses weeklyLogs again, no extra query)
   let departmentScrap: DepartmentScrap[] = [];
   let throughput: Throughput[] = [];
 
-  if (isAdmin || isManager) {
-    let weeklyLogs: StageLog[] = []
-    try {
-      weeklyLogs = await prisma.stageLog.findMany({
-        where: {
-          completedAt: {
-            gte: weekStart,
-          },
-        },
-      });
-    } catch (error) {
-      console.warn('Failed to fetch weekly logs for department scrap:', error)
-      weeklyLogs = []
-    }
-
-    // Group weekly logs by dept for scrap chart
+  if (fetchScrapAndDeptMetrics) {
     const deptScrapMap: Record<string, number> = {};
     weeklyLogs.forEach(log => {
       const dept = log.department || "Unknown";
@@ -229,23 +232,8 @@ export async function getDashboardStats(user?: AuthUser, role?: Role) {
     });
   }
 
-  if (isAdmin || isManager || isOperator) {
-    let todayLogs: StageLog[] = []
-    try {
-      todayLogs = await prisma.stageLog.findMany({
-        where: {
-          completedAt: {
-            gte: todayStart,
-          },
-          ...(isOperator && authUser.department ? { department: authUser.department } : {}),
-        },
-      });
-    } catch (error) {
-      console.warn('Failed to fetch today logs for throughput:', error)
-      todayLogs = []
-    }
-
-    // Group today's logs for throughput
+  // 7. Today's Throughput (uses todayLogs from the parallel fetch)
+  if (fetchTodayThroughput) {
     const throughputMap: Record<string, { dept: string; jobs: Set<string>; kg: number; scrap: number; ops: Set<string> }> = {};
     todayLogs.forEach(log => {
       const dept = log.department || "Unknown";
@@ -282,7 +270,7 @@ export async function getDashboardStats(user?: AuthUser, role?: Role) {
         label: 'Raw material stock',
         value: rawMaterialStock,
         suffix: 'kg',
-        sub: `${materials.length} materials · ${totalFree} kg free`,
+        sub: `${materialsTyped.length} materials · ${totalFree} kg free`,
         color: 'amber'
       },
       {
@@ -316,7 +304,7 @@ export async function getDashboardStats(user?: AuthUser, role?: Role) {
         label: 'Finished goods ready',
         value: finishedGoods._sum.kgProduced || 0,
         suffix: 'kg',
-        sub: `${finishedGoods._sum.quantity || 0} units available`,
+        sub: `${finishedGoods._sum.quantity || 0} kg available`,
         color: 'purple'
       },
       {
@@ -333,7 +321,7 @@ export async function getDashboardStats(user?: AuthUser, role?: Role) {
         label: 'Raw material stock',
         value: rawMaterialStock,
         suffix: 'kg',
-        sub: `${materials.length} materials · ${totalFree} kg free`,
+        sub: `${materialsTyped.length} materials · ${totalFree} kg free`,
         color: 'amber'
       },
       {
@@ -364,7 +352,7 @@ export async function getDashboardStats(user?: AuthUser, role?: Role) {
     stats,
     recentOrders: recentOrders.map(o => ({
       id: o.orderNumber,
-      design: o.design.name,
+      design: o.design?.name ?? o.productName ?? 'Direct order',
       kg: toNumber(o.targetKg),
       status: o.status === "PENDING" ? "Pending approval" :
               o.status === "APPROVED" || o.status === "IN_PRODUCTION" ? "In production" : "Complete",
@@ -377,32 +365,53 @@ export async function getDashboardStats(user?: AuthUser, role?: Role) {
   };
 }
 
+export async function approveOrder(orderId: string) {
+  const result = await updateOrderStatus(orderId, 'APPROVED');
+  if (!result.success) throw new Error(result.error);
+  revalidatePath('/manager');
+  revalidatePath('/dashboard');
+  revalidatePath('/approvals');
+  revalidatePath('/jobs');
+  revalidatePath('/admin/approvals');
+  return result;
+}
+
+// Server Action wrapper for <form action=> usage
+export async function approveOrderAction(formData: FormData) {
+  const orderId = String(formData.get('orderId') ?? '')
+  if (!orderId) throw new Error('Invalid order id')
+  await approveOrder(orderId)
+}
+
 export async function getManagerData() {
-  let pendingApprovals: any[] = []
+  const user = await requireActiveAuth();
+  const db = getTenantPrisma(user.organizationId);
+
+  let pendingApprovals: PendingApproval[] = []
   try {
-    pendingApprovals = await prisma.productionOrder.findMany({
+    pendingApprovals = await db.productionOrder.findMany({
       where: { status: 'PENDING' },
-      include: { Design: true },
+      include: { design: true },
     });
   } catch (error) {
     console.warn('Failed to fetch pending approvals:', error)
     pendingApprovals = []
   }
 
-  let activeProduction: { currentDept: string | null; _count: { _all: number } }[] = []
+  let activeProduction: ActiveProductionSummary[] = []
   try {
-    const activeOrders = await prisma.productionOrder.findMany({
+    const grouped = await db.productionOrder.groupBy({
+      by: ['currentDept'],
       where: { status: { in: ['APPROVED', 'IN_PRODUCTION'] } },
-      select: { currentDept: true },
+      _count: { _all: true },
+      _sum: { targetKg: true },
     });
-    const deptMap: Record<string, number> = {};
-    activeOrders.forEach(o => {
-      const dept = o.currentDept ?? 'Unknown';
-      deptMap[dept] = (deptMap[dept] || 0) + 1;
-    });
-    activeProduction = Object.entries(deptMap).map(([currentDept, count]) => ({
-      currentDept,
-      _count: { _all: count },
+    activeProduction = grouped.map(g => ({
+      currentDept: g.currentDept,
+      _count: g._count,
+      _sum: {
+        targetKg: g._sum.targetKg ? g._sum.targetKg.toNumber() : null,
+      },
     }));
   } catch (error) {
     console.warn('Failed to group active production:', error)
@@ -411,7 +420,7 @@ export async function getManagerData() {
 
   let allLogs: StageLogWithOrder[] = []
   try {
-    allLogs = await prisma.stageLog.findMany({
+    allLogs = await db.stageLog.findMany({
       where: { kgScrap: { gt: 0 } },
       include: { ProductionOrder: true },
     });
@@ -423,7 +432,7 @@ export async function getManagerData() {
 
   let totalActiveOrders = 0
   try {
-    totalActiveOrders = await prisma.productionOrder.count({
+    totalActiveOrders = await db.productionOrder.count({
       where: { status: { in: ['APPROVED', 'IN_PRODUCTION'] } },
     });
   } catch (error) {
@@ -433,7 +442,7 @@ export async function getManagerData() {
 
   let totalTonnageAgg: { _sum: { targetKg: number | null } } = { _sum: { targetKg: 0 } }
   try {
-    const aggResult = await prisma.productionOrder.aggregate({
+    const aggResult = await db.productionOrder.aggregate({
       where: { status: { in: ['APPROVED', 'IN_PRODUCTION'] } },
       _sum: { targetKg: true },
     });
@@ -457,83 +466,4 @@ export async function getManagerData() {
     totalTonnage: totalTonnageAgg._sum.targetKg || 0,
     pendingCount,
   };
-}
-
-export async function approveOrder(orderId: string) {
-  let order
-  try {
-    order = await prisma.productionOrder.findUnique({
-      where: { id: orderId },
-      include: {
-        Design: {
-          include: {
-            stages: {
-              orderBy: { sequence: 'asc' }
-            },
-            bomItems: {
-              include: { rawMaterial: true }
-            }
-          }
-        }
-      },
-    });
-  } catch (error) {
-    console.warn('Failed to find order:', error)
-    throw new Error('Database error: Could not find order')
-  }
-
-  if (!order || order.status !== 'PENDING') {
-    throw new Error('Invalid order');
-  }
-
-  if (!order.design.bomItems || order.design.bomItems.length === 0) {
-    throw new Error('No raw materials assigned to design');
-  }
-
-  const firstStage = order.design.stages[0];
-  if (!firstStage) {
-    throw new Error('Design has no production stages configured');
-  }
-
-  // For now, assume single raw material per design (take first BOM item)
-  const primaryBomItem = order.design.bomItems[0];
-  const plannedUnits =
-    order.design.targetWeight && order.design.targetWeight.gt(0)
-      ? order.targetKg.toNumber() / order.Design.targetWeight.toNumber()
-      : order.quantity;
-  const reserveQuantity = plannedUnits * primaryBomItem.quantity.toNumber();
-
-  let material
-  try {
-    material = await prisma.rawMaterial.findUnique({
-      where: { id: primaryBomItem.rawMaterialId },
-    });
-  } catch (error) {
-    console.warn('Failed to find raw material:', error)
-    throw new Error('Database error: Could not find raw material')
-  }
-
-  if (!material || material.availableKg.toNumber() < reserveQuantity) {
-    throw new Error('Insufficient stock');
-  }
-
-  await prisma.rawMaterial.update({
-    where: { id: material.id },
-    data: {
-      availableKg: material.availableKg.toNumber() - reserveQuantity,
-      reservedKg: material.reservedKg.toNumber() + reserveQuantity,
-    },
-  });
-
-  await prisma.productionOrder.update({
-    where: { id: orderId },
-    data: {
-      status: 'APPROVED',
-      approvedAt: new Date(),
-      currentStage: firstStage.sequence,
-      currentDept: firstStage.department,
-    },
-  });
-
-  revalidatePath('/manager');
 }

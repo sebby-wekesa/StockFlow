@@ -1,38 +1,59 @@
 import { redirect } from 'next/navigation'
-import { getUser } from '@/lib/auth'
-import { prisma } from '@/lib/prisma'
+import { requireActiveAuth } from '@/lib/auth'
+import { getTenantPrisma } from '@/lib/tenant-prisma'
 import { SalesForm } from '@/components/sales/SalesForm'
-import type { Branch } from '@prisma/client'
+import { normalizeBranchCode, type BranchCode as Branch } from '@/lib/branches'
 
 export const dynamic = 'force-dynamic';
 
 export default async function NewSalesPage() {
-  const user = await getUser()
-  if (!user) redirect('/login')
+  const user = await requireActiveAuth()
+  const db = getTenantPrisma(user.organizationId)
 
   // For now, assume user has branch
-  const userWithBranches = await prisma.user.findUnique({
-    where: { id: user.id },
-    include: { Branch: true }
-  })
+  const [userWithBranches, organizationBranches] = await Promise.all([
+    db.user.findUnique({ where: { id: user.id }, include: { Branch: true } }),
+    db.branch.findMany({ orderBy: { name: 'asc' }, select: { code: true, name: true } }),
+  ])
 
   if (!userWithBranches) redirect('/login')
 
-  const allowedBranches = user.role === 'admin'
-    ? (['mombasa', 'nairobi', 'bonje'] as Branch[])
-    : (userWithBranches.Branch ? [userWithBranches.Branch.id as Branch] : [])
+  const databaseBranches = organizationBranches
+    .map((branch) => normalizeBranchCode(branch.code, branch.name))
+    .filter((branch): branch is Branch => branch !== null)
+
+  const assignedBranch = normalizeBranchCode(userWithBranches.Branch?.code, userWithBranches.Branch?.name)
+  const allowedBranches = (user.role === 'ADMIN' || user.role === 'MANAGER')
+    ? Array.from(new Set(databaseBranches))
+    : assignedBranch
+      ? [assignedBranch]
+      : []
 
   const defaultBranch = allowedBranches[0]
 
-  return (
-    <div>
-      <div className="mb-6">
-        <h1 className="font-head text-2xl font-bold">New sales order</h1>
-        <p className="text-muted text-sm mt-1">
-          Create a new sales order and optionally invoice immediately
-        </p>
+  // Guard: user has no branch assigned
+  if (!defaultBranch) {
+    return (
+      <div className="sales-page">
+        <div className="operator-empty">
+          <div className="section-title">No branch assigned</div>
+          <p className="section-sub">
+          Your account is not linked to any branch. Please contact an administrator to assign you a branch before creating sales orders.
+          </p>
+        </div>
       </div>
+    )
+  }
 
+  return (
+    <div className="sales-page">
+      <div className="section-header mb-16">
+        <div>
+          <div className="section-title">New Sales Order</div>
+          <div className="section-sub">Create a draft or confirm an invoice from live product stock</div>
+        </div>
+        <span className="badge badge-teal">{allowedBranches.length} branch{allowedBranches.length === 1 ? '' : 'es'} available</span>
+      </div>
       <SalesForm allowedBranches={allowedBranches} defaultBranch={defaultBranch} />
     </div>
   )

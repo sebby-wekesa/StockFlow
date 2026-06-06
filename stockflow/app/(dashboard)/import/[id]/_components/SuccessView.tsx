@@ -1,19 +1,26 @@
 import Link from 'next/link'
-import { prisma } from '@/lib/prisma'
-import type { ImportBatch } from '@prisma/client'
+import { getTenantPrisma } from '@/lib/tenant-prisma'
+import { requireActiveAuth } from '@/lib/auth'
+import type { ImportBatch, ImportRow } from '@prisma/client'
 
 interface SuccessViewProps {
   batch: ImportBatch
 }
 
 export async function SuccessView({ batch }: SuccessViewProps) {
-  const rows = await prisma.importRow.findMany({
-    where: { batch_id: batch.id },
+  const user = await requireActiveAuth()
+  const db = getTenantPrisma(user.organizationId)
+
+  const rows = await db.importRow.findMany({
+    where: { 
+      batch_id: batch.id,
+      organizationId: user.organizationId 
+    },
   })
 
-  const written = rows.filter(r => r.resolved_product).length
-  const skipped = rows.filter(r => !r.resolved_product && !r.errors).length
-  const errors = rows.filter(r => r.errors).length
+  const written = rows.filter((r: ImportRow) => r.resolved_product).length
+  const skipped = rows.filter((r: ImportRow) => !r.resolved_product && !r.errors).length
+  const errors = rows.filter((r: ImportRow) => r.errors).length
 
   return (
     <div className="card p-8 text-center">

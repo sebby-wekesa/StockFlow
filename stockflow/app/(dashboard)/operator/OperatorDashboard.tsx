@@ -2,98 +2,248 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { getOperatorData } from "./actions";
-import { DepartmentQueue } from "@/components/DepartmentQueue";
-import { Factory, Terminal, Activity, Info } from "lucide-react";
+import { getOperatorQueue, getActiveDepartments, getOperatorHistory } from "@/app/actions/production";
+
+interface Job {
+  id: string;
+  orderNumber: string;
+  designName: string;
+  currentStage: number;
+  totalStages: number;
+  priority: string;
+  targetKg: number;
+  workDescription: string;
+  inheritedKg: number;
+}
+
+interface HistoryItem {
+  id: string;
+  orderNumber: string;
+  designName: string;
+  completedAt: string | Date;
+  kgIn: number;
+  kgOut: number;
+  kgScrap: number;
+  department: string;
+  stageName: string;
+}
 
 export default function OperatorDashboard() {
-  const [designs, setDesigns] = useState<any[]>([]);
+  const [departments, setDepartments] = useState<string[]>([]);
+  const [selectedDept, setSelectedDept] = useState<string>("");
+  const [jobs, setJobs] = useState<Job[]>([]);
+  const [history, setHistory] = useState<HistoryItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadingHistory, setLoadingHistory] = useState(true);
 
-  // In a real scenario, this comes from the logged-in user's profile
-  const userDept = "Cutting";
-
+  // Load departments
   useEffect(() => {
-    const fetchData = async () => {
-      const result = await getOperatorData();
-      if (result.success && result.data) {
-        setDesigns(result.data);
+    const load = async () => {
+      try {
+        const depts = await getActiveDepartments();
+        setDepartments(depts);
+        setSelectedDept("");
+      } catch {
+        setDepartments([]);
+        setSelectedDept("");
       }
     };
-    fetchData();
+    load();
+  }, []);
+
+  // Load queue when dept changes
+  useEffect(() => {
+    const loadJobs = async () => {
+      setLoading(true);
+      try {
+        const result = await getOperatorQueue(undefined, selectedDept || undefined);
+        setJobs(result || []);
+      } catch {
+        setJobs([]);
+      }
+      setLoading(false);
+    };
+    loadJobs();
+  }, [selectedDept]);
+
+  // Load history once
+  useEffect(() => {
+    const loadHistory = async () => {
+      setLoadingHistory(true);
+      try {
+        const result = await getOperatorHistory();
+        setHistory(result || []);
+      } catch {
+        setHistory([]);
+      }
+      setLoadingHistory(false);
+    };
+    loadHistory();
   }, []);
 
   return (
-    <div>
+    <div className="operator-page">
       <div className="section-header mb-16">
-        <div><div className="section-title">Operator — {userDept} Department</div><div className="section-sub">Process jobs and log production output</div></div>
+        <div>
+          <div className="section-title">Operator Dashboard</div>
+          <div className="section-sub">
+            Live station workload and your recent production output
+          </div>
+        </div>
+        <span className="badge badge-purple">{jobs.length} jobs ready</span>
       </div>
 
-      {/* Dashboard Stats */}
-      <div className="stats-grid">
+      <div className="stats-grid operator-stats">
         <div className="stat-card purple">
-          <div className="stat-label">Jobs in queue</div>
-          <div className="stat-value">3</div>
-          <div className="stat-sub">Ready for processing</div>
+          <div className="stat-label">Current queue</div>
+          <div className="stat-value">{jobs.length}</div>
+          <div className="stat-sub">{selectedDept || "All available work"}</div>
+        </div>
+        <div className="stat-card amber">
+          <div className="stat-label">Urgent work</div>
+          <div className="stat-value">{jobs.filter((job) => job.priority === "URGENT" || job.priority === "HIGH").length}</div>
+          <div className="stat-sub">High priority jobs</div>
         </div>
         <div className="stat-card teal">
-          <div className="stat-label">Today's output</div>
-          <div className="stat-value">340<span style={{fontSize:'14px',color:'var(--muted)'}}> kg</span></div>
-          <div className="stat-sub">Processed so far</div>
+          <div className="stat-label">Recent output</div>
+          <div className="stat-value">
+            {history.reduce((sum, item) => sum + Number(item.kgOut), 0).toFixed(1)}
+            <span className="stat-suffix">kg</span>
+          </div>
+          <div className="stat-sub">Last {history.length} completed stages</div>
         </div>
       </div>
 
-      {/* Active Queue */}
+      <div className="card mb-16">
+        <div className="section-header mb-16">
+          <div>
+            <div className="section-title">Current Station</div>
+            <div className="section-sub">View all available work or filter by station</div>
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={() => setSelectedDept("")}
+            className={`btn ${selectedDept === "" ? "btn-primary" : "btn-ghost"}`}
+          >
+            All available
+          </button>
+          {departments.map((dept) => (
+            <button
+              key={dept}
+              onClick={() => setSelectedDept(dept)}
+              className={`btn ${selectedDept === dept ? "btn-primary" : "btn-ghost"}`}
+            >
+              {dept}
+            </button>
+          ))}
+          {departments.length === 0 && (
+            <div className="text-sm text-muted">No active departments in the production queue.</div>
+          )}
+        </div>
+      </div>
+
+      <div className="card mb-16">
+        <div className="section-header mb-16">
+          <div>
+            <div className="section-title">{selectedDept || "Available Work"} Queue</div>
+            <div className="section-sub">Open a job to record production for its current stage</div>
+          </div>
+          <Link href="/operator_queue" className="btn btn-ghost btn-sm">View full queue →</Link>
+        </div>
+
+        {loading && (
+          <div className="p-8 text-center text-muted text-sm">Loading jobs...</div>
+        )}
+
+        {!loading && jobs.length > 0 && (
+          <div className="space-y-3">
+            {jobs.map((job) => {
+              const isUrgent = job.priority === "URGENT" || job.priority === "HIGH";
+              return (
+                <Link key={job.id} href={`/operator_log/${job.id}`} className="block">
+                  <div className={`operator-job ${isUrgent ? "urgent" : ""}`}>
+                    <div className="job-header">
+                      <span className="job-id">
+                        {job.orderNumber}
+                      </span>
+                      <span className={`badge ${isUrgent ? "badge-red" : "badge-amber"}`}>
+                        {isUrgent ? "Urgent" : "Ready"}
+                      </span>
+                    </div>
+                    <div className="operator-job-body">
+                      <div>
+                        <div className="job-design">{job.designName}</div>
+                        <div className="section-sub">{job.workDescription}</div>
+                      </div>
+                      <div className="operator-stage">
+                        <span>Stage</span>
+                        <strong>{job.currentStage}/{job.totalStages}</strong>
+                      </div>
+                    </div>
+                    <div className="job-meta operator-job-meta">
+                      <span>
+                        Received <span className="job-kg">{Number(job.inheritedKg).toFixed(1)} kg</span>
+                      </span>
+                      <span>Order target <strong>{Number(job.targetKg).toFixed(1)} kg</strong></span>
+                      <span className="operator-open">Open job →</span>
+                    </div>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        )}
+
+        {!loading && jobs.length === 0 && selectedDept && (
+          <div className="p-8 text-center">
+            <p className="text-muted text-sm">
+              No active jobs currently in the <strong>{selectedDept}</strong> department.
+            </p>
+          </div>
+        )}
+
+        {!loading && !selectedDept && (
+          <div className="p-8 text-center">
+            <p className="text-muted text-sm">No active jobs are currently available.</p>
+          </div>
+        )}
+      </div>
+
       <div className="card">
-        <div className="section-header mb-16"><div className="section-title">Job queue</div><div className="section-sub">Jobs ready for your department</div></div>
-        <DepartmentQueue userDept={userDept} />
-      </div>
+        <div className="section-header mb-16">
+          <div>
+            <div className="section-title">My Recent Output</div>
+            <div className="section-sub">Latest stages logged from the production database</div>
+          </div>
+          <Link href="/operator_history" className="btn btn-ghost btn-sm">View history →</Link>
+        </div>
 
-      {/* Log Output */}
-      <div className="card">
-        <div className="section-header mb-16"><div className="section-title">Log output</div><Link href="/operator_log" className="btn btn-ghost btn-sm">View full log</Link></div>
-        <div style={{background:'var(--surface2)',border:'1px solid var(--border)',borderRadius:'var(--radius)',padding:'18px'}}>
-          <div style={{fontSize:'13px',fontWeight:'600',marginBottom:'4px'}}>No active job</div>
-          <div style={{fontSize:'12px',color:'var(--muted)',marginBottom:'14px'}}>Select a job from the queue above to begin logging output</div>
-          <button className="btn btn-primary">Start new job</button>
-        </div>
-      </div>
+        {loadingHistory && <div className="p-6 text-center text-muted">Loading history...</div>}
 
-      {/* Operational Tip */}
-      <div style={{
-        background: 'rgba(74,158,255,0.1)',
-        border: '1px solid rgba(74,158,255,0.2)',
-        borderRadius: 'var(--radius)',
-        padding: '16px',
-        display: 'flex',
-        alignItems: 'flex-start',
-        gap: '12px'
-      }}>
-        <div style={{
-          padding: '6px',
-          background: 'rgba(74,158,255,0.2)',
-          borderRadius: 'var(--radius-sm)'
-        }}>
-          <Info style={{ color: 'var(--blue)' }} size={16} />
-        </div>
-        <div>
-          <h4 style={{
-            fontSize: '14px',
-            fontWeight: 700,
-            color: 'var(--blue)',
-            fontFamily: 'var(--font-head)',
-            marginBottom: '4px'
-          }}>
-            Station Tip
-          </h4>
-          <p style={{
-            fontSize: '13px',
-            color: 'var(--text)',
-            lineHeight: 1.5
-          }}>
-            Ensure all material weights are logged before completing a stage. Accurate "Kg Out" values
-            automatically update the target weight for the next department in the sequence.
-          </p>
-        </div>
+        {!loadingHistory && history.length === 0 && (
+          <div className="p-8 text-center text-muted text-sm">No completed work logged yet.</div>
+        )}
+
+        {!loadingHistory && history.length > 0 && (
+          <div className="table-wrap">
+            <table>
+              <thead><tr><th>Order</th><th>Design / stage</th><th>Department</th><th>Output</th><th>Scrap</th><th>Completed</th></tr></thead>
+              <tbody>
+                {history.slice(0, 8).map((item) => (
+                  <tr key={item.id}>
+                    <td><span className="job-id">{item.orderNumber}</span></td>
+                    <td><strong>{item.designName}</strong><div className="section-sub">{item.stageName}</div></td>
+                    <td><span className="badge badge-muted">{item.department}</span></td>
+                    <td><span className="job-kg">{Number(item.kgOut).toFixed(1)} kg</span></td>
+                    <td style={{ color: item.kgScrap > 0 ? "var(--red)" : "var(--muted)" }}>{Number(item.kgScrap).toFixed(1)} kg</td>
+                    <td className="section-sub">{new Date(item.completedAt).toLocaleDateString()}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   );

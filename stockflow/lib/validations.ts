@@ -15,18 +15,14 @@ export const stageCompletionSchema = z.object({
   kgIn: z.number().min(0, "kgIn cannot be negative"),
   kgOut: z.number().min(0, "kgOut cannot be negative"),
   kgScrap: z.number().min(0, "kgScrap cannot be negative"),
+  piecesIn: z.number().int().min(0, "piecesIn cannot be negative").optional(),
+  piecesOut: z.number().int().min(0, "piecesOut cannot be negative").optional(),
   operatorId: z.string().min(1, "Operator ID is required"),
   department: z.string().optional(),
   scrapReason: z.string().optional(),
   notes: z.string().optional(),
 }).refine(
   (data) => {
-    // Special rule for Electroplating: Output can be HIGHER than Input due to coatings
-    if (data.department === 'Electroplating') {
-      return (Number(data.kgOut) + Number(data.kgScrap)) >= Number(data.kgIn);
-    }
-    
-    // Standard rule: In = Out + Scrap
     const total = Number(data.kgOut) + Number(data.kgScrap);
     const balance = Math.abs(total - data.kgIn);
     return balance < 0.01; // Allow for slight rounding

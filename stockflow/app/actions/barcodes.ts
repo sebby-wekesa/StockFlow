@@ -1,17 +1,18 @@
 "use server";
 
-import { prisma } from "@/lib/prisma";
-import { requireAuth } from "@/lib/auth";
+import { getTenantPrisma } from "@/lib/tenant-prisma";
+import { requireActiveAuth } from "@/lib/auth";
 
 // Generate unique barcode for raw material batch
 export async function generateRawMaterialBarcode(materialId: string) {
-  const user = await requireAuth();
+  const user = await requireActiveAuth();
+  const db = getTenantPrisma(user.organizationId);
 
   if (user.role !== 'ADMIN' && user.role !== 'WAREHOUSE') {
     throw new Error('Unauthorized: Only admins and warehouse staff can generate barcodes');
   }
 
-  const material = await prisma.rawMaterial.findUnique({
+  const material = await db.rawMaterial.findUnique({
     where: { id: materialId }
   });
 
@@ -25,8 +26,8 @@ export async function generateRawMaterialBarcode(materialId: string) {
   const barcode = `RM-${material.materialName.replace(/\s+/g, '').toUpperCase().slice(0, 3)}-${timestamp}-${random}`;
 
   // Check if barcode already exists (very unlikely but good practice)
-  const existing = await prisma.rawMaterial.findUnique({
-    where: { barcode }
+  const existing = await db.rawMaterial.findUnique({
+    where: { organizationId_barcode: { organizationId: user.organizationId, barcode } }
   });
 
   if (existing) {
@@ -34,7 +35,7 @@ export async function generateRawMaterialBarcode(materialId: string) {
   }
 
   // Update material with barcode
-  const updatedMaterial = await prisma.rawMaterial.update({
+  const updatedMaterial = await db.rawMaterial.update({
     where: { id: materialId },
     data: {
       barcode,
@@ -51,15 +52,16 @@ export async function generateRawMaterialBarcode(materialId: string) {
 
 // Generate unique barcode for finished goods
 export async function generateFinishedGoodsBarcode(finishedGoodsId: string) {
-  const user = await requireAuth();
+  const user = await requireActiveAuth();
+  const db = getTenantPrisma(user.organizationId);
 
   if (user.role !== 'ADMIN' && user.role !== 'PACKAGING') {
     throw new Error('Unauthorized: Only admins and packaging staff can generate finished goods barcodes');
   }
 
-  const finishedGoods = await prisma.finishedGoods.findUnique({
+  const finishedGoods = await db.finishedGoods.findUnique({
     where: { id: finishedGoodsId },
-    include: { Design: true }
+    include: { design: true }
   });
 
   if (!finishedGoods) {
@@ -72,8 +74,8 @@ export async function generateFinishedGoodsBarcode(finishedGoodsId: string) {
   const barcode = `FG-${finishedGoods.design.code}-${finishedGoods.quantity}-${timestamp}-${random}`;
 
   // Check if barcode already exists
-  const existing = await prisma.finishedGoods.findUnique({
-    where: { barcode }
+  const existing = await db.finishedGoods.findUnique({
+    where: { organizationId_barcode: { organizationId: user.organizationId, barcode } }
   });
 
   if (existing) {
@@ -81,7 +83,7 @@ export async function generateFinishedGoodsBarcode(finishedGoodsId: string) {
   }
 
   // Update finished goods with barcode
-  const updatedFinishedGoods = await prisma.finishedGoods.update({
+  const updatedFinishedGoods = await db.finishedGoods.update({
     where: { id: finishedGoodsId },
     data: {
       barcode,
@@ -98,47 +100,52 @@ export async function generateFinishedGoodsBarcode(finishedGoodsId: string) {
 
 // Get barcode data for printing
 export async function getBarcodeData(barcode: string) {
-  const user = await requireAuth();
+  const user = await requireActiveAuth();
+  const db = getTenantPrisma(user.organizationId);
 
-  // Define a union type that encompasses both potential database results
-  let item:
-    | (Awaited<ReturnType<typeof prisma.rawMaterial.findUnique>> & { supplier: any })
-    | (Awaited<ReturnType<typeof prisma.finishedGoods.findUnique>> & { design: any })
-    | null = null;
-
-  // Try raw material first
-  item = await prisma.rawMaterial.findUnique({
-    where: { barcode },
-    include: { supplier: true }
+  // Try raw material first (tenant-scoped)
+  const rawMaterial = await db.rawMaterial.findUnique({
+    where: {
+      organizationId_barcode: {
+        organizationId: user.organizationId,
+        barcode,
+      },
+    },
+    include: { Supplier: true },
   });
 
-  if (item) {
+  if (rawMaterial) {
     return {
-      type: 'raw_material',
+      type: 'raw_material' as const,
       barcode,
-      batchNumber: item.batchNumber,
-      name: item.materialName,
-      details: `${item.diameter} - ${item.availableKg}kg available`,
-      supplier: item.supplier?.name || 'Unknown',
-      createdAt: item.createdAt
+      batchNumber: rawMaterial.batchNumber,
+      name: rawMaterial.materialName,
+      details: `${rawMaterial.diameter} - ${rawMaterial.availableKg}kg / ${rawMaterial.availablePieces} pcs available`,
+      supplier: rawMaterial.Supplier?.name || 'Unknown',
+      createdAt: rawMaterial.createdAt,
     };
   }
 
-  // Try finished goods
-  item = await prisma.finishedGoods.findUnique({
-    where: { barcode },
-    include: { Design: true }
+  // Try finished goods (tenant-scoped)
+  const finishedGood = await db.finishedGoods.findUnique({
+    where: {
+      organizationId_barcode: {
+        organizationId: user.organizationId,
+        barcode,
+      },
+    },
+    include: { design: true },
   });
 
-  if (item) {
+  if (finishedGood) {
     return {
-      type: 'finished_goods',
+      type: 'finished_goods' as const,
       barcode,
-      batchNumber: item.batchNumber,
-      name: item.design.name,
-      details: `${item.quantity} units - ${item.kgProduced}kg produced`,
-      designCode: item.design.code,
-      createdAt: item.createdAt
+      batchNumber: finishedGood.batchNumber,
+      name: finishedGood.design.name,
+      details: `${finishedGood.quantity} units - ${finishedGood.kgProduced}kg produced`,
+      designCode: finishedGood.design.code,
+      createdAt: finishedGood.createdAt,
     };
   }
 

@@ -1,6 +1,5 @@
-import { prisma } from "@/lib/prisma";
-import { redirect } from "next/navigation";
-import { getUser } from "@/lib/auth";
+import { getTenantPrisma } from "@/lib/tenant-prisma";
+import { requireActiveAuth } from "@/lib/auth";
 import { StageCompletionForm } from "@/components/StageCompletionForm";
 
 export const dynamic = 'force-dynamic';
@@ -8,14 +7,26 @@ export const dynamic = 'force-dynamic';
 export default async function JobPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   
-  const user = await getUser();
-  if (!user) redirect("/login");
+  const user = await requireActiveAuth();
+  const db = getTenantPrisma(user.organizationId);
 
-  const order = await prisma.productionOrder.findUnique({
+  const order = await db.productionOrder.findUnique({
     where: { id },
     include: {
-      Design: { include: { stages: { orderBy: { sequence: "asc" } } } },
-      logs: { orderBy: { sequence: "desc" } },
+      design: {
+        include: {
+          stages: {
+            orderBy: { sequence: "asc" }
+          }
+        }
+      },
+      StageLog: {
+        orderBy: { sequence: "desc" }
+      },
+      materials: {
+        include: { RawMaterial: true },
+        orderBy: { createdAt: "asc" },
+      },
     },
   });
 
@@ -23,8 +34,10 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
     return <div>Order not found</div>;
   }
 
-  const currentStage = order.Design.stages.find((s) => s.sequence === order.currentStage);
-  const lastLog = order.logs[0];
+  const currentStage = order.design?.stages.find((s) => s.sequence === order.currentStage);
+  const lastLog = order.StageLog[0];
+  const title = order.design?.name ?? order.productName ?? "Direct order";
+  const stageCount = order.design?.stages.length ?? 1;
 
   const statusColors: Record<string, string> = {
     PENDING: "bg-amber-100 text-amber-800",
@@ -38,7 +51,7 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-zinc-900">{order.Design.name}</h1>
+          <h1 className="text-2xl font-bold text-zinc-900">{title}</h1>
           <p className="text-zinc-500">Order #{order.id.slice(0, 8)}</p>
         </div>
         <span className={`px-3 py-1 text-sm font-medium rounded ${statusColors[order.status]}`}>
@@ -64,12 +77,32 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
         <div className="bg-white p-4 rounded-lg border border-zinc-200">
           <p className="text-xs font-medium text-zinc-500 uppercase">Progress</p>
           <p className="text-xl font-bold text-zinc-900">
-            {order.currentStage}/{order.Design.stages.length}
+            {order.design ? `${order.currentStage}/${stageCount}` : order.outputRecordedAt ? "Recorded" : "Awaiting output"}
           </p>
         </div>
       </div>
 
-      {order.status !== "COMPLETED" && currentStage && (
+      {!order.design && (
+        <div className="bg-white p-6 rounded-lg border border-zinc-200">
+          <h2 className="text-lg font-semibold text-zinc-900 mb-4">Direct order materials</h2>
+          <div className="space-y-2">
+            {order.materials.map((line) => (
+              <div key={line.id} className="flex items-center justify-between border border-zinc-100 rounded p-3">
+                <div>
+                  <div className="font-medium text-zinc-900">{line.RawMaterial.materialName}</div>
+                  <div className="text-sm text-zinc-500">
+                    {line.pieces} pcs planned · cut {line.cutLength?.toNumber?.() ?? "-"} · total {line.totalLength?.toNumber?.() ?? "-"}
+                  </div>
+                </div>
+                <span className="text-sm text-zinc-500">{line.RawMaterial.availableKg.toNumber().toFixed(2)} kg available</span>
+              </div>
+            ))}
+            {order.materials.length === 0 && <div className="text-sm text-zinc-500">No material lines recorded.</div>}
+          </div>
+        </div>
+      )}
+
+      {order.design && order.status !== "COMPLETED" && currentStage && (
         <div className="bg-white p-6 rounded-lg border border-zinc-200">
           <h2 className="text-lg font-semibold text-zinc-900 mb-4">
             Stage {order.currentStage}: {currentStage.name}
@@ -81,14 +114,14 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
             orderId={order.id}
             stageName={currentStage.name}
             sequence={order.currentStage}
-            stageCount={order.Design.stages.length}
+            stageCount={stageCount}
             operatorId={user.id}
             previousKgOut={lastLog?.kgOut?.toNumber()}
           />
         </div>
       )}
 
-      {order.logs.length > 0 && (
+      {order.StageLog.length > 0 && (
         <div className="bg-white rounded-lg border border-zinc-200 overflow-hidden">
           <h2 className="text-lg font-semibold text-zinc-900 p-4 border-b border-zinc-200">
             Production History
@@ -105,7 +138,7 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-200">
-              {order.logs.map((log) => {
+              {order.StageLog.map((log) => {
                 const kgInNum = log.kgIn.toNumber();
                 const kgOutNum = log.kgOut.toNumber();
                 const kgScrapNum = log.kgScrap.toNumber();

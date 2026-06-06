@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { X, ShoppingCart, Ship, Package, DollarSign, Hash, Truck, FileText, CheckCircle, AlertCircle } from "lucide-react";
 
 type Origin = "LOCAL_PURCHASE" | "IMPORTED";
-type UOM = "PCS" | "KGS";
+type UOM = "KG";
 
 interface ProductIntakeModalProps {
   open: boolean;
@@ -17,7 +17,7 @@ const MULTIPLIER = 1.25;
 export function ProductIntakeModal({ open, onClose, onSuccess }: ProductIntakeModalProps) {
   const [origin, setOrigin] = useState<Origin>("LOCAL_PURCHASE");
   const [name, setName] = useState("");
-  const [uom, setUom] = useState<UOM>("PCS");
+  const [uom, setUom] = useState<UOM>("KG");
   const [quantity, setQuantity] = useState("");
   const [unitCost, setUnitCost] = useState("");
   const [landingCost, setLandingCost] = useState("");
@@ -26,14 +26,8 @@ export function ProductIntakeModal({ open, onClose, onSuccess }: ProductIntakeMo
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState<{ type: "success" | "error"; msg: string } | null>(null);
 
-  // Auto-compute landing cost for imported
-  // Reset when origin changes
-  useEffect(() => {
-    if (origin === "LOCAL_PURCHASE") setLandingCost("");
-  }, [origin]);
-
   function resetForm() {
-    setName(""); setUom("PCS"); setQuantity("");
+    setName(""); setUom("KG"); setQuantity("");
     setUnitCost(""); setLandingCost(""); setVendor(""); setReference("");
   }
 
@@ -55,7 +49,9 @@ export function ProductIntakeModal({ open, onClose, onSuccess }: ProductIntakeMo
           uom,
           quantity: parseFloat(quantity),
           unitCost: unitCost ? parseFloat(unitCost) : undefined,
-          landingCost: origin === "IMPORTED" && landingCost ? parseFloat(landingCost) : undefined,
+          landingCost: origin === "IMPORTED"
+            ? parseFloat(landingCost || String((parseFloat(unitCost || "0") * MULTIPLIER).toFixed(2)))
+            : undefined,
           vendor: vendor.trim() || undefined,
           reference: reference.trim() || undefined,
         }),
@@ -122,7 +118,10 @@ export function ProductIntakeModal({ open, onClose, onSuccess }: ProductIntakeMo
             <button
               key={val}
               type="button"
-              onClick={() => setOrigin(val)}
+              onClick={() => {
+                setOrigin(val);
+                if (val === "LOCAL_PURCHASE") setLandingCost("");
+              }}
               style={{
                 display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
                 padding: "10px 16px", borderRadius: 8, border: "none", cursor: "pointer",
@@ -149,7 +148,7 @@ export function ProductIntakeModal({ open, onClose, onSuccess }: ProductIntakeMo
             </label>
             <input
               className="form-input"
-              placeholder={isImported ? "e.g. M12 Hex Bolts (ISO)" : "e.g. Long Nuts 500mm"}
+              placeholder={isImported ? "Imported item name" : "Local item name"}
               value={name}
               onChange={(e) => setName(e.target.value)}
               required
@@ -183,8 +182,7 @@ export function ProductIntakeModal({ open, onClose, onSuccess }: ProductIntakeMo
                 value={uom}
                 onChange={(e) => setUom(e.target.value as UOM)}
               >
-                <option value="PCS">PCS</option>
-                <option value="KGS">KGS</option>
+                <option value="KG">KG</option>
               </select>
             </div>
           </div>
@@ -238,7 +236,7 @@ export function ProductIntakeModal({ open, onClose, onSuccess }: ProductIntakeMo
             </label>
             <input
               className="form-input"
-              placeholder={isImported ? "e.g. Nairobi Clearing Co." : "e.g. Jua Kali Supplies Ltd"}
+              placeholder={isImported ? "Importer or clearing agent" : "Vendor or supplier"}
               value={vendor}
               onChange={(e) => setVendor(e.target.value)}
             />
@@ -252,7 +250,7 @@ export function ProductIntakeModal({ open, onClose, onSuccess }: ProductIntakeMo
             </label>
             <input
               className="form-input"
-              placeholder="e.g. GRN-2026-0041"
+              placeholder="GRN or invoice reference"
               value={reference}
               onChange={(e) => setReference(e.target.value)}
             />
